@@ -1,0 +1,29 @@
+name: Publish to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sites/**'
+      - 'tools/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Build Branch A (dependency-free)
+        run: node scripts/build-site.mjs branch-a
+      - name: Build Branch B graduated clusters (if any)
+        run: |
+          for d in sites/branch-b/graduated/*/; do
+            [ -d "$d" ] || continue
+            node scripts/build-site.mjs "$d"
+          done
+          echo "Done (no graduated clusters yet is fine)."
+      # Preferred free path: Cloudflare Pages git integration (dashboard-configured)
+      # with build command `node scripts/build-site.mjs branch-a` and output dir
+      # `sites/branch-a/dist`. Zero Actions minutes. This workflow is the fallback.
+      # Each graduated cluster gets its own Pages project.

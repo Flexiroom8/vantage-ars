@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Aegis",
+      "hasCanvas": false,
+      "bodyTextLen": 1317,
+      "bodyTextHash": "3e4268a4ae49ac6ca1e38a67a958067453401732b3447a7cbf2390733e1b787c",
+      "bodyTextPrefix": "Aegis CONSTITUTIONAL RUNTIME Command Canon Fleet Ledger Range 14",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Aegis",
+      "hasCanvas": false,
+      "bodyTextLen": 1169,
+      "bodyTextHash": "57410607bb292153c4304bbc6878574a560fe12cadb59edbad353c161cb16934",
+      "bodyTextPrefix": "Aegis Halt NORTHWIND INDUSTRIAL · AUTONOMOUS PROCUREMENT Operati",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-preview.json"
+}

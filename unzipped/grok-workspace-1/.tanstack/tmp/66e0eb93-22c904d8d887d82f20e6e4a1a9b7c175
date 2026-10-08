@@ -1,0 +1,71 @@
+import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { DispatchPanel } from "@/components/office/dispatch-panel";
+import { EmptyState } from "@/components/office/empty-state";
+import { PageHeader } from "@/components/office/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { formatZar } from "@/lib/office/money";
+
+export const Route = createFileRoute("/office/sales")({
+  component: SalesPage,
+});
+
+const officeRoute = getRouteApi("/_office");
+
+function SalesPage() {
+  const snapshot = officeRoute.useLoaderData();
+  const stages = ["discovery", "proposal", "negotiation", "won", "lost"] as const;
+
+  return (
+    <div className="enter-up mx-auto max-w-6xl">
+      <PageHeader
+        kicker="Sales · CLOSE"
+        title="Pipeline only after you say so."
+        description="CLOSE cannot originate demand. It works approved handoffs. Winning or losing still returns to your desk."
+      />
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <DispatchPanel
+          lockedAgent="close"
+          placeholder="Advance an approved opportunity. Propose a close — do not close without the founder."
+        />
+        <Card>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted">Open pipeline</p>
+          <p className="mt-2 font-mono text-3xl tabular-nums">
+            {formatZar(snapshot.opportunities.filter((o) => o.stage !== "lost").reduce((s, o) => s + o.valueCents, 0))}
+          </p>
+          <p className="mt-1 text-sm text-muted">Won and in-flight value. Lost work is excluded.</p>
+        </Card>
+      </div>
+
+      {snapshot.opportunities.length === 0 ? (
+        <div className="mt-8">
+          <EmptyState
+            title="No sales work yet"
+            body="Marketing must qualify a company and you must approve the handoff before CLOSE may act."
+          />
+        </div>
+      ) : (
+        <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {stages.map((stage) => {
+            const items = snapshot.opportunities.filter((o) => o.stage === stage);
+            return (
+              <div key={stage} className="rounded-xl bg-surface p-3 shadow-[var(--shadow-border)]">
+                <p className="px-1 text-xs uppercase tracking-[0.16em] text-muted">{stage}</p>
+                <div className="mt-2 space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="rounded-md bg-raised p-3">
+                      <p className="text-sm">{item.companyName}</p>
+                      <p className="font-mono text-xs tabular-nums text-muted">{formatZar(item.valueCents)}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-subtle">{item.summary}</p>
+                    </div>
+                  ))}
+                  {items.length === 0 ? <p className="px-1 py-6 text-xs text-subtle">Empty</p> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,36 @@
+{
+  "url": "http://127.0.0.1:8080/office",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "Vantage-ARS",
+      "hasCanvas": false,
+      "bodyTextLen": 2006,
+      "bodyTextHash": "9ad29d99e007c186f0eaf1f3ce907b0dce374021b292c4d97e8746224668143d",
+      "bodyTextPrefix": "Vantage ARS Command Approvals Floor Inbox Catalogue Marketing Sa",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/office-preview.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "Vantage-ARS",
+      "hasCanvas": false,
+      "bodyTextLen": 1844,
+      "bodyTextHash": "0bbba6dd8922de323f6e403593e873a3e51069037f1f0b9d8f843960a220718d",
+      "bodyTextPrefix": "04 Oct 2026 · 15:14 SAST TREASURY R 0,00 COMMAND · JOHANNESBURG ",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/office-preview-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/office-preview.json"
+}

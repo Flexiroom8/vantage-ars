@@ -1,0 +1,16 @@
+{
+  "note": "Affiliate Ops owns this file. Statuses: proposed -> applied (CEO applied) -> approved (CEO approved) -> active (links live). Links are NEVER inserted for anything below approved.",
+  "programs": [
+    {
+      "name": "Placeholder - VoIP platform affiliate",
+      "network": "TBD (Awin / Impact / CJ / direct)",
+      "status": "proposed",
+      "sa_affiliate_eligible": null,
+      "commission": null,
+      "cookie_window_days": null,
+      "branches": ["branch-a"],
+      "notes": "Scout shortlists real candidates on the first run. Verify South African eligibility before proposing. Amazon Associates: verify current SA eligibility FIRST; default to Awin/Impact/CJ/direct SaaS.",
+      "link_format": null
+    }
+  ]
+}

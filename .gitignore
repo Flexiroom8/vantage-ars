@@ -1,0 +1,15 @@
+node_modules/
+data/*.json
+data/*.tmp
+.env
+.env.*
+coverage/
+
+# Added for GitHub upload
+**/node_modules/
+**/.codex-project/
+.wrangler/
+**/.wrangler/
+*.zip
+*.tar.gz
+**/.vercel/

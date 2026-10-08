@@ -1,0 +1,12 @@
+{
+  "name": "CLUSTER-NAME",
+  "tagline": "ONE-LINE WHAT THIS SITE PROMISES",
+  "domain": "PLACEHOLDER-SUBDOMAIN.pages.dev",
+  "cluster": {
+    "niche": "NICHE",
+    "proposed_date": "",
+    "approved_date": "",
+    "scoring_window_opens": "",
+    "status": "test"
+  }
+}

@@ -1,0 +1,31 @@
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { AppShell } from "@/components/layout/app-shell";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getOfficeSnapshot } from "@/lib/office/api";
+
+export const Route = createFileRoute("/office")({
+  loader: () => getOfficeSnapshot(),
+  component: OfficeLayout,
+  pendingComponent: OfficePending,
+});
+
+function OfficeLayout() {
+  const snapshot = Route.useLoaderData();
+  return (
+    <AppShell snapshot={snapshot}>
+      <Outlet />
+    </AppShell>
+  );
+}
+
+function OfficePending() {
+  return (
+    <div className="min-h-dvh bg-bg p-6">
+      <Skeleton className="h-14 w-full" />
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
+      </div>
+    </div>
+  );
+}

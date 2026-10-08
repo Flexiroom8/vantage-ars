@@ -1,0 +1,21 @@
+const events = [];
+const MAX = 500;
+
+export function observe(event, fields = {}) {
+  events.push({ at: new Date().toISOString(), event, ...fields });
+  if (events.length > MAX) events.splice(0, events.length - MAX);
+}
+
+export function recentEvents(limit = 50) {
+  return events.slice(-Math.max(1, Math.min(MAX, limit))).reverse();
+}
+
+export function counters() {
+  const o = {};
+  for (const e of events) o[e.event] = (o[e.event] || 0) + 1;
+  return o;
+}
+
+export function clearEvents() {
+  events.length = 0;
+}

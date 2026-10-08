@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VANTAGE // The Bridge</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070d; --panel:#0a0f1c; --panel2:#0d1526;
+  --neon:#00f0ff; --neon2:#ff2a6d; --neon3:#b6ff00; --dim:#5a6a85; --text:#d7e4ff;
+  --border:#1b2b45;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;
+  background-image:radial-gradient(ellipse at top,#0b1830 0%,transparent 55%),
+    linear-gradient(rgba(0,240,255,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,240,255,.035) 1px,transparent 1px);
+  background-size:100% 100%,40px 40px,40px 40px}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:22px}
+h1{font-family:'Orbitron',sans-serif;font-weight:900;letter-spacing:.12em;color:var(--neon);text-shadow:0 0 12px rgba(0,240,255,.6)}
+h1 small{color:var(--neon2);font-size:.5em;letter-spacing:.3em;display:block;text-shadow:0 0 8px rgba(255,42,109,.6)}
+.status{font-family:'Share Tech Mono',monospace;color:var(--neon3)}
+h2{font-family:'Orbitron',sans-serif;font-size:.85rem;letter-spacing:.2em;color:var(--dim);margin:30px 0 12px;border-left:3px solid var(--neon);padding-left:10px}
+.grid{display:grid;gap:14px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.kpi,.branch,.dq,.feed-item{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);border-radius:6px;padding:14px 16px;box-shadow:0 0 18px rgba(0,240,255,.05)}
+.kpi .num{font-family:'Orbitron',sans-serif;font-size:1.5rem;color:var(--neon);text-shadow:0 0 10px rgba(0,240,255,.5)}
+.kpi .lbl{font-size:.7rem;color:var(--dim);letter-spacing:.1em}
+.branch h3{font-family:'Orbitron',sans-serif;font-size:.9rem;color:var(--text);letter-spacing:.05em;margin-bottom:8px}
+.badge{display:inline-block;font-size:.65rem;padding:2px 8px;border-radius:3px;letter-spacing:.15em;font-family:'Share Tech Mono',monospace}
+.badge.active{color:var(--neon);border:1px solid var(--neon)}
+.badge.growing{color:var(--neon3);border:1px solid var(--neon3)}
+.badge.maintenance{color:var(--neon2);border:1px solid var(--neon2)}
+.badge.test{color:#ffd300;border:1px solid #ffd300}
+.mrow{display:flex;justify-content:space-between;font-size:.75rem;padding:3px 0;border-bottom:1px dashed var(--border)}
+.mrow span:last-child{color:var(--neon)}
+.dq{border-left:3px solid var(--neon2)}
+.dq .type{font-size:.65rem;color:var(--neon2);letter-spacing:.15em}
+.dq h4{font-size:.85rem;margin:6px 0}
+.dq .detail{font-size:.75rem;color:var(--dim)}
+button{background:transparent;border:1px solid var(--neon);color:var(--neon);font-family:'Share Tech Mono',monospace;padding:10px 22px;border-radius:4px;cursor:pointer;letter-spacing:.15em;text-transform:uppercase;font-size:.8rem;transition:.2s}
+button:hover{background:var(--neon);color:#000;box-shadow:0 0 18px rgba(0,240,255,.7)}
+.feed-item{font-size:.78rem;padding:10px 14px}
+.feed-item .who{color:var(--neon3)}
+.feed-item .when{color:var(--dim);font-size:.65rem}
+.empty{color:var(--dim);font-size:.75rem;font-style:italic}
+.cluster{font-size:.7rem;color:#ffd300;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>VANTAGE<small>AUTONOMOUS REVENUE ENGINE</small></h1>
+    <div class="status" id="status-line">...</div>
+  </header>
+
+  <h2>COMMAND SUMMARY</h2>
+  <div class="grid kpis" id="kpis"></div>
+
+  <h2>BRANCH CARDS</h2>
+  <div class="grid cards" id="branches"></div>
+
+  <h2>DECISION QUEUE - NEEDS CEO INPUT</h2>
+  <div class="grid" id="queue"></div>
+
+  <h2>ACTIVITY FEED</h2>
+  <div class="grid" id="feed"></div>
+
+  <h2>REPORT</h2>
+  <button onclick="exportReport()">[dl] Export weekly report</button>
+  <p id="report-out" style="margin-top:12px"></p>
+</div>
+
+<script>
+const fmt = n => 'R' + Number(n||0).toLocaleString('en-ZA');
+let D = null;
+async function load(){
+  try{
+    const r = await fetch('data.json'); D = await r.json();
+  }catch(e){
+    D = null; document.getElementById('status-line').textContent = 'NO DATA - put data.json next to index.html';
+    return;
+  }
+  document.getElementById('status-line').textContent = D.status_line || '';
+  document.getElementById('kpis').innerHTML = [
+    ['THIS WEEK', fmt(D.revenue.this_week)],
+    ['THIS MONTH', fmt(D.revenue.this_month)],
+    ['ALL-TIME', fmt(D.revenue.all_time)],
+    ['DECISIONS PENDING', (D.decision_queue||[]).filter(q=>q.status==='pending').length]
+  ].map(([l,n])=>`<div class="kpi"><div class="num">${n}</div><div class="lbl">${l}</div></div>`).join('');
+  document.getElementById('branches').innerHTML = Object.values(D.branches).map(b=>{
+    const clusters = (b.clusters||[]).map(c=>`<div class="cluster">- ${c.name} [${c.status}] score: ${c.score ?? '-'}</div>`).join('');
+    return `
+    <div class="branch">
+      <h3>${b.name}</h3>
+      <span class="badge ${b.mode}">${b.mode.toUpperCase()}</span>
+      <div class="mrow"><span>Traffic 30d</span><span>${b.metrics.traffic_30d}</span></div>
+      <div class="mrow"><span>Clicks 30d</span><span>${b.metrics.clicks_30d ?? '-'}</span></div>
+      <div class="mrow"><span>Conversions 30d</span><span>${b.metrics.conversions_30d ?? b.metrics.paid_conversions_30d}</span></div>
+      <div class="mrow"><span>Revenue 30d</span><span>${fmt(b.metrics.revenue_30d)}</span></div>
+      <div class="mrow"><span>Score</span><span>${b.score ?? '-'}</span></div>
+      <div class="mrow"><span>Quota</span><span>${b.quota.articles_per_week}/wk</span></div>
+      ${clusters}
+    </div>`;}).join('');
+  const q = (D.decision_queue||[]).filter(x=>x.status==='pending');
+  document.getElementById('queue').innerHTML = q.length ? q.map(x=>`
+    <div class="dq">
+      <div class="type">[${x.type}] <- ${x.from_agent}</div>
+      <h4>${x.title}</h4>
+      <div class="detail">${x.detail}</div>
+    </div>`).join('') : '<p class="empty">Nothing needs you. Good week.</p>';
+  document.getElementById('feed').innerHTML = (D.activity_feed||[]).slice(-12).reverse().map(a=>`
+    <div class="feed-item"><span class="who">${a.agent}</span> - ${a.what} <span class="when">${(a.when||'').slice(0,10)}</span></div>`).join('');
+}
+function exportReport(){
+  if(!D){ alert('No data loaded'); return; }
+  const q=(D.decision_queue||[]).filter(x=>x.status==='pending');
+  const rep =
+`VANTAGE WEEKLY REPORT - ${new Date().toISOString().slice(0,10)}
+
+REVENUE: ${fmt(D.revenue.this_week)} this week / ${fmt(D.revenue.this_month)} this month / ${fmt(D.revenue.all_time)} all-time (${D.revenue.currency ?? 'ZAR'})
+
+BRANCHES:
+${Object.values(D.branches).map(b=>`- ${b.name}: ${b.mode}, revenue 30d ${fmt(b.metrics.revenue_30d)}, quota ${b.quota.articles_per_week}/wk`).join('\n')}
+
+NEEDS YOUR INPUT:
+${q.length? q.map(x=>`- [${x.type}] ${x.title}`).join('\n') : '- Nothing pending.'}
+
+OUTLOOK: ${D.status_line}
+`;
+  const blob=new Blob([rep],{type:'text/plain'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vantage-report.txt';a.click();
+  document.getElementById('report-out').textContent='Report exported [ok]';
+}
+load();
+</script>
+</body>
+</html>

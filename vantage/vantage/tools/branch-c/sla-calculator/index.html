@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLA / Uptime Calculator</title>
+<meta name="description" content="Convert SLA percentages into real downtime budgets per month and year - what 99.9% actually costs you.">
+<style>
+:root{--bg:#0b0e14;--card:#141a24;--text:#d9e2ef;--dim:#8b98ab;--accent:#00b7c2;--border:#1e2836}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,'Segoe UI',Roboto,sans-serif;padding:24px}
+.wrap{max-width:680px;margin:0 auto}
+h1{font-size:1.5rem;margin-bottom:4px}.sub{color:var(--dim);font-size:.9rem;margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
+label{display:block;font-size:.8rem;color:var(--dim);margin:12px 0 4px}
+input,select{width:100%;background:#0b0e14;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:6px;font-size:1rem}
+table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.9rem}
+td,th{border:1px solid var(--border);padding:8px 10px;text-align:left}
+th{color:var(--dim);font-weight:600;background:#0b0e14}td:last-child,th:last-child{text-align:right}
+td:last-child{color:var(--accent);font-family:monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>SLA / Uptime Calculator</h1>
+<p class="sub">What does 99.95% mean in actual minutes down? Ask before you sign.</p>
+<div class="card">
+<label for="sla">SLA percentage</label>
+<input id="sla" type="number" step="0.001" min="90" max="100" value="99.9" oninput="calc()">
+<label for="multi">What does the SLA cover?</label>
+<select id="multi" onchange="calc()">
+<option value="30">Monthly commitment (30 days)</option>
+<option value="365">Annual commitment</option>
+</select>
+</div>
+<div class="card">
+<table id="out"></table>
+</div>
+</div>
+<script>
+function fmt(sec){
+  if(sec>=3600) return (sec/3600).toFixed(1)+' h';
+  if(sec>=60) return Math.round(sec/60)+' min';
+  return sec.toFixed(0)+' s';
+}
+function calc(){
+  const s = parseFloat(document.getElementById('sla').value);
+  const days = +document.getElementById('multi').value;
+  if(!(s>=90&&s<=100)){ document.getElementById('out').innerHTML='<tr><td>invalid</td></tr>'; return; }
+  const down = (100-s)/100 * days * 86400;
+  const rows = [
+    ['Downtime budget (total)', fmt(down)],
+    ['Per month (avg)', fmt(down*30/days)],
+    ['Per week (avg)', fmt(down*7/days)],
+    ['Per day (avg)', fmt(down/days)]
+  ];
+  document.getElementById('out').innerHTML =
+    '<tr><th>Period</th><th>Allowed downtime</th></tr>' +
+    rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+}
+calc();
+</script>
+</body>
+</html>

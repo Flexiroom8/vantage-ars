@@ -1,0 +1,2 @@
+# Published posts live here. The build script turns each .md into dist/<slug>/index.html.
+# Required frontmatter: title, description (<=155 chars), date (YYYY-MM-DD), author.

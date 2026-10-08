@@ -1,0 +1,88 @@
+import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { DispatchPanel } from "@/components/office/dispatch-panel";
+import { EmptyState } from "@/components/office/empty-state";
+import { PageHeader } from "@/components/office/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { formatDateTime, formatZar } from "@/lib/office/money";
+
+export const Route = createFileRoute("/office/ledger")({
+  component: LedgerPage,
+});
+
+const officeRoute = getRouteApi("/_office");
+
+function LedgerPage() {
+  const snapshot = officeRoute.useLoaderData();
+  const { company } = snapshot;
+
+  return (
+    <div className="enter-up mx-auto max-w-5xl">
+      <PageHeader
+        kicker="Finance · LEDGER"
+        title="Cash is zero until something clears."
+        description="VAT at 15%. Invoices raise receivables. Receipts raise treasury. Any expense is a founder approval."
+      />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="p-4">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Treasury</p>
+          <p className="mt-2 font-mono text-2xl tabular-nums">{formatZar(company.treasuryCents)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Receivable</p>
+          <p className="mt-2 font-mono text-2xl tabular-nums">{formatZar(company.receivableCents)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Payable</p>
+          <p className="mt-2 font-mono text-2xl tabular-nums">{formatZar(company.payableCents)}</p>
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <DispatchPanel
+          lockedAgent="ledger"
+          placeholder="Issue an invoice for a won opportunity, or record a receipt that actually arrived. Expenses must escalate."
+        />
+      </div>
+
+      <section className="mt-8">
+        <h2 className="mb-3 font-serif text-2xl">Journal</h2>
+        {snapshot.ledger.length === 0 ? (
+          <EmptyState
+            title="No entries"
+            body="The books are open and empty — correct for a company that has not yet taken a rand."
+          />
+        ) : (
+          <div className="overflow-x-auto rounded-xl bg-surface shadow-[var(--shadow-border)]">
+            <table className="w-full min-w-[42rem] text-left text-sm">
+              <thead className="text-xs uppercase tracking-[0.14em] text-muted">
+                <tr className="border-b border-border">
+                  <th className="px-4 py-3 font-medium">When</th>
+                  <th className="px-4 py-3 font-medium">Kind</th>
+                  <th className="px-4 py-3 font-medium">Counterparty</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium text-right">VAT</th>
+                  <th className="px-4 py-3 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {snapshot.ledger.map((row) => (
+                  <tr key={row.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 text-muted">{formatDateTime(row.createdAt)}</td>
+                    <td className="px-4 py-3">{row.kind}</td>
+                    <td className="px-4 py-3">{row.counterparty}</td>
+                    <td className="px-4 py-3">
+                      <Badge>{row.status}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">{formatZar(row.vatCents)}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">{formatZar(row.amountCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

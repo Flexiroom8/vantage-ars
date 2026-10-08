@@ -1,0 +1,143 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useOfficeSnapshot } from "@/components/office/office-context";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { PageHeader } from "@/components/office/page-header";
+import { Card } from "@/components/ui/card";
+import { formatZar } from "@/lib/office/money";
+
+export const Route = createFileRoute("/office/metrics")({
+  component: MetricsPage,
+});
+
+
+function MetricsPage() {
+  const snapshot = useOfficeSnapshot();
+  const { health, company, decisions } = snapshot;
+
+  const rows = [
+    ["Overall autonomy health", health.overall.toFixed(3), "≥ 0.90"],
+    ["Decision quality", health.decisionQuality.toFixed(3), "≥ 0.90"],
+    ["Constraint adherence", health.constraintAdherence.toFixed(3), "1.000"],
+    ["Governance", health.governance.toFixed(3), "≥ 0.95"],
+    ["Self-healing", health.selfHealing.toFixed(3), "≥ 0.90"],
+    ["Autonomous resolution", `${(health.autonomousResolution * 100).toFixed(2)}%`, "≥ 99.5%"],
+    ["Intervention rate", health.interventionRate.toFixed(5), "< 0.0001"],
+    ["Hard constraint violations", String(health.hardViolations), "0"],
+    ["Decisions recorded", String(health.decisionCount), "complete audit"],
+    ["Pending founder gates", String(health.pendingApprovals), "clear desk"],
+    ["Treasury", formatZar(company.treasuryCents), "from receipts only"],
+    ["Receivable", formatZar(company.receivableCents), "issued invoices"],
+    ["Payable", formatZar(company.payableCents), "approved expenses"],
+  ] as const;
+
+  const healthBars = [
+    { name: "Quality", value: Math.round(health.decisionQuality * 100) },
+    { name: "Constraints", value: Math.round(health.constraintAdherence * 100) },
+    { name: "Governance", value: Math.round(health.governance * 100) },
+    { name: "Healing", value: Math.round(health.selfHealing * 100) },
+    { name: "Autonomy", value: Math.round(health.autonomousResolution * 100) },
+  ];
+
+  const statusBars = [
+    {
+      name: "Executed",
+      value: decisions.filter((d) => d.status === "executed" || d.status === "authorized").length,
+    },
+    { name: "Escalated", value: decisions.filter((d) => d.status === "escalated").length },
+    { name: "Blocked", value: decisions.filter((d) => d.status === "blocked").length },
+  ];
+
+  return (
+    <div className="enter-up mx-auto max-w-3xl">
+      <PageHeader
+        kicker="Autonomy health"
+        title="Measured, not claimed."
+        description="Leading and lagging indicators from live office records. Empty history is a healthy new company, not a simulation."
+      />
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <Card className="h-64">
+          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-muted">Health dimensions</p>
+          <ResponsiveContainer width="100%" height="85%">
+            <BarChart data={healthBars} layout="vertical" margin={{ left: 8, right: 8 }}>
+              <CartesianGrid stroke="var(--color-border)" horizontal={false} />
+              <XAxis type="number" domain={[0, 100]} hide />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={88}
+                tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--color-raised)" }}
+                contentStyle={{
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  color: "var(--color-fg)",
+                }}
+              />
+              <Bar dataKey="value" fill="var(--color-accent)" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+        <Card className="h-64">
+          <p className="mb-3 text-xs uppercase tracking-[0.16em] text-muted">Decision outcomes</p>
+          <ResponsiveContainer width="100%" height="85%">
+            <BarChart data={statusBars} margin={{ left: 0, right: 8, top: 8 }}>
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis allowDecimals={false} hide />
+              <Tooltip
+                cursor={{ fill: "var(--color-raised)" }}
+                contentStyle={{
+                  background: "var(--color-surface)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 8,
+                  color: "var(--color-fg)",
+                }}
+              />
+              <Bar dataKey="value" fill="var(--color-ok)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      <Card className="overflow-hidden p-0">
+        <table className="w-full text-sm">
+          <thead className="text-left text-xs uppercase tracking-[0.14em] text-muted">
+            <tr className="border-b border-border">
+              <th className="px-5 py-3 font-medium">Metric</th>
+              <th className="px-5 py-3 font-medium">Live</th>
+              <th className="hidden px-5 py-3 font-medium sm:table-cell">Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row[0]} className="border-b border-border last:border-0">
+                <td className="px-5 py-3">{row[0]}</td>
+                <td className="px-5 py-3 font-mono tabular-nums">{row[1]}</td>
+                <td className="hidden px-5 py-3 text-muted sm:table-cell">{row[2]}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}

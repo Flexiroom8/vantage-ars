@@ -1,0 +1,20 @@
+reception
+vrs_reception_PXLGzfD0FQXuFbYfvZninsTTcqFqEYD3Gnt6cCk6hwA
+
+Marketing
+vrs_marketing_aT9G71DrU674ZjQ9IvvJPHf5NgXNERGxvveXOBhzDvk
+
+Sales
+vrs_sales_-pE6UiW2CKfQU0zI93rfg8j8eRLkTiFcVlZi3rr6Hzk
+
+finance and accounting
+vrs_finance_wtxLe0ak94972RNLTWxE86wn1b1XpFz0AGKfl2aj8s8
+
+Technical
+vrs_technical_vArhHNyIZe-ORmKQGy3QMcDdLolDLxxup95k6ZYn_E8
+
+operations
+vrs_operations_2s2xiIjA_z__v-Lz5tZN-nYLHkD6vEXvpozmh1NB2O8
+
+Administration
+vrs_administration_tJRVl4kiQXf2wCeCL3tC_aBgq6D46d054qTrl1RAx2Y
