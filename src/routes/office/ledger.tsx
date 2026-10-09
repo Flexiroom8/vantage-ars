@@ -11,7 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { filePaymentClaim, raiseInvoice, recordReceipt, savePaymentNote } from "@/lib/office/api";
-import { withPaymentNote } from "@/lib/office/invoice";
+import { VAT_TREATMENT_LABELS, parseVatTreatment, quoteInvoice, withPaymentNote, type VatTreatment } from "@/lib/office/invoice";
+import { Select } from "@/components/ui/select";
 import { formatDateTime, formatZar } from "@/lib/office/money";
 
 export const Route = createFileRoute("/office/ledger")({
@@ -28,7 +29,7 @@ function LedgerPage() {
       <PageHeader
         kicker="Finance · LEDGER"
         title="Cash is zero until something clears."
-        description="Invoices raise receivables. Receipts raise treasury. VAT is not added unless a quote stated it. Any expense is a founder approval."
+        description="Invoices raise receivables. Receipts raise treasury. Choose the VAT treatment when you raise an invoice; none is added by default. Any expense is a founder approval."
       />
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
@@ -139,11 +140,13 @@ function ReadyInvoices({
 function InvoiceCard({ opportunity }: { opportunity: { id: string; companyName: string; valueCents: number } }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [treatment, setTreatment] = useState<VatTreatment>("none");
+  const figure = quoteInvoice(opportunity.valueCents, treatment);
 
   async function onClick() {
     setPending(true);
     try {
-      const result = await raiseInvoice({ data: { opportunityId: opportunity.id } });
+      const result = await raiseInvoice({ data: { opportunityId: opportunity.id, vatTreatment: treatment } });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -161,7 +164,26 @@ function InvoiceCard({ opportunity }: { opportunity: { id: string; companyName: 
     <Card className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="text-sm">{opportunity.companyName}</p>
-        <p className="mt-1 font-mono text-2xl tabular-nums">{formatZar(opportunity.valueCents)}</p>
+        <p className="mt-1 font-mono text-2xl tabular-nums">{formatZar(figure.ok ? figure.cents : opportunity.valueCents)}</p>
+        {figure.ok && treatment !== "none" ? (
+          <p className="mt-1 text-xs text-muted">
+            Excl. VAT {formatZar(figure.netCents)} · VAT {formatZar(figure.vatCents)}
+          </p>
+        ) : null}
+      </div>
+      <div className="w-full sm:w-64">
+        <Label htmlFor={`vat-${opportunity.id}`}>VAT treatment</Label>
+        <Select
+          id={`vat-${opportunity.id}`}
+          value={treatment}
+          onChange={(event) => setTreatment(parseVatTreatment(event.target.value))}
+        >
+          {(Object.keys(VAT_TREATMENT_LABELS) as VatTreatment[]).map((key) => (
+            <option key={key} value={key}>
+              {VAT_TREATMENT_LABELS[key]}
+            </option>
+          ))}
+        </Select>
       </div>
       <Button type="button" disabled={pending} onClick={() => void onClick()}>
         {pending ? "Raising…" : "Raise invoice"}

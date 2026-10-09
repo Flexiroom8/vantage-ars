@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { pageHead } from "@/lib/site/seo";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
 import { Button } from "@/components/ui/button";
@@ -9,16 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { submitPublicEnquiry } from "@/lib/office/api";
 
 export const Route = createFileRoute("/support")({
-  head: () => ({
-    meta: [
-      { title: "Customer service · Vantage-ARS" },
-      {
-        name: "description",
-        content:
-          "Log a fault, a question about work in progress, or a complaint with Vantage-ARS. A short acknowledgement is sent when mail is connected. It does not refund, cancel, or quote.",
-      },
-    ],
-  }),
+  head: () => pageHead({ title: "Customer service · Vantage-ARS", description: "Log a fault, a question about work in progress, or a complaint with Vantage-ARS. A short acknowledgement is sent when mail is connected. It does not refund, cancel, or quote.", path: "/support" }),
   component: SupportDesk,
 });
 

@@ -4,7 +4,14 @@ import { followUpLetter, planFloor, serviceAckLetter, technicalFix } from "./flo
 import { applyProposedAction, readSnapshot } from "./store.server";
 import { sendCustomerMail } from "./smtp.server";
 
-export async function operateFloor(): Promise<{ ok: true; briefing: string; executed: number }> {
+/**
+ * `sendMail: false` is the unattended mode: letters are written as drafts for founder review and
+ * nothing is emailed to a customer. The default (founder pressing the button) keeps the old behaviour.
+ */
+export async function operateFloor(
+  options: { sendMail?: boolean } = {},
+): Promise<{ ok: true; briefing: string; executed: number }> {
+  const mail = options.sendMail !== false;
   const snapshot = await readSnapshot();
   if (snapshot.company.halted) return { ok: true, briefing: "Office is halted.", executed: 0 };
   const tasks = planFloor({
@@ -38,7 +45,7 @@ export async function operateFloor(): Promise<{ ok: true; briefing: string; exec
     }
     if (task.kind === "follow_up") {
       const letter = followUpLetter(task.companyName);
-      const sent = task.email ? await sendCustomerMail(task.email, "Vantage-ARS has your enquiry", letter) : { ok: false };
+      const sent = task.email && mail ? await sendCustomerMail(task.email, "Vantage-ARS has your enquiry", letter) : { ok: false };
       const sql = await getSql();
       await sql`
         insert into documents (id, title, kind, status, summary, related_id)
@@ -56,7 +63,7 @@ export async function operateFloor(): Promise<{ ok: true; briefing: string; exec
     }
     if (task.kind === "service_ack") {
       const letter = serviceAckLetter(task.companyName);
-      const sent = task.email ? await sendCustomerMail(task.email, "Vantage-ARS has the service request", letter) : { ok: false };
+      const sent = task.email && mail ? await sendCustomerMail(task.email, "Vantage-ARS has the service request", letter) : { ok: false };
       const sql = await getSql();
       await sql`
         insert into documents (id, title, kind, status, summary, related_id)

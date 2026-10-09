@@ -19,6 +19,8 @@ function pdfText(value: string): string {
   return value
     .replace(/\u202F/g, " ")
     .replace(/\u00A0/g, " ")
+    // Keep tab, newline, carriage return and Latin-1; the standard PDF fonts cannot draw anything else.
+    // eslint-disable-next-line no-control-regex
     .replace(/[^\x09\x0A\x0D\x20-\xFF]/g, "")
     .trim();
 }

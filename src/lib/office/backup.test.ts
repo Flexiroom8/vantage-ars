@@ -28,3 +28,28 @@ describe("backup", () => {
     }
   });
 });
+
+import { planRestore } from "./backup.ts";
+
+describe("restore plan", () => {
+  const cols = { leads: ["id", "name"] };
+  const file = () => JSON.parse(JSON.stringify(buildBackup({ leads: [{ id: "a", name: "x" }], approvals: [] })));
+  it("accepts a verified file whose columns exist", () => {
+    const plan = planRestore(file(), cols);
+    assert.equal(plan.ok, true);
+    if (plan.ok) assert.deepEqual(plan.tables.map((t) => t.name), ["leads"]);
+  });
+  it("refuses tables we do not export, such as credentials", () => {
+    const f = buildBackup({ session: [{ id: "a" }] });
+    assert.equal(planRestore(JSON.parse(JSON.stringify(f)), { session: ["id"] }).ok, false);
+  });
+  it("refuses unknown columns and damaged files before any write", () => {
+    const f = file();
+    f.tables.leads[0].evil = 1;
+    f.checksum = buildBackup(f.tables).checksum;
+    assert.equal(planRestore(f, cols).ok, false);
+    const g = file();
+    g.tables.leads[0].name = "changed";
+    assert.equal(planRestore(g, cols).ok, false);
+  });
+});

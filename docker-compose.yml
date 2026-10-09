@@ -1,0 +1,17 @@
+# Self-hosted Vantage-ARS. Put your settings in .env (copy .env.example).
+# Without DATABASE_URL, data lives in embedded PGLite on the "data" volume.
+services:
+  app:
+    build: .
+    image: vantage-ars:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PGLITE_DATA_DIR: /data/pglite
+    ports:
+      - "3000:3000"
+    volumes:
+      - data:/data
+
+volumes:
+  data:

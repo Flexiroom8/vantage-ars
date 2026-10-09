@@ -1,11 +1,9 @@
-import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { OfficeProvider } from "@/components/office/office-context";
 import { PrivateDoor } from "@/components/office/private-door";
 import { AppShell } from "@/components/layout/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { FOUNDER_EMAIL } from "@/lib/office/founder-gate";
 import { getOfficeSnapshot } from "@/lib/office/api";
 
 export const Route = createFileRoute("/office")({
@@ -22,15 +20,13 @@ export const Route = createFileRoute("/office")({
 
 function OfficeLayout() {
   const access = Route.useLoaderData();
-  const router = useRouter();
   const { user, isPending } = useCurrentUserState();
-  const founder = user?.primaryEmail?.toLowerCase() === FOUNDER_EMAIL;
-  useEffect(() => {
-    if (founder && access.locked) void router.invalidate();
-  }, [access.locked, founder, router]);
-
-  if (isPending || (founder && access.locked)) return <OfficePending />;
-  if (!founder || access.locked) return <PrivateDoor user={user} />;
+  // The server decides who the founder is; the loader only returns records
+  // to a verified founder session.
+  if (access.locked) {
+    if (isPending) return <OfficePending />;
+    return <PrivateDoor user={user} />;
+  }
   return (
     <OfficeProvider snapshot={access.snapshot}>
       <AppShell snapshot={access.snapshot}>

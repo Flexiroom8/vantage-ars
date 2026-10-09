@@ -66,3 +66,36 @@ export function verifyBackup(value: unknown): { ok: true } | { ok: false; error:
   }
   return { ok: true };
 }
+
+export const MAX_RESTORE_BYTES = 4_000_000;
+
+export type RestorePlan =
+  | { ok: true; tables: { name: string; rows: Record<string, unknown>[] }[] }
+  | { ok: false; error: string };
+
+/**
+ * Restore only ADDS missing rows. It never deletes or overwrites, so a mistaken or repeated
+ * restore cannot destroy current records. Every table must be one we export, and every row
+ * key must be a real column of that table, otherwise the whole file is refused before any write.
+ */
+export function planRestore(value: unknown, columnsByTable: Record<string, string[]>): RestorePlan {
+  const verdict = verifyBackup(value);
+  if (!verdict.ok) return verdict;
+  const file = value as BackupFile;
+  const allowed = new Set<string>(BACKUP_TABLES);
+  const tables: { name: string; rows: Record<string, unknown>[] }[] = [];
+  for (const [name, rows] of Object.entries(file.tables)) {
+    if (!allowed.has(name)) return { ok: false, error: `Table ${name} is not part of the office backup.` };
+    if (rows.length === 0) continue;
+    const columns = new Set(columnsByTable[name] ?? []);
+    if (columns.size === 0) return { ok: false, error: `Table ${name} does not exist in this office.` };
+    for (const row of rows) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) return { ok: false, error: `Table ${name} has a bad row.` };
+      for (const key of Object.keys(row)) {
+        if (!columns.has(key)) return { ok: false, error: `Table ${name} has an unknown column ${key}.` };
+      }
+    }
+    tables.push({ name, rows });
+  }
+  return { ok: true, tables };
+}

@@ -31,7 +31,10 @@ import { Route as OfficeMetricsRouteImport } from './routes/office/metrics'
 import { Route as OfficeSalesRouteImport } from './routes/office/sales'
 import { Route as OfficeServiceRouteImport } from './routes/office/service'
 import { Route as OfficeTechnicalRouteImport } from './routes/office/technical'
+import { Route as QTokenRouteImport } from './routes/q.$token'
+import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiCronFloorRouteImport } from './routes/api/cron/floor'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -143,9 +146,24 @@ const OfficeTechnicalRoute = OfficeTechnicalRouteImport.update({
   path: '/technical',
   getParentRoute: () => OfficeRoute,
 } as any)
+const QTokenRoute = QTokenRouteImport.update({
+  id: '/q/$token',
+  path: '/q/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesSlugRoute = ServicesSlugRouteImport.update({
+  id: '/services/$slug',
+  path: '/services/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
+  id: '/api/cron/floor',
+  path: '/api/cron/floor',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -171,8 +189,11 @@ export interface FileRoutesByFullPath {
   '/office/sales': typeof OfficeSalesRoute
   '/office/service': typeof OfficeServiceRoute
   '/office/technical': typeof OfficeTechnicalRoute
+  '/q/$token': typeof QTokenRoute
+  '/services/$slug': typeof ServicesSlugRoute
   '/office/': typeof OfficeIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/floor': typeof ApiCronFloorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -195,8 +216,11 @@ export interface FileRoutesByTo {
   '/office/sales': typeof OfficeSalesRoute
   '/office/service': typeof OfficeServiceRoute
   '/office/technical': typeof OfficeTechnicalRoute
+  '/q/$token': typeof QTokenRoute
+  '/services/$slug': typeof ServicesSlugRoute
   '/office': typeof OfficeIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/floor': typeof ApiCronFloorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -221,8 +245,11 @@ export interface FileRoutesById {
   '/office/sales': typeof OfficeSalesRoute
   '/office/service': typeof OfficeServiceRoute
   '/office/technical': typeof OfficeTechnicalRoute
+  '/q/$token': typeof QTokenRoute
+  '/services/$slug': typeof ServicesSlugRoute
   '/office/': typeof OfficeIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/floor': typeof ApiCronFloorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -248,8 +275,11 @@ export interface FileRouteTypes {
     | '/office/sales'
     | '/office/service'
     | '/office/technical'
+    | '/q/$token'
+    | '/services/$slug'
     | '/office/'
     | '/api/auth/$'
+    | '/api/cron/floor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -272,8 +302,11 @@ export interface FileRouteTypes {
     | '/office/sales'
     | '/office/service'
     | '/office/technical'
+    | '/q/$token'
+    | '/services/$slug'
     | '/office'
     | '/api/auth/$'
+    | '/api/cron/floor'
   id:
     | '__root__'
     | '/'
@@ -297,8 +330,11 @@ export interface FileRouteTypes {
     | '/office/sales'
     | '/office/service'
     | '/office/technical'
+    | '/q/$token'
+    | '/services/$slug'
     | '/office/'
     | '/api/auth/$'
+    | '/api/cron/floor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -310,7 +346,10 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   WorkRoute: typeof WorkRoute
+  QTokenRoute: typeof QTokenRoute
+  ServicesSlugRoute: typeof ServicesSlugRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronFloorRoute: typeof ApiCronFloorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -469,11 +508,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeTechnicalRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/q/$token': {
+      id: '/q/$token'
+      path: '/q/$token'
+      fullPath: '/q/$token'
+      preLoaderRoute: typeof QTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services/$slug': {
+      id: '/services/$slug'
+      path: '/services/$slug'
+      fullPath: '/services/$slug'
+      preLoaderRoute: typeof ServicesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/floor': {
+      id: '/api/cron/floor'
+      path: '/api/cron/floor'
+      fullPath: '/api/cron/floor'
+      preLoaderRoute: typeof ApiCronFloorRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -525,7 +585,10 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   WorkRoute: WorkRoute,
+  QTokenRoute: QTokenRoute,
+  ServicesSlugRoute: ServicesSlugRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronFloorRoute: ApiCronFloorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -4,7 +4,7 @@ import { formatZar } from "./money.ts";
 export const FOUNDER_EMAIL = COMPANY.email;
 
 export type FounderNotice = {
-  kind: "enquiry" | "approval" | "payment" | "chat";
+  kind: "enquiry" | "approval" | "payment" | "chat" | "quote";
   subject: string;
   body: string;
 };
@@ -87,6 +87,30 @@ export function founderApprovalNotice(input: {
       amount,
       oneLine(input.reason, 500),
       "Open approvals at https://vantage-ars.co.za/office/approvals",
+    ].join("\n"),
+  };
+}
+
+export function founderQuoteAnswerNotice(input: {
+  companyName: string;
+  outcome: "accepted" | "declined";
+  name: string;
+  amountCents: number;
+  note: string;
+}): FounderNotice {
+  const accepted = input.outcome === "accepted";
+  return {
+    kind: "quote",
+    subject: accepted ? "Vantage-ARS · quote accepted" : "Vantage-ARS · quote declined",
+    body: [
+      accepted
+        ? "The customer accepted the quote on their quote link. A delivery ticket was opened. Nothing was invoiced or emailed."
+        : "The customer declined the quote on their quote link. Nothing was emailed.",
+      `Company: ${oneLine(input.companyName, 160)}`,
+      `Answered by: ${oneLine(input.name, 160)}`,
+      `Quote: ${formatZar(input.amountCents)}`,
+      input.note ? `Their note: ${oneLine(input.note, 800)}` : "No note.",
+      "Open sales at https://vantage-ars.co.za/office/sales",
     ].join("\n"),
   };
 }

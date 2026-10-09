@@ -1,14 +1,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { clientKey, createRateLimiter, str, validEmail } from "./guard";
+import { durableAllow } from "./rate-limit";
+import { parseVatTreatment, paymentMethods } from "./invoice";
+import { getSql } from "@/lib/db";
 import { AGENT_BY_ID } from "./agents";
 import { proposeActions } from "./ai.server";
 import { listChats, founderReply, postChat, readChat } from "./chat.server";
 import { processWebsiteEnquiry } from "./intake";
-import { founderChatNotice, founderEnquiryNotice, founderPaymentNotice } from "./notice";
+import { founderChatNotice, founderEnquiryNotice, founderPaymentNotice, founderQuoteAnswerNotice } from "./notice";
+import { parseCustomerAnswer, plausibleToken } from "./quote-link";
 import { founderMiddleware, officeAccessMiddleware } from "./founder-gate";
 import { priceQuote, type QuoteLocation } from "./quote";
 import {
+  answerPublicQuote,
   applyProposedAction,
+  createQuoteLink,
+  listQuoteLinks,
+  readPublicQuote,
+  revokeQuoteLinks,
+  exportBackupJson,
+  restoreBackupJson,
   compactState,
   ensureOffice,
   filePaymentNotice,
@@ -88,8 +99,22 @@ function callerKey(request: Request | undefined): string {
   return clientKey(request?.headers);
 }
 
-function allowEnquiry(key: string): boolean {
-  return enquiryLimiter.allow(key);
+async function allowEnquiry(key: string): Promise<boolean> {
+  if (!enquiryLimiter.allow(key)) return false;
+  try {
+    return await durableAllow(await getSql(), "enquiry", key, 8, 60 * 60 * 1000);
+  } catch {
+    return true;
+  }
+}
+
+async function allowChat(key: string): Promise<boolean> {
+  if (!chatLimiter.allow(key)) return false;
+  try {
+    return await durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000);
+  } catch {
+    return true;
+  }
 }
 
 const SERVICE_MATTERS = ["fault", "question", "complaint"] as const;
@@ -126,7 +151,7 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
     } catch {
       request = undefined;
     }
-    if (!allowEnquiry(callerKey(request))) {
+    if (!(await allowEnquiry(callerKey(request)))) {
       return { ok: false as const, error: "Too many enquiries from this connection. Try again later." };
     }
     const subject = message.replace(/\s+/g, " ").slice(0, 90);
@@ -180,7 +205,7 @@ export const submitPaymentNotice = createServerFn({ method: "POST" })
     } catch {
       request = undefined;
     }
-    if (!allowEnquiry(callerKey(request))) {
+    if (!(await allowEnquiry(callerKey(request)))) {
       return { ok: false as const, error: "Too many notices from this connection. Try again later." };
     }
     const filed = await filePaymentNotice({
@@ -230,7 +255,7 @@ export const postPublicChat = createServerFn({ method: "POST" })
     } catch {
       request = undefined;
     }
-    if (!chatLimiter.allow(callerKey(request))) {
+    if (!(await allowChat(callerKey(request)))) {
       return { ok: false as const, error: "Too many messages from this connection. Try again later." };
     }
     const chatSender = str(data.name, 200);
@@ -388,8 +413,8 @@ export const recordCustomerAnswer = createServerFn({ method: "POST" })
 
 export const raiseInvoice = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
-  .validator((input: { opportunityId: string }) => input)
-  .handler(async ({ data }) => raiseQuoteInvoice(data.opportunityId));
+  .validator((input: { opportunityId: string; vatTreatment?: string }) => input)
+  .handler(async ({ data }) => raiseQuoteInvoice(data.opportunityId, parseVatTreatment(data.vatTreatment)));
 
 export const recordReceipt = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
@@ -458,4 +483,84 @@ export const runFloor = createServerFn({ method: "POST" })
       decisionIds: [],
       approvalIds: [],
     };
+  });
+
+export const downloadBackup = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .handler(async () => ({ ok: true as const, filename: `vantage-ars-backup-${new Date().toISOString().slice(0, 10)}.json`, json: await exportBackupJson() }));
+
+export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async () => paymentMethods(process.env));
+
+export const restoreBackup = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { json: string }) => ({ json: typeof input?.json === "string" ? input.json : "" }))
+  .handler(async ({ data }) => restoreBackupJson(data.json));
+
+// ── Customer quote links ─────────────────────────────────────────────────────
+
+const quoteViewLimiter = createRateLimiter(60, 60 * 60 * 1000);
+const quoteAnswerLimiter = createRateLimiter(10, 60 * 60 * 1000);
+
+async function currentRequest(): Promise<Request | undefined> {
+  try {
+    const server = await import("@tanstack/react-start/server");
+    return server.getRequest();
+  } catch {
+    return undefined;
+  }
+}
+
+export const listCustomerQuoteLinks = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => listQuoteLinks());
+
+export const createCustomerQuoteLink = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { documentId: string }) => ({ documentId: str(input?.documentId, 100) }))
+  .handler(async ({ data }) => createQuoteLink(data.documentId));
+
+export const revokeCustomerQuoteLink = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { documentId: string }) => ({ documentId: str(input?.documentId, 100) }))
+  .handler(async ({ data }) => revokeQuoteLinks(data.documentId));
+
+export const getCustomerQuote = createServerFn({ method: "GET" })
+  .validator((input: { token: string }) => ({ token: str(input?.token, 100) }))
+  .handler(async ({ data }) => {
+    if (!plausibleToken(data.token)) return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
+    const key = callerKey(await currentRequest());
+    if (!quoteViewLimiter.allow(key)) {
+      return { ok: false as const, error: "Too many requests from this connection. Try again in a while." };
+    }
+    return readPublicQuote(data.token);
+  });
+
+export const answerCustomerQuote = createServerFn({ method: "POST" })
+  .validator((input: { token: string; outcome: string; name: string; note?: string; agree?: boolean }) => input)
+  .handler(async ({ data }) => {
+    const token = str(data?.token, 100);
+    if (!plausibleToken(token)) return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
+    const key = callerKey(await currentRequest());
+    if (!quoteAnswerLimiter.allow(key)) {
+      return { ok: false as const, error: "Too many attempts from this connection. Try again later." };
+    }
+    const parsed = parseCustomerAnswer({ outcome: data.outcome, name: data.name, note: data.note, agree: data.agree });
+    if (!parsed.ok) return parsed;
+    const result = await answerPublicQuote(token, parsed);
+    if (!result.ok) return result;
+    try {
+      const { deliverFounderNotice } = await import("./notify.server");
+      await deliverFounderNotice(
+        founderQuoteAnswerNotice({
+          companyName: result.companyName,
+          outcome: parsed.outcome,
+          name: parsed.name,
+          amountCents: result.amountCents,
+          note: parsed.note,
+        }),
+      );
+    } catch {
+      // The answer is already recorded.
+    }
+    return { ok: true as const, outcome: parsed.outcome };
   });

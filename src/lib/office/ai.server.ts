@@ -1,4 +1,5 @@
 import { AGENT_BY_ID } from "./agents";
+import { resolveModelTarget, type ModelTarget } from "./ai-provider";
 import { COMPANY } from "./company";
 import { CONSTITUTION } from "./constitution";
 import { isActionKind } from "./agents";
@@ -34,8 +35,8 @@ export async function proposeActions(input: {
   task: string;
   state: Record<string, unknown>;
 }): Promise<{ ok: true; briefing: string; actions: ProposedAction[] } | { ok: false; error: string }> {
-  const apiKey = process.env.XAI_API_KEY;
-  if (!apiKey) {
+  const target = resolveModelTarget(process.env);
+  if (!target) {
     return { ok: false, error: "The reasoning model is unavailable in this environment." };
   }
 
@@ -82,7 +83,7 @@ export async function proposeActions(input: {
   ].join("\n");
 
   const payload = JSON.stringify({
-    model: "grok-4.5",
+    model: target.model,
     temperature: 0.2,
     max_tokens: 1400,
     messages: [
@@ -94,7 +95,7 @@ export async function proposeActions(input: {
     ],
   });
 
-  const res = await callModel(apiKey, payload);
+  const res = await callModel(target, payload);
   if (!res) return { ok: false, error: "The reasoning model did not answer in time. Try again shortly." };
 
   if (!res.ok) {
@@ -135,12 +136,12 @@ export async function proposeActions(input: {
 }
 
 /** One bounded retry on timeout, rate limit, or 5xx. Returns null if every attempt timed out. */
-async function callModel(apiKey: string, payload: string): Promise<Response | null> {
+async function callModel(target: ModelTarget, payload: string): Promise<Response | null> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const res = await fetch("https://api.x.ai/v1/chat/completions", {
+      const res = await fetch(target.url, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${target.key}` },
         body: payload,
         signal: AbortSignal.timeout(25_000),
       });

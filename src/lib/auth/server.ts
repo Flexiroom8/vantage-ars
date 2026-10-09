@@ -31,6 +31,7 @@
  */
 import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
@@ -83,7 +84,7 @@ const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET
 
 /** True when federated sign-in is active (real auth is enforced). */
 export const authConfigured =
-  !authDisabled && Boolean(grokClientId && grokClientSecret);
+  !authDisabled && (emailAndPasswordEnabled || Boolean(grokClientId && grokClientSecret));
 
 // This app's own Better Auth origin. When deployed the deployer injects the
 // public URL. In the sandbox live preview there's no fixed URL (each preview gets
@@ -150,7 +151,13 @@ export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 // Built separately so the `betterAuth({...})` call stays easy to edit without
 // breaking brackets (models often trip on the conditional plugin spread).
-const grokOAuthPlugin = authConfigured
+// Federated Google/X sign-in through the Grok broker. Self-hosted installs set
+// BETTER_AUTH_URL and use founder email/password; the broker is then only used
+// when per-app GROK_AUTH_CLIENT_ID credentials are supplied. `GROK_OAUTH=off`
+// turns it off everywhere.
+const grokOAuthWanted =
+  env("GROK_OAUTH") !== "off" && (Boolean(env("GROK_AUTH_CLIENT_ID")) || !explicitBaseURL);
+const grokOAuthPlugin = authConfigured && grokOAuthWanted && grokClientId && grokClientSecret
   ? genericOAuth({
       config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
         providerId,
@@ -211,7 +218,39 @@ export const auth = betterAuth({
   session: { cookieCache: { enabled: true, maxAge: 300 } },
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
-  ...(emailAndPasswordEnabled ? { emailAndPassword: { enabled: true } } : {}),
+  // Public sign-up is gated in `hooks.before`: only the founder email, once,
+  // with FOUNDER_SETUP_TOKEN (see ./founder-setup.server).
+  ...(emailAndPasswordEnabled
+    ? {
+        emailAndPassword: {
+          enabled: true,
+          minPasswordLength: 12,
+          maxPasswordLength: 256,
+          autoSignIn: true,
+        },
+      }
+    : {}),
+
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const { checkFounderSignUp, FOUNDER_SETUP_HEADER } = await import("./founder-setup.server");
+      const body = (ctx.body ?? {}) as { email?: unknown };
+      const verdict = await checkFounderSignUp(body.email, ctx.headers?.get(FOUNDER_SETUP_HEADER));
+      if (!verdict.ok) throw new APIError("FORBIDDEN", { message: verdict.error });
+    }),
+  },
+
+  // Slow down password guessing (per instance, in memory).
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 300, max: 8 },
+      "/sign-up/email": { window: 3600, max: 5 },
+    },
+  },
 
   // `__Host-` prefixed cookies: the browser REFUSES any same-named cookie that
   // carries a `Domain` attribute, so a sibling `*.grok.me` app cannot "toss" a
@@ -221,6 +260,9 @@ export const auth = betterAuth({
   // Secure + the names ourselves. (Browsers allow Secure cookies on
   // `http://localhost`, so local dev still works.)
   advanced: {
+    // Vercel and Cloudflare set these; a reverse proxy in front of Docker
+    // should set X-Forwarded-For. Used only to key sign-in rate limits.
+    ipAddress: { ipAddressHeaders: ["x-vercel-forwarded-for", "cf-connecting-ip", "x-real-ip", "x-forwarded-for"] },
     useSecureCookies: false,
     defaultCookieAttributes: { secure: true, sameSite: "lax", path: "/" },
     cookies: {
@@ -251,6 +293,9 @@ export const auth = betterAuth({
     tanstackStartCookies(),
   ],
 });
+
+/** True when Google/X sign-in through the broker is offered. */
+export const oauthEnabled = Boolean(grokOAuthPlugin);
 
 export function readSessionToken(): string | null {
   return getCookie(SESSION_TOKEN_COOKIE) ?? null;

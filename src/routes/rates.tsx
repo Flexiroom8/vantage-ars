@@ -1,17 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { RATE_GROUPS, ratesByIds } from "@/lib/office/catalogue";
 
 export const Route = createFileRoute("/rates")({
-  head: () => ({
-    meta: [
-      { title: "Rates · Vantage-ARS" },
-      {
-        name: "description",
-        content: "Published Vantage-ARS rates in South African rand. A written quote confirms the total. Managed support is not offered.",
-      },
-    ],
-  }),
+  head: () => pageHead({ title: "Rates · Vantage-ARS", description: "Published Vantage-ARS rates in South African rand. A written quote confirms the total. Managed support is not offered.", path: "/rates" }),
   component: RatesPage,
 });
 

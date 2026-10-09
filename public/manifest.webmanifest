@@ -1,1 +1,13 @@
-{"name":"Vantage-ARS","short_name":"Vantage-ARS","start_url":"/","display":"standalone","background_color":"#101a2a","theme_color":"#101a2a","icons":[]}
+{
+  "name": "Vantage-ARS",
+  "short_name": "Vantage-ARS",
+  "description": "VoIP, networking and IT infrastructure support with a written quote before any work.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f6fb",
+  "theme_color": "#0e1c33",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

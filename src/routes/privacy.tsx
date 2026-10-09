@@ -1,17 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { COMPANY } from "@/lib/office/company";
 
 export const Route = createFileRoute("/privacy")({
-  head: () => ({
-    meta: [
-      { title: "Privacy · Vantage-ARS" },
-      {
-        name: "description",
-        content: "What Vantage-ARS collects when you enquire, use live chat, or tell us you have paid.",
-      },
-    ],
-  }),
+  head: () => pageHead({ title: "Privacy · Vantage-ARS", description: "What Vantage-ARS collects when you enquire, use live chat, or tell us you have paid.", path: "/privacy" }),
   component: PrivacyPage,
 });
 

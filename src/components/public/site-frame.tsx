@@ -2,8 +2,10 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { WatchtowerMark } from "@/components/brand/mark";
 import { COMPANY } from "@/lib/office/company";
+import { SERVICE_PAGES } from "@/lib/site/services";
 
 const nav = [
+  { to: "/", hash: "services", label: "Services" },
   { to: "/work", hash: undefined, label: "Work" },
   { to: "/rates", hash: undefined, label: "Rates" },
   { to: "/support", hash: undefined, label: "Service desk" },
@@ -73,10 +75,17 @@ export function PublicFrame({ children }: { children: ReactNode }) {
       </header>
       <main className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
       <footer className="relative z-10 border-t border-border bg-[#0e1c33] text-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-3">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-4">
           <div>
             <p className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</p>
             <p className="mt-2 text-sm text-white/70">VoIP, networking and IT infrastructure.</p>
+          </div>
+          <div className="flex flex-col gap-2 text-sm">
+            {SERVICE_PAGES.map((page) => (
+              <Link key={page.slug} to="/services/$slug" params={{ slug: page.slug }} className="text-white/70 hover:text-white">
+                {page.title}
+              </Link>
+            ))}
           </div>
           <div className="flex flex-col gap-2 text-sm">
             <Link to="/work" className="text-white/70 hover:text-white">
