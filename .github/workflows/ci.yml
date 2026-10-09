@@ -6,96 +6,131 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npm test
-      - run: npx node --test-reporter=spec
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npx eslint src/**/*.js test/**/*.js worker.js --ext .js
-      - run: npx prettier --check "src/**/*.js" "test/**/*.js" "worker.js" "*.json" "*.md" "public/**/*.html" "public/**/*.css" "public/**/*.js"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint with ESLint
+        run: npm run lint
+
+      - name: Check formatting with Prettier
+        run: npx prettier --check "src/**/*.js" "test/**/*.js" "worker.js" "*.json" "*.md" "public/**/*.html" "public/**/*.css" "public/**/*.js"
 
   typecheck:
     name: Type Check (JSDoc)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npx tsc --noEmit --checkJs --jsdoc --strict --target ES2022 --module ESNext --moduleResolution node --allowSyntheticDefaultImports --esModuleInterop --skipLibCheck --resolveJsonModule src/**/*.js worker.js
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check with TypeScript
+        run: npm run typecheck
 
   validate-config:
     name: Validate Config
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - run: npx wrangler deploy --dry-run --config wrangler.toml
 
-  pricing-check:
-    name: Pricing Alignment
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci
-      - run: npm test -- test/pricing.test.js
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Wrangler config
+        run: npx wrangler deploy --dry-run --config wrangler.toml
 
   deploy-preview:
     name: Deploy Preview
-    needs: [test, lint, typecheck, validate-config, pricing-check]
+    needs: [test, lint, typecheck, validate-config]
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: preview
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npx wrangler deploy --env preview --config wrangler.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy preview to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env preview
 
   deploy-production:
     name: Deploy Production
-    needs: [test, lint, typecheck, validate-config, pricing-check]
+    needs: [test, lint, typecheck, validate-config]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-      - run: npm ci
-      - run: npx wrangler deploy --env production --config wrangler.toml
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare Production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env production
