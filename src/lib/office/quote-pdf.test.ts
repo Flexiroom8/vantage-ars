@@ -16,7 +16,7 @@ describe("quote pdf", () => {
       companyName: "Harbour & Co",
       amount: "R 690,00",
       body: "Remote technical support. 1 hour(s). Labour R 690,00. Reference: VA-ABC12345.",
-      payment: "EFT: Capitec Bank, account 1592015539, beneficiary Vantage ARS.",
+      payment: "EFT: Test Bank, account 0000000001, beneficiary Test Beneficiary.",
     });
     assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-");
     const doc = await PDFDocument.load(bytes);

@@ -1,8 +1,13 @@
+node_modules
+.output
+.vercel
+.tanstack
+dist
 .git
-.gitignore
+.github
 .env
 .env.*
+!.env.example
 data
-node_modules
-npm-debug.log*
-*.log
+*.zip
+*.tar.gz

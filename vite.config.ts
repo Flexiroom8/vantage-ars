@@ -1,94 +1,174 @@
-import { readFile } from "node:fs/promises";
-import { defineConfig } from "vite";
-import { tailwindcss } from "@tailwindcss/vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import { fileURLToPath } from "node:url";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import type { Plugin } from "vite";
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { nitro } from "nitro/vite";
+import { isMigrationFile } from "./scripts/migration-plan.mjs";
+
+/** The files `src/lib/db.ts` globs — same directory, same non-recursive scope. */
+function hasGlobbedMigrations(root: string): boolean {
+  try {
+    return readdirSync(join(root, "migrations")).some(isMigrationFile);
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Vantage-ARS app config (TanStack Start + Tailwind v4).
+ * Finish PGLite bootstrap during dev-server setup (before traffic). Vite awaits
+ * async `configureServer` hooks. Production: `src/lib/db` kicks `ensureDbReady`
+ * on import.
  *
- * Two custom plugins:
- *
- *  - `grokOgIdentity`   — serves `virtual:grok-og-identity`, the
- *    OG identity consumed by the deployed-app PWA middleware
- *    (server/middleware/grok-pwa.ts). The identity lives in
- *    src/lib/og/site.json and is baked in at build time.
- *  - `authPopupPlugin`  — serves `GET /auth/popup` during
- *    `npm run dev`. The sandbox live preview must sign in from a
- *    top-level popup (partitioned iframe cookies), so the popup
- *    document is a server handler, not a React route. In
- *    production the Nitro route server/routes/auth/popup.ts
- *    serves the same handler.
+ * Vite awaiting the hook puts this on time-to-first-render, so an app with no
+ * migrations — no schema to apply — skips it entirely rather than paying for a
+ * PGLite instance it never queries.
  */
-function grokOgIdentity(): Plugin {
-  const virtualModuleId = "virtual:grok-og-identity";
-  const resolvedId = `\0${virtualModuleId}`;
-  const siteJson = new URL("./src/lib/og/site.json", import.meta.url);
+function pgliteBootstrapPlugin(): Plugin {
   return {
-    name: "grok-og-identity",
-    enforce: "pre",
-    resolveId(id) {
-      return id === virtualModuleId ? resolvedId : undefined;
-    },
-    async load(id) {
-      if (id !== resolvedId) return undefined;
-      const site = JSON.parse(await readFile(siteJson, "utf8"));
-      return `export const grokOgIdentity = ${JSON.stringify({ site })};`;
+    name: "app-builder:pglite-bootstrap",
+    apply: "serve",
+    async configureServer(server) {
+      if (!hasGlobbedMigrations(server.config.root)) return;
+      try {
+        const mod = (await server.ssrLoadModule("/src/lib/db.ts")) as {
+          ensureDbReady?: () => Promise<void>;
+        };
+        if (typeof mod.ensureDbReady === "function") {
+          await mod.ensureDbReady();
+        }
+      } catch (err) {
+        console.error("[app-builder] DB bootstrap failed:", err);
+        throw err;
+      }
     },
   };
 }
 
+/**
+ * Live-preview OAuth popup — handled HERE so the agent never has to create a
+ * `/auth/popup` route (and cannot break it by scaffolding a React page that
+ * paints the full app shell in the popup).
+ *
+ * `signIn` (client.ts) opens `/auth/popup?providerId=…` in a top-level window.
+ * This middleware runs before TanStack Start, calls `handleAuthPopupRequest`,
+ * and returns the 302 / completion HTML. Deployed apps do not use the popup
+ * (full-page OAuth redirect), so `apply: "serve"` is enough.
+ */
 function authPopupPlugin(): Plugin {
   return {
-    name: "grok-auth-popup",
+    name: "app-builder:auth-popup",
+    apply: "serve",
     configureServer(server) {
+      // Register immediately (not in a returned post-hook) so we run BEFORE
+      // TanStack Start / the SPA HTML fallback. A model-authored
+      // `src/routes/auth/popup.tsx` React page must never win this path.
       server.middlewares.use(async (req, res, next) => {
-        const host = req.headers.host ?? "localhost:8080";
-        const url = new URL(req.url ?? "/", `http://${host}`);
-        if (url.pathname !== "/auth/popup") return next();
         try {
-          // Load through Vite's SSR pipeline so server-only modules
-          // (import.meta.glob, import protections) transform as they
-          // do inside the app.
-          const { handleAuthPopupRequest } = await server.ssrLoadModule(
-            "/src/lib/auth/popup.server.ts",
+          const rawUrl = req.url ?? "";
+          const pathOnly = rawUrl.split("?", 1)[0] ?? "";
+          if (pathOnly !== "/auth/popup") {
+            next();
+            return;
+          }
+          if ((req.method ?? "GET").toUpperCase() !== "GET") {
+            res.statusCode = 405;
+            res.setHeader("content-type", "text/plain; charset=utf-8");
+            res.end("Method Not Allowed");
+            return;
+          }
+
+          const host = String(
+            req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost:8080",
           );
-          const headers = new Headers();
+          const proto = String(
+            req.headers["x-forwarded-proto"] ??
+              ((req.socket as { encrypted?: boolean } | undefined)?.encrypted ? "https" : "http"),
+          );
+          const requestHeaders = new Headers();
           for (const [key, value] of Object.entries(req.headers)) {
             if (value === undefined) continue;
-            headers.set(key, Array.isArray(value) ? value.join(", ") : value);
+            if (Array.isArray(value)) {
+              for (const v of value) requestHeaders.append(key, v);
+            } else {
+              requestHeaders.set(key, value);
+            }
           }
-          const request = new Request(url.toString(), {
-            method: req.method ?? "GET",
-            headers,
+          // Ensure Host is the public preview host so Better Auth's dynamic
+          // baseURL / redirect_uri match the popup origin.
+          if (!requestHeaders.has("host")) requestHeaders.set("host", host);
+
+          const request = new Request(`${proto}://${host}${rawUrl}`, {
+            method: "GET",
+            headers: requestHeaders,
           });
-          const response = await handleAuthPopupRequest(request);
+
+          const mod = (await server.ssrLoadModule("/src/lib/auth/popup.server.ts")) as {
+            handleAuthPopupRequest: (req: Request) => Promise<Response>;
+          };
+          const response = await mod.handleAuthPopupRequest(request);
+
           res.statusCode = response.status;
-          response.headers.forEach((value, key) => res.setHeader(key, value));
-          res.end(await response.text());
-        } catch (error) {
-          next(error);
+          // Preserve multiple Set-Cookie headers (OAuth state + session).
+          const setCookies =
+            typeof response.headers.getSetCookie === "function"
+              ? response.headers.getSetCookie()
+              : [];
+          response.headers.forEach((value, key) => {
+            if (key.toLowerCase() === "set-cookie") return;
+            res.setHeader(key, value);
+          });
+          for (const cookie of setCookies) {
+            res.appendHeader("set-cookie", cookie);
+          }
+          const body = Buffer.from(await response.arrayBuffer());
+          res.end(body);
+        } catch (err) {
+          console.error("[app-builder] /auth/popup handler failed:", err);
+          if (!res.headersSent) {
+            res.statusCode = 500;
+            res.setHeader("content-type", "text/plain; charset=utf-8");
+            res.end("auth popup failed");
+          }
         }
       });
     },
   };
 }
 
-export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    grokOgIdentity(),
-    authPopupPlugin(),
-    tanstackStart(),
-  ],
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
+// Dev server on :8080. `npm run preview` serves the production build on :8081.
+export default defineConfig(({ command, isPreview }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
+    strictPort: true,
   },
-});
+  preview: {
+    host: "127.0.0.1",
+    port: 8081,
+    strictPort: true,
+  },
+  resolve: { tsconfigPaths: true },
+  plugins: [
+    pgliteBootstrapPlugin(),
+    // Before tanstackStart so /auth/popup never falls through to the SPA.
+    authPopupPlugin(),
+    tailwindcss(),
+    tanstackStart(),
+    ...(command === "build" || isPreview
+      ? [
+          nitro({
+            // Vercel builds set VERCEL=1. Everything else (Docker, a VPS)
+            // gets a plain Node server in .output/. Override with NITRO_PRESET.
+            preset: process.env.NITRO_PRESET || (process.env.VERCEL ? "vercel" : "node-server"),
+            // PGLite loads its .wasm/.data files from its own package folder at
+            // runtime, so ship the whole package instead of bundling it.
+            traceDeps: ["@electric-sql/pglite*"],
+          }),
+        ]
+      : []),
+    viteReact(),
+  ],
+}));

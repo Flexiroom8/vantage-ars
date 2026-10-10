@@ -111,7 +111,14 @@ async function createPgliteSql(): Promise<Sql> {
   // data survives source edits (it resets on dev-server restart).
   globalRef.__pgliteInstance__ ??= (async () => {
     const { PGlite } = await import("@electric-sql/pglite");
-    const pg = new PGlite({
+    // PGLITE_DATA_DIR keeps the embedded database on disk (self-hosted
+    // single-server installs). Unset = in-memory, reset on restart.
+    const dataDir = process.env.PGLITE_DATA_DIR?.trim() || undefined;
+    if (dataDir) {
+      const { mkdirSync } = await import("node:fs");
+      mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    }
+    const pg = new PGlite(dataDir, {
       parsers: {
         [OID_INT8]: Number,
         [OID_DATE]: identity,
@@ -147,11 +154,11 @@ async function createPgliteSql(): Promise<Sql> {
     );
     const done = doneRows.rows.map((r) => r.name);
     for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) {
-      const file = migrations[path];
-      if (!file) continue;
       // Apply + record atomically (parity with scripts/migrate.mjs) so a failed
       // statement can't leave a file half-applied but untracked.
       await pg.transaction(async (tx) => {
+        const file = migrations[path];
+        if (!file) return;
         await tx.exec(file);
         await tx.query("insert into _migrations (name) values ($1)", [name]);
       });

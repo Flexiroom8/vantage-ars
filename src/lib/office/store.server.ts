@@ -1,15 +1,15 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { getSql } from "@/lib/db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
 import { COMPANY, GENESIS_HASH } from "./company";
 import { authorizeAction } from "./governor";
 import { chainHash, sha256Hex, stableStringify } from "./hash";
-import { vatOn } from "./money";
 import { PUBLISHED_RATES } from "./catalogue";
-import { deliveryJob, documentRef, invoiceCopy, paymentInstructionsText, paymentNote, quoteInvoice, receiptCopy, receiptForInvoice } from "./invoice";
+import { customerQuoteText, deliveryJob, documentRef, invoiceCopy, ledgerVat, parseVatTreatment, type VatTreatment, expenseVat, paymentInstructionsText, paymentNote, quoteInvoice, receiptCopy, receiptForInvoice } from "./invoice";
 import { parsePaymentNotice } from "./payment-notice";
 import { nextTicketStatus } from "./ticket";
+import { linkExpiry, linkState, plausibleToken, type QuoteLinkState, type QuoteLinkSummary } from "./quote-link";
 import { smtpStatus } from "./smtp.server";
 import type {
   ActionKind,
@@ -335,7 +335,7 @@ export async function readSnapshot(): Promise<OfficeSnapshot> {
   await sql`alter table company_state add column if not exists payment_instructions text not null default ''`;
   await sql`
     update company_state
-    set payment_instructions = ${paymentInstructionsText()}
+    set payment_instructions = ${paymentInstructionsText(process.env)}
     where id = ${COMPANY.id}
       and (
         coalesce(payment_instructions, '') = ''
@@ -676,7 +676,7 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
         `;
       }
       if (canPay) {
-        const vat = vatOn(budget, COMPANY.vatRate);
+        const vat = expenseVat(action.payload.vatTreatment, budget);
         const entryId = randomUUID();
         await sql`
           insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
@@ -768,7 +768,11 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     }
     case "issue_invoice": {
       const id = randomUUID();
-      const vat = action.payload.vatTreatment === "unstated" ? 0 : vatOn(amount, COMPANY.vatRate);
+      const given = action.payload.vatCents;
+      const vat =
+        typeof given === "number" && Number.isInteger(given) && given >= 0 && given < amount
+          ? given
+          : ledgerVat(action.payload.vatTreatment, amount).vatCents;
       await sql`
         insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
         values (${id}, 'invoice', ${companyName || "Counterparty"}, ${amount}, ${vat}, 'issued', ${action.rationale}, ${action.relatedId ?? null})
@@ -782,7 +786,7 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     }
     case "record_expense": {
       const id = randomUUID();
-      const vat = vatOn(amount, COMPANY.vatRate);
+      const vat = expenseVat(action.payload.vatTreatment, amount);
       const books = await loadCompany();
       const paid = amount > 0 && books.treasuryCents >= amount;
       await sql`
@@ -1201,6 +1205,30 @@ export async function founderClose(input: {
   opportunityId: string;
   outcome: "won" | "lost";
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const won = input.outcome === "won";
+  return closeOpportunity({
+    opportunityId: input.opportunityId,
+    outcome: input.outcome,
+    actor: "founder",
+    note: won
+      ? "Founder recorded the customer's acceptance. The quote was not emailed from here."
+      : "Founder recorded that the customer declined. No email was sent.",
+  });
+}
+
+/**
+ * Close an opportunity on the customer's answer. Shared by the founder's
+ * "Customer accepted/declined" buttons and the customer's own quote link, so
+ * both follow the same rules: an approved quote must exist, and a win opens
+ * one delivery ticket. Nothing is invoiced or emailed here.
+ */
+async function closeOpportunity(input: {
+  opportunityId: string;
+  outcome: "won" | "lost";
+  actor: string;
+  note: string;
+  quoteId?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   const snapshot = await readSnapshot();
   if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
   const opportunity = snapshot.opportunities.find((item) => item.id === input.opportunityId);
@@ -1209,7 +1237,11 @@ export async function founderClose(input: {
     return { ok: false, error: "This opportunity is already closed." };
   }
   const quote = snapshot.documents.find(
-    (item) => item.kind === "quote" && item.status === "approved_unsent" && item.relatedId === opportunity.id,
+    (item) =>
+      item.kind === "quote" &&
+      item.status === "approved_unsent" &&
+      item.relatedId === opportunity.id &&
+      (!input.quoteId || item.id === input.quoteId),
   );
   if (!quote) return { ok: false, error: "Approve a quote before recording the customer's answer." };
   if (input.outcome === "won" && opportunity.valueCents <= 0) {
@@ -1217,9 +1249,7 @@ export async function founderClose(input: {
   }
   const sql = await getSql();
   const won = input.outcome === "won";
-  const note = won
-    ? "Founder recorded the customer's acceptance. The quote was not emailed from here."
-    : "Founder recorded that the customer declined. No email was sent.";
+  const note = input.note;
   await sql`
     update opportunities
     set stage = ${won ? "won" : "lost"},
@@ -1243,12 +1273,214 @@ export async function founderClose(input: {
       `;
     }
   }
-  await appendAudit(won ? "customer_accepted" : "customer_declined", opportunity.companyName, note, "founder");
+  await appendAudit(won ? "customer_accepted" : "customer_declined", opportunity.companyName, note, input.actor);
   return { ok: true };
+}
+
+// ── Customer quote links ─────────────────────────────────────────────────────
+
+
+export type PublicQuote =
+  | {
+      ok: true;
+      state: QuoteLinkState;
+      companyName: string;
+      amountCents: number;
+      scope: string;
+      reference: string | null;
+      paymentNote: string;
+      issuedAt: string;
+      expiresAt: string;
+      answeredAt: string | null;
+      answerName: string | null;
+    }
+  | { ok: false; error: string };
+
+function tokenHash(token: string): string {
+  return sha256Hex(`quote-link:${token}`);
+}
+
+/** Founder: create a fresh link for an approved quote. Older links for it stop working. */
+export async function createQuoteLink(
+  documentId: string,
+): Promise<{ ok: true; token: string; expiresAt: string } | { ok: false; error: string }> {
+  const snapshot = await readSnapshot();
+  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
+  const quote = snapshot.documents.find((item) => item.id === documentId && item.kind === "quote");
+  if (!quote || quote.status !== "approved_unsent" || !quote.relatedId) {
+    return { ok: false, error: "Only an approved quote that is waiting on the customer can get a link." };
+  }
+  const opportunity = snapshot.opportunities.find((item) => item.id === quote.relatedId);
+  if (!opportunity || opportunity.stage === "won" || opportunity.stage === "lost") {
+    return { ok: false, error: "This opportunity is already closed." };
+  }
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = linkExpiry().toISOString();
+  const sql = await getSql();
+  await sql`
+    update quote_links set revoked_at = now()
+    where document_id = ${quote.id} and revoked_at is null and answered_at is null
+  `;
+  await sql`
+    insert into quote_links (id, token_hash, document_id, opportunity_id, expires_at)
+    values (${randomUUID()}, ${tokenHash(token)}, ${quote.id}, ${opportunity.id}, ${expiresAt})
+  `;
+  await appendAudit(
+    "quote_link_created",
+    opportunity.companyName,
+    `Customer quote link created, valid until ${expiresAt.slice(0, 10)}. Any earlier link for this quote was revoked. Nothing was emailed.`,
+    "founder",
+  );
+  return { ok: true, token, expiresAt };
+}
+
+/** Founder: stop every open link for a quote. */
+export async function revokeQuoteLinks(documentId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sql = await getSql();
+  const rows = await sql<{ id: string }>`
+    update quote_links set revoked_at = now()
+    where document_id = ${documentId} and revoked_at is null and answered_at is null
+    returning id
+  `;
+  if (rows.length === 0) return { ok: false, error: "There is no open link for this quote." };
+  const snapshot = await readSnapshot();
+  const quote = snapshot.documents.find((item) => item.id === documentId);
+  await appendAudit("quote_link_revoked", quote?.title ?? "Quote", "Customer quote link revoked by the founder.", "founder");
+  return { ok: true };
+}
+
+/** Founder: the latest link per quote, for the Sales page. */
+export async function listQuoteLinks(): Promise<QuoteLinkSummary[]> {
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select l.*, d.status as document_status
+    from quote_links l
+    join documents d on d.id = l.document_id
+    order by l.created_at desc
+  `;
+  const latest = new Map<string, QuoteLinkSummary>();
+  for (const row of rows) {
+    const documentId = String(row.document_id);
+    if (latest.has(documentId)) continue;
+    const record = {
+      expiresAt: iso(row.expires_at),
+      revokedAt: row.revoked_at ? iso(row.revoked_at) : null,
+      answer: row.answer ? String(row.answer) : null,
+    };
+    latest.set(documentId, {
+      documentId,
+      state: linkState(record, String(row.document_status)),
+      createdAt: iso(row.created_at),
+      expiresAt: record.expiresAt,
+      firstViewedAt: row.first_viewed_at ? iso(row.first_viewed_at) : null,
+      lastViewedAt: row.last_viewed_at ? iso(row.last_viewed_at) : null,
+      viewCount: num(row.view_count),
+      answeredAt: row.answered_at ? iso(row.answered_at) : null,
+      answerName: row.answer_name ? String(row.answer_name) : null,
+      answerNote: row.answer_note ? String(row.answer_note) : null,
+    });
+  }
+  return [...latest.values()];
+}
+
+async function findLink(token: string): Promise<Record<string, unknown> | null> {
+  if (!plausibleToken(token)) return null;
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from quote_links where token_hash = ${tokenHash(token)} limit 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Public: what the customer sees on their link. Records the view. */
+export async function readPublicQuote(token: string, countView = true): Promise<PublicQuote> {
+  const link = await findLink(token);
+  if (!link) return { ok: false, error: "This quote link is not valid. Ask us for a new one." };
+  const snapshot = await readSnapshot();
+  const quote = snapshot.documents.find((item) => item.id === String(link.document_id));
+  const opportunity = snapshot.opportunities.find((item) => item.id === String(link.opportunity_id));
+  if (!quote || !opportunity) return { ok: false, error: "This quote is no longer on file. Ask us for a new one." };
+  const record = {
+    expiresAt: iso(link.expires_at),
+    revokedAt: link.revoked_at ? iso(link.revoked_at) : null,
+    answer: link.answer ? String(link.answer) : null,
+  };
+  const state = linkState(record, quote.status);
+  if (state === "revoked") return { ok: false, error: "This quote link was replaced or withdrawn. Ask us for the current one." };
+  if (countView && state === "open") {
+    const sql = await getSql();
+    await sql`
+      update quote_links
+      set view_count = view_count + 1,
+          first_viewed_at = coalesce(first_viewed_at, now()),
+          last_viewed_at = now()
+      where id = ${String(link.id)}
+    `;
+  }
+  const scope = customerQuoteText(quote.summary);
+  return {
+    ok: true,
+    state,
+    companyName: opportunity.companyName,
+    amountCents: opportunity.valueCents,
+    scope,
+    reference: scope.match(/Reference:\s*(VA-[A-Z0-9]+)/)?.[1] ?? null,
+    paymentNote: paymentNote(snapshot.company.paymentInstructions),
+    issuedAt: quote.createdAt,
+    expiresAt: record.expiresAt,
+    answeredAt: link.answered_at ? iso(link.answered_at) : null,
+    answerName: link.answer_name ? String(link.answer_name) : null,
+  };
+}
+
+/** Public: the customer accepts or declines on their link. */
+export async function answerPublicQuote(
+  token: string,
+  answer: { outcome: "accepted" | "declined"; name: string; note: string },
+): Promise<{ ok: true; companyName: string; amountCents: number } | { ok: false; error: string }> {
+  const link = await findLink(token);
+  if (!link) return { ok: false, error: "This quote link is not valid. Ask us for a new one." };
+  const view = await readPublicQuote(token, false);
+  if (!view.ok) return view;
+  if (view.state !== "open") {
+    const why: Record<string, string> = {
+      accepted: "This quote was already accepted.",
+      declined: "This quote was already declined.",
+      expired: "This quote link has expired. Ask us for a fresh quote.",
+      closed: "This quote is closed. Ask us for a fresh quote.",
+    };
+    return { ok: false, error: why[view.state] ?? "This quote can no longer be answered." };
+  }
+  const sql = await getSql();
+  // Claim the link first so a double click cannot record two answers.
+  const claimed = await sql<{ id: string }>`
+    update quote_links
+    set answered_at = now(), answer = ${answer.outcome}, answer_name = ${answer.name}, answer_note = ${answer.note || null}
+    where id = ${String(link.id)} and answered_at is null and revoked_at is null
+    returning id
+  `;
+  if (claimed.length === 0) return { ok: false, error: "This quote was already answered." };
+  const won = answer.outcome === "accepted";
+  const note = won
+    ? `Customer accepted on their quote link as "${answer.name}".${answer.note ? ` Note: ${answer.note}` : ""}`
+    : `Customer declined on their quote link as "${answer.name}".${answer.note ? ` Note: ${answer.note}` : ""}`;
+  const closed = await closeOpportunity({
+    opportunityId: String(link.opportunity_id),
+    outcome: won ? "won" : "lost",
+    actor: "customer",
+    note,
+    quoteId: String(link.document_id),
+  });
+  if (!closed.ok) {
+    await sql`update quote_links set answered_at = null, answer = null, answer_name = null, answer_note = null where id = ${String(link.id)}`;
+    return closed;
+  }
+  return { ok: true, companyName: view.companyName, amountCents: view.amountCents };
 }
 
 export async function raiseQuoteInvoice(
   opportunityId: string,
+  vatTreatment: VatTreatment = "none",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const snapshot = await readSnapshot();
   if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
@@ -1256,7 +1488,8 @@ export async function raiseQuoteInvoice(
   if (!opportunity || opportunity.stage !== "won") {
     return { ok: false, error: "Invoice only after you record that the customer accepted." };
   }
-  const figure = quoteInvoice(opportunity.valueCents);
+  const treatment = parseVatTreatment(vatTreatment);
+  const figure = quoteInvoice(opportunity.valueCents, treatment);
   if (!figure.ok) return figure;
   const already = snapshot.ledger.some((row) => row.kind === "invoice" && row.relatedId === opportunity.id);
   if (already) return { ok: false, error: "An invoice is already on the books for this job." };
@@ -1270,13 +1503,17 @@ export async function raiseQuoteInvoice(
       amountCents: figure.cents,
       companyName: opportunity.companyName,
       relatedId: opportunity.id,
-      payload: { vatTreatment: "unstated" },
+      payload: { vatTreatment: treatment, vatCents: figure.vatCents },
     },
     { source: "ledger-desk" },
   );
   if (result.status !== "executed") return { ok: false, error: "The invoice was not raised." };
   const docId = randomUUID();
-  const text = invoiceCopy(opportunity.companyName, figure.cents, documentRef(docId));
+  const text = invoiceCopy(opportunity.companyName, figure.cents, documentRef(docId), {
+    treatment,
+    netCents: figure.netCents,
+    vatCents: figure.vatCents,
+  });
   const existing = snapshot.documents.some(
     (item) => item.kind === "invoice" && item.relatedId === opportunity.id,
   );
@@ -1327,7 +1564,11 @@ export async function recordInvoiceReceipt(
   if (result.status !== "executed") return { ok: false, error: "The receipt was not recorded." };
   const sql = await getSql();
   await sql`update ledger_entries set status = 'paid' where id = ${invoice.id} and kind = 'invoice'`;
-  const text = receiptCopy(invoice.counterparty, figure.cents);
+  const text = receiptCopy(invoice.counterparty, figure.cents, {
+    treatment: invoice.vatCents > 0 ? "included" : "none",
+    netCents: figure.cents - invoice.vatCents,
+    vatCents: invoice.vatCents,
+  });
   const haveReceipt = snapshot.documents.some((item) => item.kind === "receipt" && item.relatedId === invoice.id);
   if (!haveReceipt) {
     await sql`
@@ -1389,3 +1630,58 @@ export async function savePaymentInstructions(
 }
 
 export type { DispatchResult, ActionKind };
+
+export async function exportBackupJson(): Promise<string> {
+  const { BACKUP_TABLES, buildBackup } = await import("./backup");
+  const sql = await getSql();
+  const tables: Record<string, Record<string, unknown>[]> = {};
+  for (const name of BACKUP_TABLES) {
+    // Names come from a fixed list in backup.ts, never from user input.
+    tables[name] = await sql.query<Record<string, unknown>>(`select * from ${name}`);
+  }
+  return JSON.stringify(buildBackup(tables));
+}
+
+export async function restoreBackupJson(
+  json: string,
+): Promise<{ ok: true; added: Record<string, number> } | { ok: false; error: string }> {
+  const { MAX_RESTORE_BYTES, planRestore } = await import("./backup");
+  if (typeof json !== "string" || json.length === 0 || json.length > MAX_RESTORE_BYTES) {
+    return { ok: false, error: "The backup file is empty or larger than 4 MB." };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    return { ok: false, error: "That file is not valid JSON." };
+  }
+  const sql = await getSql();
+  const names = Object.keys((parsed as { tables?: Record<string, unknown> } | null)?.tables ?? {}).filter((n) =>
+    /^[a-z_]+$/.test(n),
+  );
+  const columnsByTable: Record<string, string[]> = {};
+  for (const name of names) {
+    const rows = await sql<{ column_name: string }>`
+      select column_name from information_schema.columns
+      where table_schema = current_schema() and table_name = ${name}
+    `;
+    columnsByTable[name] = rows.map((row) => row.column_name);
+  }
+  const plan = planRestore(parsed, columnsByTable);
+  if (!plan.ok) return plan;
+  const added: Record<string, number> = {};
+  for (const table of plan.tables) {
+    // table.name passed the fixed allow-list in planRestore; it is never raw user input.
+    const result = await sql.query<{ n: number }>(
+      `with ins as (
+         insert into ${table.name}
+         select * from jsonb_populate_recordset(null::${table.name}, $1::jsonb)
+         on conflict do nothing
+         returning 1
+       ) select count(*)::int as n from ins`,
+      [JSON.stringify(table.rows)],
+    );
+    added[table.name] = Number(result[0]?.n ?? 0);
+  }
+  return { ok: true, added };
+}

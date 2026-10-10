@@ -1,17 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 
 export const Route = createFileRoute("/terms")({
-  head: () => ({
-    meta: [
-      { title: "How work is agreed · Vantage-ARS" },
-      {
-        name: "description",
-        content:
-          "A Vantage-ARS enquiry or chat is not a contract. Work starts from a written quote. Card payment is not available.",
-      },
-    ],
-  }),
+  head: () => pageHead({ title: "How work is agreed · Vantage-ARS", description: "A Vantage-ARS enquiry or chat is not a contract. Work starts from a written quote. Card payment is not available.", path: "/terms" }),
   component: TermsPage,
 });
 

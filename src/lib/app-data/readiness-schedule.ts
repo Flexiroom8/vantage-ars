@@ -7,7 +7,7 @@ export function readinessProbeDelayMs(attempt: number): number {
     Math.max(attempt, 0),
     READINESS_PROBE_DELAYS_MS.length - 1,
   );
-  return READINESS_PROBE_DELAYS_MS[index] ?? 0;
+  return READINESS_PROBE_DELAYS_MS[index];
 }
 
 export function readinessProbeExhausted(

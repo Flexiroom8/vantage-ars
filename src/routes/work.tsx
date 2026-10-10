@@ -1,17 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { SERVICE_LINES, ratesByIds } from "@/lib/office/catalogue";
 
 export const Route = createFileRoute("/work")({
-  head: () => ({
-    meta: [
-      { title: "The work · Vantage-ARS" },
-      {
-        name: "description",
-        content: "VoIP, networking, and IT infrastructure work from Vantage-ARS. Scope is confirmed in a written quote.",
-      },
-    ],
-  }),
+  head: () => pageHead({ title: "The work · Vantage-ARS", description: "VoIP, networking, and IT infrastructure work from Vantage-ARS. Scope is confirmed in a written quote.", path: "/work" }),
   component: WorkPage,
 });
 
@@ -44,7 +37,6 @@ function WorkPage() {
       </article>
       {SERVICE_LINES.map((line, index) => {
         const detail = DETAIL[index];
-        if (!detail) return null;
         const rates = ratesByIds(detail.ids);
         return (
           <section key={line.number} className="border-t border-border py-16">

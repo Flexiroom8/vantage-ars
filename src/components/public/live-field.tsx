@@ -55,12 +55,9 @@ export function LiveField() {
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(12, 92, 171, 0.22)";
       for (const [a, b] of edges) {
-        const aNode = nodes[a];
-        const bNode = nodes[b];
-        if (!aNode || !bNode) continue;
         ctx.beginPath();
-        ctx.moveTo(aNode.x, aNode.y);
-        ctx.lineTo(bNode.x, bNode.y);
+        ctx.moveTo(nodes[a].x, nodes[a].y);
+        ctx.lineTo(nodes[b].x, nodes[b].y);
         ctx.stroke();
       }
       ctx.fillStyle = "rgba(12, 92, 171, 0.45)";
@@ -74,12 +71,9 @@ export function LiveField() {
           const edge = edges[(i * 5) % edges.length];
           if (!edge) continue;
           const [a, b] = edge;
-          const aNode = nodes[a];
-          const bNode = nodes[b];
-          if (!aNode || !bNode) continue;
           const u = (time / 3200 + i / 7) % 1;
-          const x = aNode.x + (bNode.x - aNode.x) * u;
-          const y = aNode.y + (bNode.y - aNode.y) * u;
+          const x = nodes[a].x + (nodes[b].x - nodes[a].x) * u;
+          const y = nodes[a].y + (nodes[b].y - nodes[a].y) * u;
           ctx.beginPath();
           ctx.fillStyle = "rgba(12, 92, 171, 1)";
           ctx.arc(x, y, 3, 0, Math.PI * 2);

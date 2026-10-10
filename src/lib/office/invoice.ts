@@ -46,34 +46,71 @@ export function documentRef(id: string): string {
   return `VA-${compact || "00000000"}`;
 }
 
-export const PAYMENT_METHODS = [
-  {
-    id: "eft",
-    title: "EFT",
-    available: true,
-    detail: "Capitec Bank. Account 1592015539. Branch 470010. Beneficiary Vantage ARS.",
-  },
-  {
-    id: "wire",
-    title: "International wire",
-    available: true,
-    detail: "SWIFT CABLZAJJ. Capitec Bank, South Africa. Account 1592015539. Branch 470010.",
-  },
-  {
-    id: "card",
-    title: "Card",
-    available: false,
-    detail: "Card checkout is not connected. Do not send card numbers by email.",
-  },
-] as const;
+export type PaymentEnv = Record<string, string | undefined>;
+export type PaymentMethod = { id: "eft" | "wire" | "card"; title: string; available: boolean; detail: string };
 
-export function paymentInstructionsText(): string {
+type BankDetails = { bank: string; account: string; branch: string; beneficiary: string; swift: string };
+
+/** Bank details come from the server environment, never from source code. Null when incomplete. */
+export function bankDetails(env: PaymentEnv): BankDetails | null {
+  const pick = (key: string) => (env[key] ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+  const bank = pick("PAYMENT_BANK_NAME");
+  const account = pick("PAYMENT_ACCOUNT_NUMBER");
+  const branch = pick("PAYMENT_BRANCH_CODE");
+  const beneficiary = pick("PAYMENT_BENEFICIARY");
+  if (!bank || !account || !branch || !beneficiary) return null;
+  return { bank, account, branch, beneficiary, swift: pick("PAYMENT_SWIFT") };
+}
+
+const NO_BANK_DETAIL = "Bank details are sent with your quote or invoice.";
+
+export function paymentMethods(env: PaymentEnv): PaymentMethod[] {
+  const bank = bankDetails(env);
+  const methods: PaymentMethod[] = [
+    {
+      id: "eft",
+      title: "EFT",
+      available: true,
+      detail: bank
+        ? `${bank.bank}. Account ${bank.account}. Branch ${bank.branch}. Beneficiary ${bank.beneficiary}.`
+        : NO_BANK_DETAIL,
+    },
+    {
+      id: "wire",
+      title: "International wire",
+      available: true,
+      detail:
+        bank && bank.swift
+          ? `SWIFT ${bank.swift}. ${bank.bank}. Account ${bank.account}. Branch ${bank.branch}.`
+          : NO_BANK_DETAIL,
+    },
+    {
+      id: "card",
+      title: "Card",
+      available: false,
+      detail: "Card checkout is not connected. Do not send card numbers by email.",
+    },
+  ];
+  return methods;
+}
+
+export function paymentInstructionsText(env: PaymentEnv): string {
+  const bank = bankDetails(env);
+  if (!bank) {
+    return [
+      "Bank details are sent with the quote or invoice.",
+      "Reference: the quote or invoice reference.",
+      "Card payment is not available.",
+    ].join(" ");
+  }
   return [
-    "EFT: Capitec Bank, account 1592015539, branch 470010, beneficiary Vantage ARS.",
-    "International wire: SWIFT CABLZAJJ, Capitec Bank, South Africa, same account.",
+    `EFT: ${bank.bank}, account ${bank.account}, branch ${bank.branch}, beneficiary ${bank.beneficiary}.`,
+    bank.swift ? `International wire: SWIFT ${bank.swift}, ${bank.bank}, same account.` : "",
     "Reference: the quote or invoice reference.",
     "Card payment is not available.",
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export type VatSummary = { treatment: VatTreatment; netCents: number; vatCents: number };
@@ -190,4 +227,15 @@ export const VAT_TREATMENT_LABELS: Record<VatTreatment, string> = {
 /** Untrusted input to a treatment. Anything unrecognised becomes "none" so VAT is never invented. */
 export function parseVatTreatment(value: unknown): VatTreatment {
   return value === "standard" || value === "included" || value === "zero_rated" ? value : "none";
+}
+
+/**
+ * VAT on money Vantage-ARS PAYS (expenses, campaign spend). `paidCents` is what left the bank.
+ * Input VAT is only claimed when the founder says the amount includes it ("included");
+ * anything else records no VAT, because a claim needs a valid supplier tax invoice.
+ */
+export function expenseVat(treatment: unknown, paidCents: number): number {
+  if (treatment !== "included") return 0;
+  const r = vatBreakdown(paidCents, "included");
+  return r.ok ? r.vatCents : 0;
 }

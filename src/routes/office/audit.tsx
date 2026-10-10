@@ -3,7 +3,10 @@ import { useOfficeSnapshot } from "@/components/office/office-context";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
 import { TraceList } from "@/components/office/trace-list";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { downloadBackup, restoreBackup } from "@/lib/office/api";
 import { headMatches } from "@/lib/office/integrity";
 import { formatDateTime } from "@/lib/office/money";
 
@@ -11,6 +14,40 @@ export const Route = createFileRoute("/office/audit")({
   component: AuditPage,
 });
 
+
+async function saveBackup() {
+  try {
+    const result = await downloadBackup();
+    const url = URL.createObjectURL(new Blob([result.json], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = result.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup downloaded. It holds customer data, so keep it private.");
+  } catch {
+    toast.error("The backup could not be created.");
+  }
+}
+
+async function loadBackup(file: File | undefined) {
+  if (!file) return;
+  if (file.size > 4_000_000) {
+    toast.error("That file is larger than 4 MB.");
+    return;
+  }
+  try {
+    const result = await restoreBackup({ data: { json: await file.text() } });
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    const total = Object.values(result.added).reduce((sum, n) => sum + n, 0);
+    toast.success(`Restore finished. ${total} missing record${total === 1 ? "" : "s"} added; nothing was deleted or overwritten.`);
+  } catch {
+    toast.error("The backup could not be restored.");
+  }
+}
 
 function AuditPage() {
   const snapshot = useOfficeSnapshot();
@@ -29,6 +66,30 @@ function AuditPage() {
           {intact ? "head matches latest record" : "head diverges from latest windowed record"}
         </span>
       </p>
+
+      <div className="mb-8">
+        <Button type="button" onClick={() => void saveBackup()}>
+          Download verified backup
+        </Button>
+        <p className="mt-2 text-xs text-muted">
+          JSON with a checksum. Includes customers, ledger and audit records. Never includes sign-in credentials.
+        </p>
+        <label className="mt-4 block text-sm">
+          Restore from a backup file
+          <input
+            type="file"
+            accept="application/json,.json"
+            className="mt-1 block text-xs"
+            onChange={(event) => {
+              void loadBackup(event.target.files?.[0]);
+              event.target.value = "";
+            }}
+          />
+        </label>
+        <p className="mt-1 text-xs text-muted">
+          Checks the checksum first. Only adds records that are missing; it never deletes or overwrites current data.
+        </p>
+      </div>
 
       <section className="mb-10">
         <h2 className="mb-3 font-serif text-2xl">Ledger events</h2>

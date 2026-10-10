@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useOfficeSnapshot } from "@/components/office/office-context";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { EmptyState } from "@/components/office/empty-state";
@@ -10,7 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { fileQuote, recordCustomerAnswer } from "@/lib/office/api";
+import {
+  createCustomerQuoteLink,
+  fileQuote,
+  listCustomerQuoteLinks,
+  recordCustomerAnswer,
+  revokeCustomerQuoteLink,
+} from "@/lib/office/api";
+import type { QuoteLinkSummary } from "@/lib/office/quote-link";
 import { customerQuoteText, withPaymentNote } from "@/lib/office/invoice";
 import { formatZar } from "@/lib/office/money";
 import { priceQuote, QUOTE_SPECS } from "@/lib/office/quote";
@@ -93,21 +100,15 @@ function QuoteForm({
 }) {
   const router = useRouter();
   const [opportunityId, setOpportunityId] = useState(opportunities[0]?.id ?? "");
-  const firstSpec = QUOTE_SPECS[0];
-  const [specKey, setSpecKey] = useState(
-    firstSpec ? `${firstSpec.rateId}:${firstSpec.location}` : "",
-  );
-  const spec = QUOTE_SPECS.find((item) => `${item.rateId}:${item.location}` === specKey) ?? firstSpec;
-  const [quantity, setQuantity] = useState(spec?.unit === "flat" ? "1" : String(spec?.min ?? 1));
+  const [specKey, setSpecKey] = useState(`${QUOTE_SPECS[0].rateId}:${QUOTE_SPECS[0].location}`);
+  const spec = QUOTE_SPECS.find((item) => `${item.rateId}:${item.location}` === specKey) ?? QUOTE_SPECS[0];
+  const [quantity, setQuantity] = useState(spec.unit === "flat" ? "1" : String(spec.min));
   const [pending, setPending] = useState(false);
   const priced = priceQuote({
-    rateId: spec?.rateId ?? "",
-    location: spec?.location ?? "remote",
-    quantity: spec?.unit === "flat" ? 1 : Number(quantity),
+    rateId: spec.rateId,
+    location: spec.location,
+    quantity: spec.unit === "flat" ? 1 : Number(quantity),
   });
-
-  if (!spec) return null;
-  const activeSpec = spec;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -116,9 +117,9 @@ function QuoteForm({
       const result = await fileQuote({
         data: {
           opportunityId,
-          rateId: activeSpec.rateId,
-          location: activeSpec.location,
-          quantity: activeSpec.unit === "flat" ? 1 : Number(quantity),
+          rateId: spec.rateId,
+          location: spec.location,
+          quantity: spec.unit === "flat" ? 1 : Number(quantity),
         },
       });
       if (!result.ok) {
@@ -210,17 +211,30 @@ function ApprovedQuotes({
   opportunities: { id: string; companyName: string; valueCents: number }[];
   paymentNote: string;
 }) {
+  const [links, setLinks] = useState<QuoteLinkSummary[]>([]);
+  const quoteKey = quotes.map((quote) => quote.id).join(",");
+  const reloadLinks = () =>
+    listCustomerQuoteLinks()
+      .then(setLinks)
+      .catch(() => setLinks([]));
+  useEffect(() => {
+    if (quoteKey) void reloadLinks();
+  }, [quoteKey]);
   if (quotes.length === 0) return null;
   return (
     <div className="mt-8 space-y-3">
       <h2 className="font-serif text-2xl">Approved quotes</h2>
-      <p className="text-sm text-muted">Copy one and send it yourself. The copy includes the payment reference and how to pay. Nothing on this desk is emailed.</p>
+      <p className="text-sm text-muted">
+        Copy one and send it yourself, or create a customer link where they can read it, download the PDF and accept or decline. Nothing on this desk is emailed.
+      </p>
       {quotes.map((quote) => (
         <QuoteCard
           key={quote.id}
           quote={quote}
           paymentNote={paymentNote}
           opportunity={opportunities.find((item) => item.id === quote.relatedId)}
+          link={links.find((item) => item.documentId === quote.id)}
+          onLinksChanged={() => void reloadLinks()}
         />
       ))}
     </div>
@@ -231,10 +245,14 @@ function QuoteCard({
   quote,
   opportunity,
   paymentNote,
+  link,
+  onLinksChanged,
 }: {
-  quote: { title: string; summary: string; relatedId: string | null };
+  quote: { id: string; title: string; summary: string; relatedId: string | null };
   opportunity?: { id: string; companyName: string; valueCents: number };
   paymentNote: string;
+  link?: QuoteLinkSummary;
+  onLinksChanged: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<"won" | "lost" | null>(null);
@@ -319,6 +337,107 @@ function QuoteCard({
           {pending === "lost" ? "Recording…" : "Customer declined"}
         </Button>
       </div>
+      <CustomerLinkPanel documentId={quote.id} link={link} onChanged={onLinksChanged} />
     </Card>
+  );
+}
+function linkDate(value: string): string {
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Africa/Johannesburg",
+  }).format(new Date(value));
+}
+
+function CustomerLinkPanel({
+  documentId,
+  link,
+  onChanged,
+}: {
+  documentId: string;
+  link?: QuoteLinkSummary;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [fresh, setFresh] = useState<string | null>(null);
+  const active = link?.state === "open";
+
+  async function create() {
+    setBusy(true);
+    try {
+      const result = await createCustomerQuoteLink({ data: { documentId } });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      const url = `${window.location.origin}/q/${result.token}`;
+      setFresh(url);
+      await navigator.clipboard.writeText(url).then(
+        () => toast.success("Link copied. Send it to the customer yourself. It is shown only once."),
+        () => toast.success("Link created. Copy it now. It is shown only once."),
+      );
+      onChanged();
+    } catch {
+      toast.error("The link could not be created.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revoke() {
+    setBusy(true);
+    try {
+      const result = await revokeCustomerQuoteLink({ data: { documentId } });
+      if (!result.ok) toast.error(result.error);
+      else {
+        setFresh(null);
+        toast.success("Link withdrawn. The customer can no longer open it.");
+      }
+      onChanged();
+    } catch {
+      toast.error("The link could not be withdrawn.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.16em] text-muted">Customer link</p>
+          <p className="mt-1 text-sm text-muted">
+            {!link
+              ? "No link yet."
+              : active
+                ? `Open until ${linkDate(link.expiresAt)} · ${
+                    link.viewCount > 0 ? `viewed ${link.viewCount}× (last ${linkDate(link.lastViewedAt ?? link.createdAt)})` : "not opened yet"
+                  }`
+                : link.state === "revoked"
+                  ? "Withdrawn."
+                  : link.state === "expired"
+                    ? "Expired. Create a new link if the price still stands."
+                    : `Closed (${link.state}).`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" disabled={busy} onClick={() => void create()}>
+            {active ? "Replace link" : "Create link"}
+          </Button>
+          {active ? (
+            <Button type="button" variant="danger" disabled={busy} onClick={() => void revoke()}>
+              Withdraw
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {fresh ? (
+        <p className="mt-3 break-all rounded-md bg-raised px-3 py-2 font-mono text-xs" aria-live="polite">
+          {fresh}
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -29,6 +29,14 @@ export function loadSmtpConfig(): SmtpConfig | null {
   return null;
 }
 
+/** Where the mail credentials come from. "env" is the safe place; the JSON file is a legacy fallback. */
+export function smtpCredentialSource(): "env" | "file" | "none" {
+  const envUser = process.env.GMAIL_SMTP_USER?.trim() ?? "";
+  const envPass = cleanPassword(process.env.GMAIL_SMTP_APP_PASSWORD);
+  if (envUser.includes("@") && envPass.length >= 8) return "env";
+  return loadSmtpConfig() ? "file" : "none";
+}
+
 export function smtpStatus(): { smtpConnected: boolean; account: string | null } {
   const config = loadSmtpConfig();
   return { smtpConnected: Boolean(config), account: config?.user ?? null };

@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
-Disallow: /office/
+Disallow: /office
+Disallow: /login
 Disallow: /api/
+Disallow: /q/
 Sitemap: https://vantage-ars.co.za/sitemap.xml

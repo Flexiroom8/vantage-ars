@@ -1,15 +1,21 @@
-node_modules/
-data/*.json
-data/*.tmp
+# credentials and local config - never commit
+.grok/gmail-smtp.json
+.grok/app-env.json
 .env
 .env.*
-coverage/
+!.env.example
+*.pem
 
-# Added for GitHub upload
-**/node_modules/
-**/.codex-project/
-.wrangler/
-**/.wrangler/
-*.zip
-*.tar.gz
-**/.vercel/
+# build output and caches
+node_modules/
+.vercel/
+.tanstack/
+.node_modules.lock
+dist/
+.output/
+
+# local data and bulky attachments
+data/
+artifacts/.tmp/
+attachments/*.zip
+attachments/Auto.txt.txt

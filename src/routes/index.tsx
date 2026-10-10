@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { businessJsonLd, faqJsonLd, pageHead } from "@/lib/site/seo";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
 import { PathExhibit } from "@/components/public/live-field";
@@ -7,24 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { publicRateRows, SERVICE_LINES } from "@/lib/office/catalogue";
-import { PAYMENT_METHODS } from "@/lib/office/invoice";
-import { submitPaymentNotice, submitPublicEnquiry } from "@/lib/office/api";
+import { SERVICE_PAGES } from "@/lib/site/services";
+import { getPaymentMethods, submitPaymentNotice, submitPublicEnquiry } from "@/lib/office/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
-    meta: [
-      { title: "Vantage-ARS · VoIP, Networking & IT Infrastructure" },
-      {
-        name: "description",
-        content:
-          "Get the phones and the network working again. Remote help worldwide from R690 an hour, with a written quote before any work starts.",
-      },
-    ],
+    ...pageHead({ title: "Vantage-ARS · VoIP, Networking & IT Infrastructure", description: "Get the phones and the network working again. Remote help worldwide from R690 an hour, with a written quote before any work starts.", path: "/" }),
+    scripts: [businessJsonLd(), faqJsonLd([...QUESTIONS])],
   }),
+  loader: () => getPaymentMethods(),
   component: PublicSite,
 });
 
 function PublicSite() {
+  const methods = Route.useLoaderData();
   return (
     <PublicFrame>
       <section className="enter-up pb-4 pt-16 lg:pt-24">
@@ -79,14 +76,24 @@ function PublicSite() {
           </p>
         </div>
         <ul className="mt-12 border-t border-fg/20">
-          {SERVICE_LINES.map((line) => (
-            <li key={line.number} className="grid gap-3 border-b border-fg/15 py-8 sm:grid-cols-[4.5rem_1fr_auto] sm:items-baseline sm:gap-8">
-              <p className="font-mono text-sm text-accent">{line.number}</p>
-              <div>
-                <h3 className="font-serif text-4xl tracking-[-0.03em]">{line.title}</h3>
-                <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">{line.summary}</p>
-              </div>
-              <p className="font-mono text-sm">{line.price}</p>
+          {SERVICE_LINES.map((line, index) => (
+            <li key={line.number} className="border-b border-fg/15">
+              <Link
+                to="/services/$slug"
+                params={{ slug: SERVICE_PAGES[index]?.slug ?? "voip" }}
+                className="group grid gap-3 py-8 sm:grid-cols-[4.5rem_1fr_auto] sm:items-baseline sm:gap-8"
+              >
+                <p className="font-mono text-sm text-accent">{line.number}</p>
+                <div>
+                  <h3 className="font-serif text-4xl tracking-[-0.03em] group-hover:underline group-hover:decoration-1 group-hover:underline-offset-8">
+                    {line.title}
+                  </h3>
+                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted">{line.summary}</p>
+                </div>
+                <p className="font-mono text-sm">
+                  {line.price} <span aria-hidden className="ml-2 text-accent transition-transform group-hover:translate-x-1">→</span>
+                </p>
+              </Link>
             </li>
           ))}
         </ul>
@@ -138,7 +145,7 @@ function PublicSite() {
           </div>
           <div>
             <ul className="border-t border-fg/20">
-              {PAYMENT_METHODS.map((method) => (
+              {methods.map((method) => (
                 <li key={method.id} className="grid gap-1 border-b border-fg/15 py-5 sm:grid-cols-[9rem_1fr] sm:gap-8">
                   <h3 className="text-sm font-medium">
                     {method.title}
