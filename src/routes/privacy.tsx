@@ -1,39 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
-import { COMPANY } from "@/lib/office/company";
 
-export const Route = createFileRoute("/privacy")({
-  head: () => pageHead({ title: "Privacy · Vantage-ARS", description: "What Vantage-ARS collects when you enquire, use live chat, or tell us you have paid.", path: "/privacy" }),
-  component: PrivacyPage,
+export const Route = createFileRoute("/terms")({
+  head: () =>
+    pageHead({
+      title: "How work is agreed · Vantage-ARS",
+      description:
+        "A Vantage-ARS enquiry or chat is not a contract. Work starts from a written quote. Card payment is not available.",
+      path: "/terms",
+    }),
+  component: TermsPage,
 });
 
-function PrivacyPage() {
+const RULES = [
+  "An enquiry, chat, or service-desk message is not a contract and not a quote.",
+  "Published labour is R690 per hour remote and R805 per hour on-site, unless the quote changes it.",
+  "VAT is added only when the written quote says so.",
+  "Travel, hardware, licences, and third-party services are extra and itemised before they are agreed.",
+  "Monthly managed support is not offered. After-hours work is by appointment.",
+  "Pay by EFT or international wire, using the reference on the quote or invoice. Card checkout is not available.",
+] as const;
+
+function TermsPage() {
   return (
     <PublicFrame>
-      <article className="enter-up max-w-2xl py-16">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">POPIA</p>
-        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Privacy</h1>
-        <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
-          <p>
-            Vantage-ARS collects only what you send us: your name, email address, and the message,
-            chat, or payment notice you submit. A payment notice also includes the reference and the
-            amount you say you paid.
+      <article className="enter-up max-w-3xl py-16">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Before any work</p>
+        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">How work is agreed</h1>
+
+        <div className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
+          <p className="text-sm leading-relaxed text-muted">
+            Work starts only from a written quote that names the scope, timing, and total price. This keeps the job clear before any paid work begins.
           </p>
-          <p>
-            We use that to answer the enquiry, keep a service matter, or check a claimed payment. We
-            do not sell it. Do not send passwords, card numbers, or other secrets.
-          </p>
-          <p>
-            A short acknowledgement may be emailed when mail is connected. It is not a quote. Live
-            chat is stored so the office can reply in the same thread.
-          </p>
-          <p>
-            To ask for a copy of what we hold, or to correct it, write to{" "}
-            <a className="text-fg underline-offset-4 hover:underline" href={`mailto:${COMPANY.email}`}>
-              {COMPANY.email}
-            </a>
-            .
+        </div>
+
+        <ul className="mt-8 space-y-4 text-sm leading-relaxed text-muted">
+          {RULES.map((rule) => (
+            <li key={rule} className="flex gap-3 border-b border-fg/10 pb-4">
+              <span aria-hidden className="mt-2 size-2 shrink-0 rounded-full bg-accent" />
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-10 rounded-2xl bg-[#0e1c33] p-8 text-white">
+          <h2 className="font-serif text-3xl tracking-[-0.03em]">In plain English</h2>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75">
+            You ask for help, we explain what is involved, and you see the price in writing before anyone starts. If it is not on the quote, it is not part of the agreed work.
           </p>
         </div>
       </article>
