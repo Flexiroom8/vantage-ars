@@ -1,139 +1,202 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-import { WatchtowerMark } from "@/components/brand/mark";
-import { COMPANY } from "@/lib/office/company";
-import { SERVICE_PAGES } from "@/lib/site/services";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { PublicFrame } from "@/components/public/site-frame";
+import { ratesByIds } from "@/lib/office/catalogue";
+import { SERVICE_PAGES, servicePage } from "@/lib/site/services";
+import { businessJsonLd, faqJsonLd, jsonLd, pageHead, SITE_URL } from "@/lib/site/seo";
 
-const nav = [
-  { to: "/", hash: "services", label: "Services" },
-  { to: "/work", hash: undefined, label: "Work" },
-  { to: "/rates", hash: undefined, label: "Rates" },
-  { to: "/support", hash: undefined, label: "Service desk" },
-] as const;
+export const Route = createFileRoute("/services/$slug")({
+  loader: ({ params }) => {
+    const page = servicePage(params.slug);
+    if (!page) throw notFound();
+    return page;
+  },
+  head: ({ loaderData }) => {
+    if (!loaderData) return {};
+    const head = pageHead({ title: loaderData.metaTitle, description: loaderData.description, path: `/services/${loaderData.slug}` });
+    return {
+      ...head,
+      scripts: [
+        businessJsonLd(),
+        faqJsonLd(loaderData.faqs),
+        jsonLd({
+          "@context": "https://schema.org",
+          "@type": "Service",
+          name: loaderData.title,
+          serviceType: loaderData.title,
+          description: loaderData.description,
+          provider: { "@type": "ProfessionalService", name: "Vantage-ARS", url: SITE_URL },
+          areaServed: "Worldwide (remote); on-site by arrangement",
+          url: `${SITE_URL}/services/${loaderData.slug}`,
+        }),
+      ],
+    };
+  },
+  component: ServicePageView,
+});
 
-const trustPills = ["Written quote first", "No retainer", "Remote support worldwide"] as const;
+function ServicePageView() {
+  const page = Route.useLoaderData();
+  const rates = ratesByIds(page.rateIds);
+  const others = SERVICE_PAGES.filter((item) => item.slug !== page.slug);
 
-export function PublicFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="site relative min-h-dvh bg-bg">
-      <div className="relative z-10 bg-[#0e1c33] py-2 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-white/80">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6">
-          {trustPills.map((item) => (
-            <span key={item} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] tracking-[0.18em]">
-              {item}
-            </span>
+    <PublicFrame>
+      <nav aria-label="Breadcrumb" className="pt-10 text-sm text-muted">
+        <Link to="/" className="hover:text-fg">
+          Home
+        </Link>{" "}
+        /{" "}
+        <Link to="/" hash="services" className="hover:text-fg">
+          Services
+        </Link>{" "}
+        / <span className="text-fg">{page.title}</span>
+      </nav>
+
+      <section className="enter-up pb-16 pt-8 lg:pt-12">
+        <p className="font-mono text-sm text-accent">{page.number}</p>
+        <h1 className="mt-3 max-w-4xl font-serif text-5xl leading-[0.96] tracking-[-0.04em] sm:text-7xl">{page.title}</h1>
+        <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted">{page.lead}</p>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link to="/" hash="enquiry" className="inline-flex h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg">
+            Get a written quote
+          </Link>
+          <Link to="/support" className="inline-flex h-11 items-center rounded-md px-5 text-sm shadow-[var(--shadow-border)]">
+            Already a customer? Service desk
+          </Link>
+        </div>
+      </section>
+
+      <section className="grid gap-4 border-y border-border bg-surface/80 p-4 md:grid-cols-3 md:p-6" aria-label="Service value summary">
+        {[
+          "Scope explained before work starts",
+          "Quote-first pricing with no retainer",
+          "Remote first, on-site only when needed",
+        ].map((item) => (
+          <div key={item} className="rounded-xl border border-border bg-bg p-4 text-sm text-muted shadow-[var(--shadow-border)]">
+            {item}
+          </div>
+        ))}
+      </section>
+
+      <section className="border-t border-border py-16" aria-labelledby="symptoms-heading">
+        <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
+          <h2 id="symptoms-heading" className="font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+            Sound familiar?
+          </h2>
+          <ul className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+            {page.symptoms.map((item) => (
+              <li key={item} className="flex gap-3 border-b border-fg/10 pb-4 text-sm">
+                <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className="border-t border-border py-16" aria-labelledby="approach-heading">
+        <h2 id="approach-heading" className="font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+          How the work runs
+        </h2>
+        <ol className="mt-10 grid gap-10 md:grid-cols-3">
+          {page.approach.map((step, index) => (
+            <li key={step.title} className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-border)]">
+              <p className="font-mono text-sm text-accent">{String(index + 1).padStart(2, "0")}</p>
+              <h3 className="mt-2 font-serif text-2xl">{step.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
+            </li>
           ))}
-        </div>
-      </div>
+        </ol>
+      </section>
 
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0e1c33]/95 text-white backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5 text-white" aria-label="Vantage-ARS home">
-            <WatchtowerMark className="size-5 text-[#7ec8ff]" />
-            <span className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</span>
-          </Link>
-
-          <nav aria-label="Main navigation" className="hidden items-center gap-6 md:flex">
-            {nav.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                hash={item.hash}
-                className="text-sm text-white/70 transition-colors hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <button
-              type="button"
-              className="text-sm text-white/70 transition-colors hover:text-white"
-              onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
-            >
-              Chat
-            </button>
-          </nav>
-
-          <Link
-            to="/"
-            hash="enquiry"
-            className="hidden h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-[#0e1c33] transition-opacity hover:opacity-95 md:inline-flex"
-          >
-            Get a quote
-          </Link>
-
-          <details className="relative md:hidden">
-            <summary className="flex h-10 cursor-pointer list-none items-center rounded-md bg-white px-3 text-sm font-medium text-[#0e1c33]">
-              Menu
-            </summary>
-            <nav className="absolute right-0 z-40 mt-2 w-56 rounded-xl bg-surface p-2 text-fg shadow-[var(--shadow-border)]">
-              {nav.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  hash={item.hash}
-                  className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <button
-                type="button"
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
-                onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
-              >
-                Chat
-              </button>
-            </nav>
-          </details>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
-
-      <footer className="relative z-10 border-t border-border bg-[#0e1c33] text-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-4">
+      <section className="border-t border-border py-16" aria-labelledby="price-heading">
+        <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
           <div>
-            <p className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</p>
-            <p className="mt-2 text-sm text-white/70">VoIP, networking and IT infrastructure.</p>
-          </div>
-
-          <div className="flex flex-col gap-2 text-sm">
-            {SERVICE_PAGES.map((page) => (
-              <Link key={page.slug} to="/services/$slug" params={{ slug: page.slug }} className="text-white/70 transition-colors hover:text-white">
-                {page.title}
+            <h2 id="price-heading" className="font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+              Prices
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
+              South African rand. VAT is added only if the written quote says so.{" "}
+              <Link to="/rates" className="text-fg underline-offset-4 hover:underline">
+                Full rate sheet
               </Link>
-            ))}
+              .
+            </p>
           </div>
+          <ul className="border-t border-fg/20">
+            {rates.map((rate) => (
+              <li key={rate.id} className="grid gap-2 border-b border-fg/15 py-5 sm:grid-cols-[1fr_9rem] sm:gap-8">
+                <div>
+                  <h3 className="text-base font-medium">{rate.title}</h3>
+                  <p className="mt-1 text-sm text-muted">{rate.scope}</p>
+                  <p className="mt-2 text-sm text-subtle">{rate.basis}</p>
+                </div>
+                <p className="font-mono text-sm sm:text-right">{rate.price}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-          <div className="flex flex-col gap-2 text-sm">
-            <Link to="/work" className="text-white/70 transition-colors hover:text-white">
-              Work
+      <section className="border-t border-border py-16" aria-labelledby="excluded-heading">
+        <div className="grid gap-10 lg:grid-cols-2">
+          <div>
+            <h2 id="excluded-heading" className="font-serif text-3xl tracking-[-0.03em]">
+              Not in the labour rate
+            </h2>
+            <ul className="mt-6 space-y-3 text-sm text-muted">
+              {page.excluded.map((item) => (
+                <li key={item} className="border-b border-fg/10 pb-3">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h2 className="font-serif text-3xl tracking-[-0.03em]">Questions</h2>
+            <dl className="mt-6 space-y-6">
+              {page.faqs.map((item) => (
+                <div key={item.q}>
+                  <dt className="text-sm font-medium">{item.q}</dt>
+                  <dd className="mt-1 text-sm leading-relaxed text-muted">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-border py-16">
+        <div className="rounded-2xl bg-[#0e1c33] p-8 text-white sm:p-12">
+          <h2 className="max-w-2xl font-serif text-4xl tracking-[-0.03em]">Tell us what stopped.</h2>
+          <p className="mt-4 max-w-xl text-sm text-white/70">
+            A few sentences are enough. You get a written quote before anyone starts, and asking does not commit you to anything.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link to="/" hash="enquiry" className="inline-flex h-11 items-center rounded-md bg-white px-5 text-sm font-medium text-[#0e1c33]">
+              Request a quote
             </Link>
-            <Link to="/rates" className="text-white/70 transition-colors hover:text-white">
-              Rates
-            </Link>
-            <Link to="/support" className="text-white/70 transition-colors hover:text-white">
+            <Link to="/support" className="inline-flex h-11 items-center rounded-md border border-white/20 px-5 text-sm font-medium text-white/90">
               Service desk
             </Link>
-            <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
-              How work is agreed
-            </Link>
-            <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
-              Privacy
-            </Link>
-          </div>
-
-          <div className="text-sm text-white/70">
-            <a className="transition-colors hover:text-white" href={`mailto:${COMPANY.email}`}>
-              {COMPANY.email}
-            </a>
-            <p className="mt-2">South African rand. A written quote before any work.</p>
-            <Link to="/office" className="mt-4 inline-block text-xs text-white/50 transition-colors hover:text-white">
-              Sign in
-            </Link>
           </div>
         </div>
-      </footer>
-    </div>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          {others.map((item) => (
+            <Link
+              key={item.slug}
+              to="/services/$slug"
+              params={{ slug: item.slug }}
+              className="group rounded-xl p-6 shadow-[var(--shadow-border)] hover:bg-raised"
+            >
+              <p className="font-mono text-xs text-accent">{item.number}</p>
+              <p className="mt-2 font-serif text-2xl group-hover:underline">{item.title}</p>
+              <p className="mt-1 text-sm text-muted">{item.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+    </PublicFrame>
   );
 }
