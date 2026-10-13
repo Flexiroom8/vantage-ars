@@ -1,44 +1,179 @@
-import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
-import { cn } from "@/lib/utils";
+@import "tailwindcss";
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[opacity,transform,background-color,box-shadow,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/70 disabled:pointer-events-none disabled:opacity-40 active:not-disabled:scale-[0.96] [&_svg]:size-4 [&_svg]:shrink-0",
-  {
-    variants: {
-      variant: {
-        default: "bg-accent text-accent-fg hover:opacity-90",
-        secondary: "bg-raised text-fg shadow-[var(--shadow-border)] hover:shadow-[var(--shadow-border-hover)]",
-        outline: "bg-transparent text-fg shadow-[var(--shadow-border)] hover:bg-raised",
-        ghost: "bg-transparent text-muted hover:text-fg hover:bg-raised",
-        danger: "bg-danger/15 text-danger hover:bg-danger/25",
-      },
-      size: {
-        default: "h-11 px-4",
-        sm: "h-9 px-3 text-xs",
-        lg: "h-12 px-5",
-        icon: "size-11",
-      },
-    },
-    defaultVariants: { variant: "default", size: "default" },
-  },
-);
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
+  --color-bg: #f3f6fb;
+  --color-surface: #ffffff;
+  --color-raised: #e6eef8;
+  --color-fg: #122033;
+  --color-muted: #4d6078;
+  --color-subtle: #7d8da3;
+  --color-accent: #0c5cab;
+  --color-accent-fg: #f7fbff;
+  --color-border: #d5e0ee;
+  --color-ring: #0c5cab;
+  --color-ok: #0f7a4a;
+  --color-warn: #9a6208;
+  --color-danger: #b42318;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+
+  --shadow-border: 0 0 0 1px rgb(18 32 51 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(18 32 51 / 0.16);
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />
-    );
-  },
-);
-Button.displayName = "Button";
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
 
-export { Button, buttonVariants };
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    background:
+      radial-gradient(circle at top, rgba(12, 92, 171, 0.06), transparent 30%),
+      var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--color-accent) 65%, white);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 35%, transparent);
+    color: var(--color-fg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.enter-up {
+  animation: enter-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.live-dot {
+  animation: pulse-live 2.2s ease-in-out infinite;
+}
+
+html:has(.site),
+html:has(.site) body {
+  background: #f3f6fb;
+}
+
+.site {
+  --color-bg: #f3f6fb;
+  --color-surface: #ffffff;
+  --color-raised: #e6eef8;
+  --color-fg: #122033;
+  --color-muted: #4d6078;
+  --color-subtle: #7d8da3;
+  --color-accent: #0c5cab;
+  --color-accent-fg: #f7fbff;
+  --color-border: #d5e0ee;
+  --color-ring: #0c5cab;
+  --color-ok: #0f7a4a;
+  --color-warn: #9a6208;
+  --color-danger: #b42318;
+  --shadow-border: 0 0 0 1px rgb(18 32 51 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(18 32 51 / 0.16);
+  background: transparent;
+  color: var(--color-fg);
+}
+
+.site summary::-webkit-details-marker {
+  display: none;
+}
+
+.signal-packet {
+  offset-path: path("M 16 28 H 704");
+  animation: signal-ride 7s linear infinite;
+}
+
+#services,
+#prices,
+#enquiry,
+#payment {
+  scroll-margin-top: 5.5rem;
+}
+
+@keyframes signal-ride {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-packet {
+    animation: none;
+    offset-distance: 50%;
+  }
+}
