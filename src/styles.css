@@ -27,25 +27,33 @@
 
   --shadow-border: 0 0 0 1px rgb(18 32 51 / 0.08);
   --shadow-border-hover: 0 0 0 1px rgb(18 32 51 / 0.16);
+
+  --motion-fast: 160ms;
+  --motion-medium: 320ms;
+  --motion-slow: 520ms;
 }
 
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   html,
   body,
   #app {
     min-height: 100%;
-    background: var(--color-bg);
+    background:
+      radial-gradient(circle at top, rgba(12, 92, 171, 0.06), transparent 30%),
+      var(--color-bg);
     color: var(--color-fg);
   }
 
   body {
     font-family: var(--font-sans);
     line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
 
   h1,
@@ -58,9 +66,19 @@
     text-wrap: pretty;
   }
 
+  a {
+    text-decoration: none;
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-accent) 60%, white);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
   }
 
   ::selection {
@@ -101,13 +119,40 @@
   }
 }
 
+@keyframes float-subtle {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0px); }
+}
+
 .enter-up {
-  animation: enter-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: enter-up var(--motion-medium) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .live-dot {
   animation: pulse-live 2.2s ease-in-out infinite;
 }
+
+.float-subtle {
+  animation: float-subtle var(--motion-slow) ease-in-out infinite;
+}
+
+.hero-gradient {
+  background: linear-gradient(180deg, rgba(12,92,171,0.06), rgba(7,17,30,0.02));
+}
+
+.card-glass {
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid rgba(255,255,255,0.03);
+  backdrop-filter: blur(6px) saturate(120%);
+}
+
+.premium-cta {
+  box-shadow: 0 10px 30px rgba(12,92,171,0.08);
+  transform: translateZ(0);
+  transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+.premium-cta:hover { transform: translateY(-2px); box-shadow: 0 18px 40px rgba(12,92,171,0.12); }
 
 html:has(.site),
 html:has(.site) body {
@@ -151,17 +196,10 @@ html:has(.site) body {
 }
 
 @keyframes signal-ride {
-  from {
-    offset-distance: 0%;
-  }
-  to {
-    offset-distance: 100%;
-  }
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .signal-packet {
-    animation: none;
-    offset-distance: 50%;
-  }
+  .signal-packet { animation: none; offset-distance: 50%; }
 }

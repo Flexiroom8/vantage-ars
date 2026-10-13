@@ -4,9 +4,23 @@ export const SITE_URL = `https://${COMPANY.domain}`;
 
 type Meta = { title?: string; name?: string; property?: string; content?: string };
 
-/** Title, description, canonical and share-card tags for a public page. */
-export function pageHead(input: { title: string; description: string; path: string; type?: "website" | "article" }) {
-  const url = `${SITE_URL}${input.path === "/" ? "/" : input.path}`;
+/**
+ * Title, description, canonical and share-card tags for a public page.
+ * Accepts optional overrides for image, type and author metadata to support richer SEO.
+ */
+export function pageHead(input: {
+  title: string;
+  description: string;
+  path: string;
+  type?: "website" | "article";
+  image?: string;
+  imageAlt?: string;
+  authorName?: string;
+}) {
+  const pathname = input.path === "/" ? "/" : input.path.replace(/^(?!\/)/, "/");
+  const url = `${SITE_URL}${pathname}`;
+  const image = input.image ?? `${SITE_URL}/og.jpg`;
+
   const meta: Meta[] = [
     { title: input.title },
     { name: "description", content: input.description },
@@ -15,14 +29,28 @@ export function pageHead(input: { title: string; description: string; path: stri
     { property: "og:title", content: input.title },
     { property: "og:description", content: input.description },
     { property: "og:url", content: url },
-    { property: "og:image", content: `${SITE_URL}/og.jpg` },
+    { property: "og:image", content: image },
     { property: "og:locale", content: "en_ZA" },
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: input.title },
     { name: "twitter:description", content: input.description },
-    { name: "twitter:image", content: `${SITE_URL}/og.jpg` },
+    { name: "twitter:image", content: image },
+    { name: "theme-color", content: "#0e1c33" },
+    { name: "robots", content: "index,follow" },
   ];
-  return { meta, links: [{ rel: "canonical", href: url }] };
+
+  if (input.authorName) {
+    meta.push({ name: "author", content: input.authorName });
+    meta.push({ name: "twitter:creator", content: input.authorName });
+  }
+
+  return {
+    meta,
+    links: [
+      { rel: "canonical", href: url },
+      { rel: "alternate", href: SITE_URL, hreflang: "en-ZA" } as unknown as Record<string, string>,
+    ],
+  };
 }
 
 /** JSON-LD block for the head. Data only; never executed. */
@@ -44,6 +72,18 @@ export function businessJsonLd() {
     address: { "@type": "PostalAddress", addressCountry: "ZA" },
     areaServed: "Worldwide (remote); on-site by arrangement",
     knowsAbout: ["VoIP", "PBX", "SIP", "Networking", "Wi-Fi", "VLAN", "IT infrastructure"],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        telephone: "",
+        contactType: "customer support",
+        areaServed: "ZA",
+        availableLanguage: ["English"],
+      },
+    ],
+    sameAs: [
+      // Add social/profile links here when available
+    ],
   });
 }
 
