@@ -11,9 +11,40 @@ import { publicRateRows, SERVICE_LINES } from "@/lib/office/catalogue";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { getPaymentMethods, submitPaymentNotice, submitPublicEnquiry } from "@/lib/office/api";
 
+const TRUST_STATS = [
+  { value: "R690", label: "remote help starts from" },
+  { value: "3-step", label: "quote-first process" },
+  { value: "Worldwide", label: "remote support available" },
+] as const;
+
+const VALUE_PILLARS = [
+  {
+    title: "You see the price first",
+    body: "The form does not create a contract. A written quote explains the scope, hours, and any VAT before work starts.",
+  },
+  {
+    title: "Help can start remotely",
+    body: "From R690 an hour, remote support reaches across the country and across borders without a monthly retainer.",
+  },
+  {
+    title: "No retainer to join",
+    body: "You pay for the agreed work, then you are done. There is no account to open and no recurring contract to maintain.",
+  },
+] as const;
+
+const WORKFLOW_STEPS = [
+  { number: "01", title: "Tell us what stopped", body: "A few details are enough to understand the issue and the environment." },
+  { number: "02", title: "Price it in writing", body: "You get a clear quote with scope, timing, and any VAT before any work begins." },
+  { number: "03", title: "Approve and fix", body: "Once approved, work starts on the specific task you asked for, with no surprise drift." },
+] as const;
+
 export const Route = createFileRoute("/")({
   head: () => ({
-    ...pageHead({ title: "Vantage-ARS · VoIP, Networking & IT Infrastructure", description: "Get the phones and the network working again. Remote help worldwide from R690 an hour, with a written quote before any work starts.", path: "/" }),
+    ...pageHead({
+      title: "Vantage-ARS · VoIP, Networking & IT Infrastructure",
+      description:
+        "Get the phones and the network working again. Remote help worldwide from R690 an hour, with a written quote before anyone starts.",
+    }),
     scripts: [businessJsonLd(), faqJsonLd([...QUESTIONS])],
   }),
   loader: () => getPaymentMethods(),
@@ -44,17 +75,22 @@ function PublicSite() {
         <PathExhibit />
       </section>
 
+      <section className="mt-8 grid gap-4 border-y border-border bg-surface/80 p-4 md:grid-cols-3 md:p-6" aria-label="Key facts about Vantage-ARS">
+        {TRUST_STATS.map((item) => (
+          <div key={item.label} className="rounded-xl border border-border bg-bg p-4 shadow-[var(--shadow-border)]">
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-subtle">{item.label}</p>
+            <p className="mt-3 font-serif text-3xl tracking-[-0.03em] text-fg">{item.value}</p>
+          </div>
+        ))}
+      </section>
+
       <section className="border-t border-border py-20" aria-labelledby="why-heading">
         <h2 id="why-heading" className="max-w-2xl font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
           Why people ask us first
         </h2>
         <ul className="mt-12 grid gap-10 md:grid-cols-3">
-          {[
-            ["You see the price first", "The form does not start the job. A written quote does, and only after you agree."],
-            ["Help can start remotely", "From R690 an hour, worldwide. On-site work is arranged when the job needs someone there."],
-            ["No retainer to join", "There is no monthly package. You pay for the agreed work, then you are done."],
-          ].map(([title, body]) => (
-            <li key={title}>
+          {VALUE_PILLARS.map(({ title, body }) => (
+            <li key={title} className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
               <h3 className="font-serif text-3xl">{title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-muted">{body}</p>
             </li>
@@ -99,6 +135,24 @@ function PublicSite() {
         </ul>
       </section>
 
+      <section className="border-t border-border py-20" aria-labelledby="workflow-heading">
+        <div className="mb-10 max-w-xl">
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent">How it works</p>
+          <h2 id="workflow-heading" className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+            A straightforward path from issue to fix.
+          </h2>
+        </div>
+        <div className="grid gap-5 md:grid-cols-3">
+          {WORKFLOW_STEPS.map((step) => (
+            <article key={step.number} className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
+              <p className="font-mono text-sm text-accent">{step.number}</p>
+              <h3 className="mt-5 font-serif text-3xl">{step.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{step.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section id="prices" className="border-t border-border py-20" aria-labelledby="price-heading">
         <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
           <div>
@@ -131,9 +185,9 @@ function PublicSite() {
         </div>
       </section>
 
-        <Enquiry />
+      <Enquiry />
 
-        <Faq />
+      <Faq />
 
       <section id="payment" className="border-t border-border py-20" aria-labelledby="pay-heading">
         <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
