@@ -25,7 +25,8 @@
   },
   "sideEffects": false,
   "overrides": {
-    "nf3": "0.3.17"
+    "nf3": "0.3.17",
+    "react-hook-form": "7.84.0"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
