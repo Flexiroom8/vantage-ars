@@ -1,199 +1,139 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { pageHead } from "@/lib/site/seo";
-import { useState, type FormEvent } from "react";
-import { PublicFrame } from "@/components/public/site-frame";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { submitPublicEnquiry } from "@/lib/office/api";
+import { Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
+import { WatchtowerMark } from "@/components/brand/mark";
+import { COMPANY } from "@/lib/office/company";
+import { SERVICE_PAGES } from "@/lib/site/services";
 
-export const Route = createFileRoute("/support")({
-  head: () => pageHead({ title: "Customer service · Vantage-ARS", description: "Log a fault, a question about work in progress, or a complaint with Vantage-ARS. A short acknowledgement is sent when mail is connected. It does not refund, cancel, or quote.", path: "/support" }),
-  component: SupportDesk,
-});
-
-const MATTERS = [
-  { value: "fault", label: "Something is not working" },
-  { value: "question", label: "A question about work in progress" },
-  { value: "complaint", label: "A complaint" },
+const nav = [
+  { to: "/", hash: "services", label: "Services" },
+  { to: "/work", hash: undefined, label: "Work" },
+  { to: "/rates", hash: undefined, label: "Rates" },
+  { to: "/support", hash: undefined, label: "Service desk" },
 ] as const;
 
-function SupportDesk() {
+const trustPills = ["Written quote first", "No retainer", "Remote support worldwide"] as const;
+
+export function PublicFrame({ children }: { children: ReactNode }) {
   return (
-    <PublicFrame>
-        <section className="enter-up grid gap-10 border-b border-border py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
-          <div>
-            <p className="text-sm font-medium text-accent">Customer service</p>
-            <h1 className="mt-4 max-w-xl font-serif text-5xl leading-[0.96] tracking-[-0.04em] sm:text-6xl">
-              Already a customer? This is the right place.
-            </h1>
-            <p className="mt-6 max-w-lg text-base text-muted">
-              Tell us about a fault, a job already underway, or a complaint. We may send a short
-              acknowledgement. It does not refund anything, cancel work, or change a price.
-            </p>
-          </div>
-          <dl className="self-end space-y-4 border-t border-border pt-6 text-sm lg:border-t-0 lg:pt-0">
-            <div>
-              <dt className="text-xs uppercase tracking-[0.16em] text-subtle">What this desk does</dt>
-              <dd className="mt-1 text-muted">Records the matter for a person to review.</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.16em] text-subtle">What it does not do</dt>
-              <dd className="mt-1 text-muted">No refund, no new price, and no contract from this form.</dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-[0.16em] text-subtle">New work</dt>
-              <dd className="mt-1 text-muted">
-                <a href="/#enquiry" className="underline-offset-4 hover:underline">
-                  Use the enquiry form
-                </a>{" "}
-                if you need a quote.
-              </dd>
-            </div>
-          </dl>
-        </section>
-        <section className="grid gap-10 border-t border-border py-16 md:grid-cols-3">
-          {[
-            ["A fault", "Something stopped. Say what it was doing, and what it does now."],
-            ["Work in progress", "Ask where an agreed job stands. This does not change the quote."],
-            ["A complaint", "Say what went wrong. A refund or a credit is not decided on this form."],
-          ].map(([title, body]) => (
-            <div key={title}>
-              <h2 className="font-serif text-3xl">{title}</h2>
-              <p className="mt-3 text-sm text-muted">{body}</p>
-            </div>
+    <div className="site relative min-h-dvh bg-bg">
+      <div className="relative z-10 bg-[#0e1c33] py-2 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-white/80">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6">
+          {trustPills.map((item) => (
+            <span key={item} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] tracking-[0.18em]">
+              {item}
+            </span>
           ))}
-        </section>
-        <DeskForm />
-    </PublicFrame>
-  );
-}
-
-function DeskForm() {
-  const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    message: "",
-    website: "",
-    matter: "fault",
-  });
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      const result = await submitPublicEnquiry({
-        data: { ...form, desk: true },
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setDone(true);
-    } catch {
-      setError("The desk could not record this. Try again in a moment.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <section className="grid gap-8 py-16 lg:grid-cols-2">
-      <div>
-        <h2 className="font-serif text-4xl tracking-[-0.03em]">Tell the desk what happened.</h2>
-        <p className="mt-3 max-w-md text-sm text-muted">
-          A complaint is held for review before anyone offers a refund or cancellation. Do not
-          include passwords, access keys, or other secrets.
-        </p>
-        <p className="mt-6 max-w-md text-sm text-subtle">
-          Monthly managed support is not offered. After-hours work is not an emergency response.
-        </p>
-      </div>
-      {done ? (
-        <div className="rounded-xl bg-surface p-6 shadow-[var(--shadow-border)]">
-          <p className="font-serif text-3xl">Recorded.</p>
-          <p className="mt-3 text-sm text-muted">
-            Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been refunded, cancelled, or quoted.
-          </p>
         </div>
-      ) : (
-        <form onSubmit={onSubmit} className="space-y-4 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
-          <div>
-            <Label htmlFor="desk-name">Your name</Label>
-            <Input
-              id="desk-name"
-              className="mt-2"
-              autoComplete="name"
-              required
-              minLength={2}
-              maxLength={160}
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="desk-email">Email address</Label>
-            <Input
-              id="desk-email"
-              type="email"
-              className="mt-2"
-              autoComplete="email"
-              required
-              maxLength={254}
-              value={form.email}
-              onChange={(event) => setForm({ ...form, email: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="desk-matter">What is this about?</Label>
-            <Select
-              id="desk-matter"
-              className="mt-2"
-              value={form.matter}
-              onChange={(event) => setForm({ ...form, matter: event.target.value })}
+      </div>
+
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0e1c33]/95 text-white backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <Link to="/" className="flex shrink-0 items-center gap-2.5 text-white" aria-label="Vantage-ARS home">
+            <WatchtowerMark className="size-5 text-[#7ec8ff]" />
+            <span className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</span>
+          </Link>
+
+          <nav aria-label="Main navigation" className="hidden items-center gap-6 md:flex">
+            {nav.map((item) => (
+              <Link
+                key={item.label}
+                to={item.to}
+                hash={item.hash}
+                className="text-sm text-white/70 transition-colors hover:text-white"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <button
+              type="button"
+              className="text-sm text-white/70 transition-colors hover:text-white"
+              onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
             >
-              {MATTERS.map((matter) => (
-                <option key={matter.value} value={matter.value}>
-                  {matter.label}
-                </option>
+              Chat
+            </button>
+          </nav>
+
+          <Link
+            to="/"
+            hash="enquiry"
+            className="hidden h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-[#0e1c33] transition-opacity hover:opacity-95 md:inline-flex"
+          >
+            Get a quote
+          </Link>
+
+          <details className="relative md:hidden">
+            <summary className="flex h-10 cursor-pointer list-none items-center rounded-md bg-white px-3 text-sm font-medium text-[#0e1c33]">
+              Menu
+            </summary>
+            <nav className="absolute right-0 z-40 mt-2 w-56 rounded-xl bg-surface p-2 text-fg shadow-[var(--shadow-border)]">
+              {nav.map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  hash={item.hash}
+                  className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
+                >
+                  {item.label}
+                </Link>
               ))}
-            </Select>
-          </div>
+              <button
+                type="button"
+                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
+                onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
+              >
+                Chat
+              </button>
+            </nav>
+          </details>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
+
+      <footer className="relative z-10 border-t border-border bg-[#0e1c33] text-white">
+        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-4">
           <div>
-            <Label htmlFor="desk-message">What should we know?</Label>
-            <Textarea
-              id="desk-message"
-              className="mt-2"
-              required
-              minLength={5}
-              maxLength={3000}
-              rows={6}
-              placeholder="What stopped working, or what you need an update on."
-              value={form.message}
-              onChange={(event) => setForm({ ...form, message: event.target.value })}
-            />
+            <p className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</p>
+            <p className="mt-2 text-sm text-white/70">VoIP, networking and IT infrastructure.</p>
           </div>
-          <div className="h-0 overflow-hidden" aria-hidden="true">
-            Leave this field empty
-            <input
-              tabIndex={-1}
-              autoComplete="off"
-              value={form.website}
-              onChange={(event) => setForm({ ...form, website: event.target.value })}
-            />
+
+          <div className="flex flex-col gap-2 text-sm">
+            {SERVICE_PAGES.map((page) => (
+              <Link key={page.slug} to="/services/$slug" params={{ slug: page.slug }} className="text-white/70 transition-colors hover:text-white">
+                {page.title}
+              </Link>
+            ))}
           </div>
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
-          <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-            {pending ? "Sending…" : "Send to the desk"}
-          </Button>
-        </form>
-      )}
-    </section>
+
+          <div className="flex flex-col gap-2 text-sm">
+            <Link to="/work" className="text-white/70 transition-colors hover:text-white">
+              Work
+            </Link>
+            <Link to="/rates" className="text-white/70 transition-colors hover:text-white">
+              Rates
+            </Link>
+            <Link to="/support" className="text-white/70 transition-colors hover:text-white">
+              Service desk
+            </Link>
+            <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
+              How work is agreed
+            </Link>
+            <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
+              Privacy
+            </Link>
+          </div>
+
+          <div className="text-sm text-white/70">
+            <a className="transition-colors hover:text-white" href={`mailto:${COMPANY.email}`}>
+              {COMPANY.email}
+            </a>
+            <p className="mt-2">South African rand. A written quote before any work.</p>
+            <Link to="/office" className="mt-4 inline-block text-xs text-white/50 transition-colors hover:text-white">
+              Sign in
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
