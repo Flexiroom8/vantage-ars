@@ -1,11 +1,11 @@
 {
-  // ...
   "vars": {
     "BETTER_AUTH_URL": "https://vantage-ars.vercel.app",
-    "CLOUDFLARE_WORKER": "true",
-    "FOUNDER_SETUP_TOKEN": "J9vR4mX7qL2sW8cN5hT1pK6zB3fD0yG",
+    "CLOUDFLARE_ACCOUNT_ID": "",
+    "CLOUDFLARE_API_TOKEN": "",
+    "WORKERS_AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     "NODE_ENV": "production",
-    "TRUST_PROXY": "true"
-  },
-  // ...
+    "TRUST_PROXY": "true",
+    "FOUNDER_SETUP_TOKEN": "J9vR4mX7qL2sW8cN5hT1pK6zB3fD0yG"
+  }
 }

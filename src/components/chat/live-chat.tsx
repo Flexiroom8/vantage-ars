@@ -48,7 +48,7 @@ function ChatPanel() {
     let stop = false;
     async function pull() {
       const result = await readPublicChat({ data: { threadId: threadId() } });
-      if (!stop) setLines(result.messages);
+      if (!stop && result.ok) setLines(result.messages);
     }
     void pull();
     const timer = window.setInterval(() => void pull(), 4000);

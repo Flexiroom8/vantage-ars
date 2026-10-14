@@ -61,8 +61,8 @@ function CustomerQuotePage() {
     );
   }
 
-  const state = answered ?? quote.state;
-  const copy = STATE_COPY[state];
+  const state = (answered ?? (quote as { state: keyof typeof STATE_COPY }).state) as keyof typeof STATE_COPY;
+  const copy = STATE_COPY[state] ?? STATE_COPY.open;
 
   async function downloadPdf() {
     if (!quote.ok) return;

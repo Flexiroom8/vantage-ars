@@ -1,54 +1,64 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
+import { COMPANY } from "@/lib/office/company";
 
-export const Route = createFileRoute("/terms")({
+export const Route = createFileRoute("/privacy")({
   head: () =>
     pageHead({
-      title: "How work is agreed · Vantage-ARS",
+      title: "Privacy · Vantage-ARS",
       description:
-        "A Vantage-ARS enquiry or chat is not a contract. Work starts from a written quote. Card payment is not available.",
-      path: "/terms",
+        "How Vantage-ARS handles enquiries, service-desk messages and quotes. Contact details are used to respond, never sold.",
+      path: "/privacy",
     }),
-  component: TermsPage,
+  component: PrivacyPage,
 });
 
-const RULES = [
-  "An enquiry, chat, or service-desk message is not a contract and not a quote.",
-  "Published labour is R690 per hour remote and R805 per hour on-site, unless the quote changes it.",
-  "VAT is added only when the written quote says so.",
-  "Travel, hardware, licences, and third-party services are extra and itemised before they are agreed.",
-  "Monthly managed support is not offered. After-hours work is by appointment.",
-  "Pay by EFT or international wire, using the reference on the quote or invoice. Card checkout is not available.",
+const POINTS = [
+  {
+    title: "What we collect",
+    body: "Your name, email address and the message you send via the enquiry form, service desk, chat or quote link. No account is created for visitors.",
+  },
+  {
+    title: "Why we keep it",
+    body: "To respond, prepare a written quote, and keep a record of what was agreed. Founder review only — no marketing list, no sale of data.",
+  },
+  {
+    title: "How long",
+    body: "Enquiries and service matters are kept as business records. Ask for deletion and the founder reviews it against record-keeping duties.",
+  },
+  {
+    title: "Cookies and tracking",
+    body: "No advertising cookies. The site does not run third-party trackers. Fonts load from Google Fonts; chat and forms post directly to this site.",
+  },
+  {
+    title: "Your rights",
+    body: `Access, correction or deletion: email ${COMPANY.email}. South African POPIA rights apply alongside any other applicable rights.`,
+  },
 ] as const;
 
-function TermsPage() {
+function PrivacyPage() {
   return (
     <PublicFrame>
       <article className="enter-up max-w-3xl py-16">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Before any work</p>
-        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">How work is agreed</h1>
-
-        <div className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
-          <p className="text-sm leading-relaxed text-muted">
-            Work starts only from a written quote that names the scope, timing, and total price. This keeps the job clear before any paid work begins.
-          </p>
-        </div>
-
-        <ul className="mt-8 space-y-4 text-sm leading-relaxed text-muted">
-          {RULES.map((rule) => (
-            <li key={rule} className="flex gap-3 border-b border-fg/10 pb-4">
-              <span aria-hidden className="mt-2 size-2 shrink-0 rounded-full bg-accent" />
-              <span>{rule}</span>
-            </li>
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Privacy</p>
+        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+          Your details stay with the job.
+        </h1>
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
+          An enquiry or chat is not a contract. When you contact Vantage-ARS, the details you
+          provide are used to respond and, if you ask for one, to prepare a written quote.
+        </p>
+        <div className="mt-10 space-y-4">
+          {POINTS.map((point) => (
+            <section
+              key={point.title}
+              className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]"
+            >
+              <h2 className="font-serif text-2xl">{point.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{point.body}</p>
+            </section>
           ))}
-        </ul>
-
-        <div className="mt-10 rounded-2xl bg-[#0e1c33] p-8 text-white">
-          <h2 className="font-serif text-3xl tracking-[-0.03em]">In plain English</h2>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75">
-            You ask for help, we explain what is involved, and you see the price in writing before anyone starts. If it is not on the quote, it is not part of the agreed work.
-          </p>
         </div>
       </article>
     </PublicFrame>

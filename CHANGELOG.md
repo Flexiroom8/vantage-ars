@@ -1,6 +1,19 @@
 # Changelog
 
-## 4.1.0 (2026-10-10)
+## 4.1.1 (2026-10-14)
+
+### Fixed
+- Restored `src/components/ui/button.tsx` (was CSS, now the Button component) and rebuilt the `/work` page.
+- Unswapped route contents: `support.tsx` ↔ `services.$slug.tsx`, `terms.tsx` → terms content, new `/privacy` page, new `/` homepage in `index.tsx`, `site-frame.tsx` → `PublicFrame`.
+- Fixed `package.json` so `npm install` works: corrected `@radix-ui/react-switch`, `@radix-ui/react-tooltip`, `tw-animate-css` versions; `react-hook-form` override now `$react-hook-form`; aligned `@tanstack/react-start` to `^1.169.0`. Committed `package-lock.json` so `npm ci` and Docker builds work.
+- Fixed `tsc` errors: typed API handlers, `services.$slug` loader data, `q/$token` state copy, homepage payment methods.
+- Fixed `vite build`: API handlers moved from TanStack `src/routes/api/` (blocked by import protection) to Nitro `server/api/auth/[...slug].ts` and `server/api/cron/floor.ts`; relative imports in `floor.server.ts` / `store.server.ts` so Nitro resolves without alias.
+- `eslint` now ignores `.agents/**` and `.opencode/**` (environment skills, not repo code). `src` + `scripts` lint clean.
+- Tests: 182/182 passing (was 131 with 3 `ERR_MODULE_NOT_FOUND` from missing install); added `src/routes/routes.test.ts` route-integrity guard (12 tests).
+
+### Improved
+- `vercel.json` installs with `npm ci --omit=dev` (reproducible, uses the lockfile).
+- `.env.example` documents `GROK_AUTH_*`, `PORT`/`HOST`, `NITRO_PRESET`.
 
 ### Sign-in
 - Founder email and password sign-in at `/login` and `/office` (Better Auth, 12-character minimum).
