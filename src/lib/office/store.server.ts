@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { getSql } from "@/lib/db";
+import { getSql } from "../db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
 import { COMPANY, GENESIS_HASH } from "./company";

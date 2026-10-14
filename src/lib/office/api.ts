@@ -93,7 +93,9 @@ export const getOfficeSnapshot = createServerFn({ method: "GET" })
   });
 
 const enquiryLimiter = createRateLimiter(8, 60 * 60 * 1000);
+const paymentLimiter = createRateLimiter(8, 60 * 60 * 1000);
 const chatLimiter = createRateLimiter(40, 60 * 60 * 1000);
+const chatReadLimiter = createRateLimiter(120, 60 * 60 * 1000);
 
 function callerKey(request: Request | undefined): string {
   return clientKey(request?.headers);
@@ -101,20 +103,22 @@ function callerKey(request: Request | undefined): string {
 
 async function allowEnquiry(key: string): Promise<boolean> {
   if (!enquiryLimiter.allow(key)) return false;
-  try {
-    return await durableAllow(await getSql(), "enquiry", key, 8, 60 * 60 * 1000);
-  } catch {
-    return true;
-  }
+  return durableAllow(await getSql(), "enquiry", key, 8, 60 * 60 * 1000, Date.now(), () => enquiryLimiter.allow(key));
+}
+
+async function allowPaymentNotice(key: string): Promise<boolean> {
+  if (!paymentLimiter.allow(key)) return false;
+  return durableAllow(await getSql(), "payment_notice", key, 8, 60 * 60 * 1000, Date.now(), () => paymentLimiter.allow(key));
 }
 
 async function allowChat(key: string): Promise<boolean> {
   if (!chatLimiter.allow(key)) return false;
-  try {
-    return await durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000);
-  } catch {
-    return true;
-  }
+  return durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000, Date.now(), () => chatLimiter.allow(key));
+}
+
+async function allowChatRead(key: string): Promise<boolean> {
+  if (!chatReadLimiter.allow(key)) return false;
+  return durableAllow(await getSql(), "chat_read", key, 120, 60 * 60 * 1000, Date.now(), () => chatReadLimiter.allow(key));
 }
 
 const SERVICE_MATTERS = ["fault", "question", "complaint"] as const;
@@ -205,7 +209,7 @@ export const submitPaymentNotice = createServerFn({ method: "POST" })
     } catch {
       request = undefined;
     }
-    if (!(await allowEnquiry(callerKey(request)))) {
+    if (!(await allowPaymentNotice(callerKey(request)))) {
       return { ok: false as const, error: "Too many notices from this connection. Try again later." };
     }
     const filed = await filePaymentNotice({
@@ -275,7 +279,20 @@ export const postPublicChat = createServerFn({ method: "POST" })
 
 export const readPublicChat = createServerFn({ method: "POST" })
   .validator((input: { threadId: string }) => input)
-  .handler(async ({ data }) => ({ messages: await readChat(str(data.threadId, 80)) }));
+  .handler(async ({ data }) => {
+    const threadId = str(data.threadId, 80);
+    let request: Request | undefined;
+    try {
+      const server = await import("@tanstack/react-start/server");
+      request = server.getRequest();
+    } catch {
+      request = undefined;
+    }
+    if (!(await allowChatRead(callerKey(request)))) {
+      return { ok: false as const, error: "Too many chat requests from this connection. Try again later." };
+    }
+    return { ok: true as const, messages: await readChat(threadId) };
+  });
 
 export const listOfficeChats = createServerFn({ method: "GET" })
   .middleware([founderMiddleware])

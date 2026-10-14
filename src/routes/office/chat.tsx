@@ -36,7 +36,7 @@ function ChatDesk() {
     let stop = false;
     async function pull() {
       const result = await readPublicChat({ data: { threadId: active as string } });
-      if (!stop) setLines(result.messages);
+      if (!stop && result.ok) setLines(result.messages);
     }
     void pull();
     const timer = window.setInterval(() => void pull(), 4000);
@@ -58,7 +58,7 @@ function ChatDesk() {
       }
       setDraft("");
       const next = await readPublicChat({ data: { threadId: active } });
-      setLines(next.messages);
+      if (next.ok) setLines(next.messages);
     } catch {
       toast.error("The reply could not be sent.");
     } finally {

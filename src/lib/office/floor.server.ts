@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getSql } from "@/lib/db";
+import { getSql } from "../db";
 import { followUpLetter, planFloor, serviceAckLetter, technicalFix } from "./floor";
 import { applyProposedAction, readSnapshot } from "./store.server";
 import { sendCustomerMail } from "./smtp.server";

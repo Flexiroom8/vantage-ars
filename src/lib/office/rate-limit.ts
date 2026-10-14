@@ -1,8 +1,10 @@
 /**
  * Durable fixed-window rate limit. The in-memory limiter in guard.ts only holds
  * inside one server instance; this one counts in the database so it holds across
- * instances and restarts. It fails OPEN: if the database errors, the request is
- * allowed and the in-memory limiter remains the backstop.
+ * instances and restarts. It fails OPEN only when no fallback is supplied: if the
+ * database errors, the request is allowed and the in-memory limiter remains the
+ * backstop. When a fallback is supplied (the caller's in-memory limiter), the
+ * fallback is consulted so a database outage cannot bypass limiting entirely.
  */
 export type SqlLike = <T = Record<string, unknown>>(
   strings: TemplateStringsArray,
@@ -16,6 +18,7 @@ export async function durableAllow(
   limit: number,
   windowMs: number,
   now: number = Date.now(),
+  fallback?: () => boolean,
 ): Promise<boolean> {
   try {
     const windowStart = Math.floor(now / windowMs) * windowMs;
@@ -33,6 +36,7 @@ export async function durableAllow(
     }
     return hits <= limit;
   } catch {
+    if (fallback) return fallback();
     return true;
   }
 }

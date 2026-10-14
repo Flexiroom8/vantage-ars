@@ -48,7 +48,7 @@ export function pageHead(input: {
     meta,
     links: [
       { rel: "canonical", href: url },
-      { rel: "alternate", href: SITE_URL, hreflang: "en-ZA" } as unknown as Record<string, string>,
+      { rel: "alternate", href: SITE_URL, hrefLang: "en-ZA" } as unknown as Record<string, string>,
     ],
   };
 }

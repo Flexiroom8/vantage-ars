@@ -1,139 +1,360 @@
-import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-import { WatchtowerMark } from "@/components/brand/mark";
-import { COMPANY } from "@/lib/office/company";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+import { PublicFrame } from "@/components/public/site-frame";
+import { LiveField, PathExhibit } from "@/components/public/live-field";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { submitPublicEnquiry, submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
 import { SERVICE_PAGES } from "@/lib/site/services";
+import { SERVICE_LINES, publicRateRows } from "@/lib/office/catalogue";
+import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 
-const nav = [
-  { to: "/", hash: "services", label: "Services" },
-  { to: "/work", hash: undefined, label: "Work" },
-  { to: "/rates", hash: undefined, label: "Rates" },
-  { to: "/support", hash: undefined, label: "Service desk" },
-] as const;
+export const Route = createFileRoute("/")({
+  head: () => {
+    const head = pageHead({
+      title: "VoIP, networking & IT infrastructure · Vantage-ARS",
+      description:
+        "Worldwide remote VoIP, networking and IT infrastructure support from Vantage-ARS, with clear ZAR pricing and a written quote before work starts.",
+      path: "/",
+    });
+    return {
+      ...head,
+      scripts: [
+        businessJsonLd(),
+        faqJsonLd([
+          { q: "How do I get a quote?", a: "Send the enquiry form. You get a written quote with scope and total before anyone starts." },
+          { q: "Do you charge VAT?", a: "VAT is added only when the written quote says so." },
+          { q: "Do you offer managed support?", a: "No. There is no retainer or SLA — you pay for agreed work." },
+        ]),
+        jsonLd({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Vantage-ARS",
+          url: SITE_URL,
+        }),
+      ],
+    };
+  },
+  loader: () => getPaymentMethods(),
+  component: HomePage,
+});
 
-const trustPills = ["Written quote first", "No retainer", "Remote support worldwide"] as const;
-
-export function PublicFrame({ children }: { children: ReactNode }) {
+function HomePage() {
+  const payment = Route.useLoaderData();
+  const rates = publicRateRows();
   return (
-    <div className="site relative min-h-dvh bg-bg">
-      <div className="relative z-10 bg-[#0e1c33] py-2 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-white/80">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6">
-          {trustPills.map((item) => (
-            <span key={item} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] tracking-[0.18em]">
-              {item}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0e1c33]/95 text-white backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link to="/" className="flex shrink-0 items-center gap-2.5 text-white" aria-label="Vantage-ARS home">
-            <WatchtowerMark className="size-5 text-[#7ec8ff]" />
-            <span className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</span>
-          </Link>
-
-          <nav aria-label="Main navigation" className="hidden items-center gap-6 md:flex">
-            {nav.map((item) => (
-              <Link
-                key={item.label}
-                to={item.to}
-                hash={item.hash}
-                className="text-sm text-white/70 transition-colors hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <button
-              type="button"
-              className="text-sm text-white/70 transition-colors hover:text-white"
-              onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
-            >
-              Chat
-            </button>
-          </nav>
-
+    <PublicFrame>
+      <LiveField />
+      <section className="enter-up relative pb-16 pt-16 lg:pt-24">
+        <p className="font-mono text-sm text-accent">VoIP · Networking · IT infrastructure</p>
+        <h1 className="mt-4 max-w-4xl font-serif text-5xl leading-[0.96] tracking-[-0.04em] sm:text-7xl">
+          Clear scope. Written quote. No surprises.
+        </h1>
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+          Worldwide remote support from R690 an hour, on-site by arrangement from R805 an hour.
+          You see the scope, timing and total in writing before anyone starts.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
           <Link
             to="/"
             hash="enquiry"
-            className="hidden h-10 items-center rounded-md bg-white px-4 text-sm font-medium text-[#0e1c33] transition-opacity hover:opacity-95 md:inline-flex"
+            className="inline-flex h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg"
           >
-            Get a quote
+            Get a written quote
           </Link>
-
-          <details className="relative md:hidden">
-            <summary className="flex h-10 cursor-pointer list-none items-center rounded-md bg-white px-3 text-sm font-medium text-[#0e1c33]">
-              Menu
-            </summary>
-            <nav aria-label="Mobile navigation" className="absolute right-0 z-40 mt-2 w-56 rounded-xl bg-surface p-2 text-fg shadow-[var(--shadow-border)]">
-              {nav.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  hash={item.hash}
-                  className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <button
-                type="button"
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
-                onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
-              >
-                Chat
-              </button>
-            </nav>
-          </details>
+          <Link
+            to="/rates"
+            className="inline-flex h-11 items-center rounded-md px-5 text-sm shadow-[var(--shadow-border)]"
+          >
+            See published rates
+          </Link>
         </div>
-      </header>
+        <PathExhibit />
+      </section>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
+      <section id="services" className="border-t border-border py-16" aria-label="Services">
+        <h2 className="font-serif text-4xl tracking-[-0.03em]">Services</h2>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {SERVICE_LINES.map((line) => (
+            <div
+              key={line.number}
+              className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]"
+            >
+              <p className="font-mono text-sm text-accent">{line.number}</p>
+              <h3 className="mt-2 font-serif text-2xl">{line.title}</h3>
+              <p className="mt-2 text-sm text-muted">{line.summary}</p>
+              <p className="mt-3 font-mono text-sm">{line.price}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {SERVICE_PAGES.map((page) => (
+            <Link
+              key={page.slug}
+              to="/services/$slug"
+              params={{ slug: page.slug }}
+              className="rounded-xl p-5 shadow-[var(--shadow-border)] hover:bg-raised"
+            >
+              <p className="font-mono text-xs text-accent">{page.number}</p>
+              <p className="mt-1 font-serif text-xl">{page.title}</p>
+              <p className="mt-1 text-sm text-muted">{page.description.slice(0, 110)}…</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-      <footer className="relative z-10 border-t border-border bg-[#0e1c33] text-white">
-        <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-4">
+      <section id="prices" className="border-t border-border py-16" aria-label="Prices">
+        <h2 className="font-serif text-4xl tracking-[-0.03em]">Published rates</h2>
+        <p className="mt-3 max-w-xl text-sm text-muted">
+          South African rand. VAT is added only when the written quote says so.{" "}
+          <Link to="/rates" className="text-fg underline-offset-4 hover:underline">
+            Full rate sheet
+          </Link>
+          .
+        </p>
+        <ul className="mt-8 border-t border-fg/20">
+          {rates.slice(0, 6).map((rate) => (
+            <li
+              key={rate.id}
+              className="grid gap-2 border-b border-fg/15 py-5 sm:grid-cols-[1fr_9rem] sm:gap-8"
+            >
+              <div>
+                <h3 className="text-base font-medium">{rate.title}</h3>
+                <p className="mt-1 text-sm text-muted">{rate.scope}</p>
+              </div>
+              <p className="font-mono text-sm sm:text-right">{rate.price}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section id="enquiry" className="border-t border-border py-16" aria-label="Enquiry">
+        <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr]">
           <div>
-            <p className="font-mono text-xs tracking-[0.18em]">VANTAGE-ARS</p>
-            <p className="mt-2 text-sm text-white/70">VoIP, networking and IT infrastructure.</p>
+            <h2 className="font-serif text-4xl tracking-[-0.03em]">Ask for a quote</h2>
+            <p className="mt-3 max-w-md text-sm text-muted">
+              A few sentences are enough. This is not a contract — you get a written quote first.
+            </p>
           </div>
-
-          <div className="flex flex-col gap-2 text-sm">
-            {SERVICE_PAGES.map((page) => (
-              <Link key={page.slug} to="/services/$slug" params={{ slug: page.slug }} className="text-white/70 transition-colors hover:text-white">
-                {page.title}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex flex-col gap-2 text-sm">
-            <Link to="/work" className="text-white/70 transition-colors hover:text-white">
-              Work
-            </Link>
-            <Link to="/rates" className="text-white/70 transition-colors hover:text-white">
-              Rates
-            </Link>
-            <Link to="/support" className="text-white/70 transition-colors hover:text-white">
-              Service desk
-            </Link>
-            <Link to="/terms" className="text-white/70 transition-colors hover:text-white">
-              How work is agreed
-            </Link>
-            <Link to="/privacy" className="text-white/70 transition-colors hover:text-white">
-              Privacy
-            </Link>
-          </div>
-
-          <div className="text-sm text-white/70">
-            <a className="transition-colors hover:text-white" href={`mailto:${COMPANY.email}`}>
-              {COMPANY.email}
-            </a>
-            <p className="mt-2">South African rand. A written quote before any work.</p>
-            <Link to="/office" className="mt-4 inline-block text-xs text-white/50 transition-colors hover:text-white">
-              Sign in
-            </Link>
-          </div>
+          <EnquiryForm />
         </div>
-      </footer>
-    </div>
+      </section>
+
+      <section id="payment" className="border-t border-border py-16" aria-label="Payment">
+        <div className="grid gap-10 lg:grid-cols-[1fr_0.9fr]">
+          <div>
+            <h2 className="font-serif text-4xl tracking-[-0.03em]">Paid already? Tell us.</h2>
+            <p className="mt-3 max-w-md text-sm text-muted">
+              Send the reference from your quote or invoice. This records your notice — it is not
+              an automatic receipt.
+            </p>
+            {Array.isArray(payment) && payment.every((m: { detail: string }) => m.detail.includes("sent with")) ? (
+              <p className="mt-4 text-xs text-subtle">
+                Bank details are sent with your quote or invoice.
+              </p>
+            ) : null}
+          </div>
+          <PaymentForm />
+        </div>
+      </section>
+    </PublicFrame>
+  );
+}
+
+function EnquiryForm() {
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", email: "", message: "", website: "" });
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setPending(true);
+    setError(null);
+    try {
+      const result = await submitPublicEnquiry({ data: form });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("The enquiry could not be sent. Try again in a moment.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-xl bg-surface p-6 shadow-[var(--shadow-border)]">
+        <p className="font-serif text-3xl">Received.</p>
+        <p className="mt-3 text-sm text-muted">
+          Your enquiry is recorded. You will get a written quote before any work is agreed.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <div>
+        <Label htmlFor="enquiry-name">Your name</Label>
+        <Input
+          id="enquiry-name"
+          className="mt-2"
+          autoComplete="name"
+          required
+          minLength={2}
+          maxLength={160}
+          value={form.name}
+          onChange={(event) => setForm({ ...form, name: event.target.value })}
+        />
+      </div>
+      <div>
+        <Label htmlFor="enquiry-email">Email address</Label>
+        <Input
+          id="enquiry-email"
+          type="email"
+          className="mt-2"
+          autoComplete="email"
+          required
+          maxLength={254}
+          value={form.email}
+          onChange={(event) => setForm({ ...form, email: event.target.value })}
+        />
+      </div>
+      <div>
+        <Label htmlFor="enquiry-message">What do you need?</Label>
+        <Textarea
+          id="enquiry-message"
+          className="mt-2"
+          required
+          minLength={5}
+          maxLength={3000}
+          rows={5}
+          placeholder="What stopped working, or what you want set up."
+          value={form.message}
+          onChange={(event) => setForm({ ...form, message: event.target.value })}
+        />
+      </div>
+      <div className="h-0 overflow-hidden" aria-hidden="true">
+        Leave this field empty
+        <input
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={(event) => setForm({ ...form, website: event.target.value })}
+        />
+      </div>
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {pending ? "Sending…" : "Request a quote"}
+      </Button>
+    </form>
+  );
+}
+
+function PaymentForm() {
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", email: "", reference: "", amount: "", website: "" });
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setPending(true);
+    setError(null);
+    try {
+      const result = await submitPaymentNotice({ data: form });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setDone(true);
+    } catch {
+      setError("The notice could not be recorded. Try again in a moment.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-xl bg-surface p-6 shadow-[var(--shadow-border)]">
+        <p className="font-serif text-3xl">Noted.</p>
+        <p className="mt-3 text-sm text-muted">
+          Your payment notice is recorded. A receipt follows after it is checked.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="pay-name">Name on payment</Label>
+          <Input
+            id="pay-name"
+            className="mt-2"
+            required
+            value={form.name}
+            onChange={(event) => setForm({ ...form, name: event.target.value })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="pay-email">Email</Label>
+          <Input
+            id="pay-email"
+            type="email"
+            className="mt-2"
+            required
+            value={form.email}
+            onChange={(event) => setForm({ ...form, email: event.target.value })}
+          />
+        </div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="pay-ref">Reference (VA-…)</Label>
+          <Input
+            id="pay-ref"
+            className="mt-2"
+            required
+            placeholder="VA-XXXX"
+            value={form.reference}
+            onChange={(event) => setForm({ ...form, reference: event.target.value })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="pay-amount">Amount (R)</Label>
+          <Input
+            id="pay-amount"
+            className="mt-2"
+            required
+            inputMode="decimal"
+            placeholder="690.00"
+            value={form.amount}
+            onChange={(event) => setForm({ ...form, amount: event.target.value })}
+          />
+        </div>
+      </div>
+      <div className="h-0 overflow-hidden" aria-hidden="true">
+        Leave this field empty
+        <input
+          tabIndex={-1}
+          autoComplete="off"
+          value={form.website}
+          onChange={(event) => setForm({ ...form, website: event.target.value })}
+        />
+      </div>
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        {pending ? "Sending…" : "Notify payment"}
+      </Button>
+    </form>
   );
 }
