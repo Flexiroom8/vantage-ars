@@ -31,6 +31,21 @@ const STATS = [
   { value: 0, label: "Retainers and SLA promises" },
 ] as const;
 
+const FEATURES = [
+  {
+    title: "Remote-first diagnosis",
+    body: "We look at the symptoms, path and evidence before we recommend a site visit. That keeps the plan tighter and reduces wasted time.",
+  },
+  {
+    title: "Transparent quotes",
+    body: "The price, scope, travel notes, and VAT treatment are written down before work starts. No surprise add-ons after the fact.",
+  },
+  {
+    title: "Tested completion",
+    body: "The work is checked against agreed outcomes, with a short completion note so everyone knows exactly what changed.",
+  },
+] as const;
+
 export const Route = createFileRoute("/")({
   head: () => {
     const head = pageHead({
@@ -145,7 +160,7 @@ function HomePage() {
             <div className="border-t border-border px-6 py-4">
               <Link to="/services/$slug" params={{ slug: "voip" }} className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-accent uppercase hover:underline">
                 Open a department
-                <QuoteIcon className="size-3.5" aria-hidden="true" />
+              <QuoteIcon className="size-3.5" aria-hidden="true" />
               </Link>
             </div>
           </div>
@@ -319,171 +334,159 @@ function EnquiryForm() {
       <div>
         <Label htmlFor="enquiry-name">Your name</Label>
         <Input
-          id="enquiry-name"
-          className="mt-2"
-          autoComplete="name"
-          required
-          minLength={2}
-          maxLength={160}
-          value={form.name}
-          onChange={(event) => setForm({ ...form, name: event.target.value })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="enquiry-email">Email address</Label>
-        <Input
-          id="enquiry-email"
-          type="email"
-          className="mt-2"
-          autoComplete="email"
-          required
-          maxLength={254}
-          value={form.email}
-          onChange={(event) => setForm({ ...form, email: event.target.value })}
-        />
-      </div>
-      <div>
-        <Label htmlFor="enquiry-message">What do you need?</Label>
-        <Textarea
-          id="enquiry-message"
-          className="mt-2"
-          required
-          minLength={5}
-          maxLength={3000}
-          rows={5}
-          placeholder="What stopped working, or what you want set up."
-          value={form.message}
-          onChange={(event) => setForm({ ...form, message: event.target.value })}
-        />
-      </div>
-      <div className="h-0 overflow-hidden" aria-hidden="true">
-        Leave this field empty
-        <input
-          tabIndex={-1}
-          autoComplete="off"
-          value={form.website}
-          onChange={(event) => setForm({ ...form, website: event.target.value })}
-        />
-      </div>
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-      <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
-        {pending ? "Sending…" : "Request a quote"}
-      </Button>
-    </form>
-  );
-}
-
-function PaymentForm({ payment }: { payment: unknown }) {
-  const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", reference: "", amount: "", website: "" });
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      const result = await submitPaymentNotice({ data: form });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setDone(true);
-    } catch {
-      setError("The notice could not be recorded. Try again in a moment.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  if (done) {
-    return (
-      <div className="panel rounded-2xl p-6">
-        <p className="text-3xl text-ok">Noted.</p>
-        <p className="mt-3 text-sm text-muted">
-          Your payment notice is recorded. A receipt follows after it is checked.
-        </p>
-      </div>
-    );
-  }
-
-  const methods = Array.isArray(payment) ? (payment as { detail: string }[]) : [];
-
-  return (
-    <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="pay-name">Name on payment</Label>
-          <Input
-            id="pay-name"
-            className="mt-2"
-            required
-            value={form.name}
-            onChange={(event) => setForm({ ...form, name: event.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="pay-email">Email</Label>
-          <Input
-            id="pay-email"
-            type="email"
-            className="mt-2"
-            required
-            value={form.email}
-            onChange={(event) => setForm({ ...form, email: event.target.value })}
-          />
-        </div>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="pay-ref">Reference (VA-…)</Label>
-          <Input
-            id="pay-ref"
-            className="mt-2"
-            required
-            placeholder="VA-XXXX"
-            value={form.reference}
-            onChange={(event) => setForm({ ...form, reference: event.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="pay-amount">Amount (R)</Label>
-          <Input
-            id="pay-amount"
-            className="mt-2"
-            required
-            inputMode="decimal"
-            pattern="[0-9]+([.,][0-9]+)?"
-            title="Enter the amount in rand, for example 690.00"
-            placeholder="690.00"
-            value={form.amount}
-            onChange={(event) => setForm({ ...form, amount: event.target.value })}
-          />
-        </div>
-      </div>
-      <div className="h-0 overflow-hidden" aria-hidden="true">
-        Leave this field empty
-        <input
-          tabIndex={-1}
-          autoComplete="off"
-          value={form.website}
-          onChange={(event) => setForm({ ...form, website: event.target.value })}
-        />
-      </div>
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
-      {methods.length > 0 && methods.every((m) => m.detail.includes("sent with")) ? (
-        <p className="text-xs text-subtle">
-          Bank details are sent with your quote or invoice.
-        </p>
-      ) : null}
-      <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
-        {pending ? "Sending…" : "Notify payment"}
-      </Button>
-    </form>
-  );
-}
+434|           id="enquiry-email"
+435|           type="email"
+436|           className="mt-2"
+437|           autoComplete="email"
+438|           required
+439|           maxLength={254}
+440|           value={form.email}
+441|           onChange={(event) => setForm({ ...form, email: event.target.value })}
+442|         />
+443|       </div>
+444|       <div>
+445|         <Label htmlFor="enquiry-message">What do you need?</Label>
+446|         <Textarea
+447|           id="enquiry-message"
+448|           className="mt-2"
+449|           required
+450|           minLength={5}
+451|           maxLength={3000}
+452|           rows={5}
+453|           placeholder="What stopped working, or what you want set up."
+454|           value={form.message}
+455|           onChange={(event) => setForm({ ...form, message: event.target.value })}
+456|         />
+457|       </div>
+458|       <div className="h-0 overflow-hidden" aria-hidden="true">
+459|         Leave this field empty
+460|         <input
+461|           tabIndex={-1}
+462|           autoComplete="off"
+463|           value={form.website}
+464|           onChange={(event) => setForm({ ...form, website: event.target.value })}
+465|         />
+466|       </div>
+467|       {error ? (
+468|         <p role="alert" className="text-sm text-danger">
+469|           {error}
+470|         </p>
+471|       ) : null}
+472|       <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
+473|         {pending ? "Sending…" : "Request a quote"}
+474|       </Button>
+475|     </form>
+476|   );
+477| }
+478| 
+479| function PaymentForm({ payment }: { payment: unknown }) {
+480|   const [pending, setPending] = useState(false);
+481|   const [done, setDone] = useState(false);
+482|   const [error, setError] = useState<string | null>(null);
+483|   const [form, setForm] = useState({ name: "", email: "", reference: "", amount: "", website: "" });
+484| 
+485|   async function onSubmit(event: FormEvent) {
+486|     event.preventDefault();
+487|     setPending(true);
+488|     setError(null);
+489|     try {
+490|       const result = await submitPaymentNotice({ data: form });
+491|       if (!result.ok) {
+492|         setError(result.error);
+493|         return;
+494|       }
+495|       setDone(true);
+496|     } catch {
+497|       setError("The notice could not be recorded. Try again in a moment.");
+498|     } finally {
+499|       setPending(false);
+500|     }
+501|   }
+502| 
+503|   if (done) {
+504|     return (
+505|       <div className="panel rounded-2xl p-6">
+506|         <p className="text-3xl text-ok">Noted.</p>
+507|         <p className="mt-3 text-sm text-muted">
+508|           Your payment notice is recorded. A receipt follows after it is checked.
+509|         </p>
+510|       </div>
+511|     );
+512|   }
+513| 
+514|   const methods = Array.isArray(payment) ? (payment as { detail: string }[]) : [];
+515| 
+516|   return (
+517|     <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
+518|       <div className="grid gap-4 sm:grid-cols-2">
+519|         <div>
+520|           <Label htmlFor="pay-name">Name on payment</Label>
+521|           <Input
+522|             id="pay-name"
+523|             className="mt-2"
+524|             required
+525|             value={form.name}
+526|             onChange={(event) => setForm({ ...form, name: event.target.value })}
+527|           />
+528|         </div>
+529|         <div>
+530|           <Label htmlFor="pay-email">Email</Label>
+531|           <Input
+532|             id="pay-email"
+533|             type="email"
+534|             className="mt-2"
+535|             required
+536|             value={form.email}
+537|             onChange={(event) => setForm({ ...form, email: event.target.value })}
+538|           />
+539|         </div>
+540|       </div>
+541|       <div className="grid gap-4 sm:grid-cols-2">
+542|         <div>
+543|           <Label htmlFor="pay-ref">Reference (VA-…)</Label>
+544|           <Input
+545|             id="pay-ref"
+546|             className="mt-2"
+547|             required
+548|             placeholder="VA-XXXX"
+549|             value={form.reference}
+550|             onChange={(event) => setForm({ ...form, reference: event.target.value })}
+551|           />
+552|         </div>
+553|         <div>
+554|           <Label htmlFor="pay-amount">Amount (R)</Label>
+555|           <Input
+556|             id="pay-amount"
+557|             className="mt-2"
+558|             required
+559|             inputMode="decimal"
+560|             pattern="[0-9]+([.,][0-9]+)?"
+561|             title="Enter the amount in rand, for example 690.00"
+562|             placeholder="690.00"
+563|             value={form.amount}
+564|             onChange={(event) => setForm({ ...form, amount: event.target.value })}
+565|           />
+566|         </div>
+567|       </div>
+568|       <div className="h-0 overflow-hidden" aria-hidden="true">
+569|         Leave this field empty
+570|         <input
+571|           tabIndex={-1}
+572|           autoComplete="off"
+573|           value={form.website}
+574|           onChange={(event) => setForm({ ...form, website: event.target.value })}
+575|         />
+576|       </div>
+577|       {error ? <p className="text-sm text-danger">{error}</p> : null}
+578|       {methods.length > 0 && methods.every((m) => m.detail.includes("sent with")) ? (
+579|         <p className="text-xs text-subtle">
+580|           Bank details are sent with your quote or invoice.
+581|         </p>
+582|       ) : null}
+583|       <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
+584|         {pending ? "Sending…" : "Notify payment"}
+585|       </Button>
+586|     </form>
+587|   );
+588| }
+589| 
