@@ -10,9 +10,9 @@ export const Route = createFileRoute("/api/auth/$")({
   server: {
     handlers: {
       GET: ({ request }: { request: Request }) =>
-        import("../../lib/auth/server").then((m) => m.auth.handler(request)),
+        import("@/lib/auth/server").then((m) => m.auth.handler(request)),
       POST: ({ request }: { request: Request }) =>
-        import("../../lib/auth/server").then((m) => m.auth.handler(request)),
+        import("@/lib/auth/server").then((m) => m.auth.handler(request)),
     },
   },
 } as any);
