@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,12 +97,15 @@ function ChatPanel() {
       {open ? (
         <section
           aria-label="Live chat"
-          className="mb-3 flex h-[28rem] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]"
+          className="panel mb-3 flex h-[28rem] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl"
         >
           <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div>
-              <p className="font-serif text-xl">Ask us</p>
-              <p className="text-xs text-muted">A quote is sent separately.</p>
+            <div className="flex items-center gap-2.5">
+              <LivePulse />
+              <div>
+                <p className="text-lg font-semibold">Ask us</p>
+                <p className="text-xs text-muted">A quote is sent separately.</p>
+              </div>
             </div>
             <button type="button" className="text-muted hover:text-fg" aria-label="Close chat" onClick={() => setOpen(false)}>
               <X className="size-4" />
@@ -151,7 +154,33 @@ function ChatPanel() {
             {error ? <p className="text-xs text-danger">{error}</p> : null}
           </form>
         </section>
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="group fixed bottom-5 left-5 flex cursor-pointer items-center gap-3"
+        >
+          <span className="relative flex size-12 items-center justify-center">
+            <span aria-hidden className="fab-ring absolute inset-0 rounded-full border-2 border-accent/70" />
+            <span className="relative flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--glow-accent)] transition-transform duration-150 group-hover:scale-105">
+              <MessageCircle className="size-5" />
+            </span>
+          </span>
+          <span className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-fg opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+            Ask us
+          </span>
+          <span className="sr-only">Open live chat</span>
+        </button>
+      )}
     </div>
+  );
+}
+
+function LivePulse() {
+  return (
+    <span className="relative flex size-2.5 shrink-0">
+      <span aria-hidden className="fab-ring absolute inset-0 rounded-full border border-ok/70" />
+      <span className="live-dot relative size-2.5 rounded-full bg-ok" />
+    </span>
   );
 }

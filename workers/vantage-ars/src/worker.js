@@ -62,32 +62,754 @@ function parseFAQ(body) {
 
 const CTA_HTML = `<div class="c" style="border-color:var(--acc)"><strong>Need help with this yourself?</strong><p>If you'd rather have someone handle it, <a href="/#contact">send a quick note about what you're dealing with</a> and I'll get back to you personally.</p></div>`;
 
-const CSS = `:root{color-scheme:light dark;--bg:#fff;--fg:#1a1d24;--mut:#5b6472;--acc:#0a6cff;--line:#e3e7ee;--ok:#0a7d3c;--bad:#b3261e}
-@media(prefers-color-scheme:dark){:root{--bg:#0d1017;--fg:#e6eaf2;--mut:#98a2b3;--acc:#5aa2ff;--line:#232a36}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-.w{max-width:720px;margin:0 auto;padding:24px 18px 64px}header{border-bottom:1px solid var(--line);margin-bottom:28px;padding-bottom:14px}
-header a{color:var(--fg);font-weight:700;letter-spacing:.5px;text-decoration:none}h1{font-size:1.9rem;line-height:1.25}h2{margin-top:2rem}
-a{color:var(--acc)}.m{color:var(--mut);font-size:.9rem}.c{border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}
-.c a{font-weight:600}footer{margin-top:48px;color:var(--mut);font-size:.85rem}
-input,textarea,button{font:inherit;width:100%;padding:10px;margin:6px 0;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
-button{width:auto;cursor:pointer;background:var(--acc);color:#fff;border:0;padding:10px 18px;margin-right:8px}button.r{background:var(--bad)}
-pre{white-space:pre-wrap;font:inherit;margin:8px 0}pre code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92em}
-.hp{position:absolute;left:-9999px}blockquote{border-left:3px solid var(--acc);margin:12px 0;padding:2px 14px;color:var(--mut)}
-table{border-collapse:collapse;width:100%;margin:12px 0}th,td{border:1px solid var(--line);padding:6px 10px;text-align:left;font-size:.95em}
-.warn{border:1px solid var(--bad);color:var(--bad);border-radius:6px;padding:10px 14px;margin:12px 0}
-.note{border:1px solid var(--acc);color:var(--acc);border-radius:6px;padding:10px 14px;margin:12px 0}
-.badge{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:10px;margin-left:6px}
-.badge.ok{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
-.badge.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
-table.rep{width:100%}table.rep td{border:none;padding:4px 8px 4px 0}.hero{position:relative;overflow:hidden;border-radius:12px;padding:28px 22px;margin:-8px -10px 24px;background:radial-gradient(1200px 400px at 10% 0%,rgba(90,162,255,0.15),transparent),radial-gradient(800px 300px at 90% 0%,rgba(0,255,200,0.08),transparent),linear-gradient(180deg,rgba(90,162,255,0.08),transparent)}.hero h1{margin:0 0 10px}.hero p{margin:0;color:var(--mut)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:18px 0}.card{border:1px solid var(--line);border-radius:10px;padding:16px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);transition:transform .2s ease, box-shadow .2s ease}.card:hover{transform:translateY(-2px);box-shadow:0 10px 30px -20px rgba(90,162,255,1)}.card h3{margin:0 0 8px}.card p{margin:0;color:var(--mut);font-size:.98rem}.icons{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.icon{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;backdrop-filter:blur(6px)}.bg-anim{position:absolute;inset:0;pointer-events:none;z-index:-1}.bg-anim span{position:absolute;width:160px;height:160px;border-radius:50%;filter:blur(60px);opacity:.18;animation:float 12s ease-in-out infinite}.bg-anim .a{left:-60px;top:-40px;background:radial-gradient(circle,#5aa2ff,#0a6cff);animation-delay:0s}.bg-anim .b{right:-80px;top:-20px;background:radial-gradient(circle,#00ffc8,#0a7d3c);animation-delay:3s}.bg-anim .c{left:20%;bottom:-120px;background:radial-gradient(circle,#b3261e,#ff6b6b);animation-delay:6s}@keyframes float{0%,100%{transform:translateY(0) translateX(0)}50%{transform:translateY(-20px) translateX(20px)}}`;
+const CSS = `:root {
+  --bg: #0B0E14;
+  --bg-elevated: #111827;
+  --bg-card: #151D2B;
+  --fg: #F1F5F9;
+  --fg-muted: #94A3B8;
+  --fg-subtle: #64748B;
+  --accent: #38BDF8;
+  --accent-warm: #F59E0B;
+  --accent-glow: rgba(56, 189, 248, 0.15);
+  --border: rgba(148, 163, 184, 0.12);
+  --border-hover: rgba(56, 189, 248, 0.3);
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 48px -8px rgba(0, 0, 0, 0.5);
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+a:hover {
+  color: #7DD3FC;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Layout */
+.w {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Header */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11, 14, 20, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+
+.site-header .w {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.logo span {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  gap: 24px;
+  list-style: none;
+}
+
+.nav-links a {
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.nav-links a:hover {
+  color: var(--fg);
+}
+
+/* Hero */
+.hero {
+  position: relative;
+  padding: 120px 0 80px;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 60% 50% at 30% 20%, rgba(56, 189, 248, 0.08), transparent),
+    radial-gradient(ellipse 40% 40% at 70% 60%, rgba(245, 158, 11, 0.04), transparent);
+  pointer-events: none;
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 720px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 24px;
+  letter-spacing: 0.02em;
+}
+
+.hero-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 20px;
+  color: var(--fg);
+}
+
+.hero h1 .highlight {
+  background: linear-gradient(135deg, var(--accent), #7DD3FC);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-description {
+  font-size: 1.15rem;
+  color: var(--fg-muted);
+  line-height: 1.7;
+  margin-bottom: 40px;
+  max-width: 560px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: none;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-primary:hover {
+  background: #7DD3FC;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -8px rgba(56, 189, 248, 0.4);
+  color: var(--bg);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-elevated);
+  transform: translateY(-2px);
+}
+
+/* Stats bar */
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-top: 60px;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--fg-subtle);
+  margin-top: 4px;
+}
+
+/* Section */
+.section {
+  padding: 80px 0;
+}
+
+.section-header {
+  margin-bottom: 48px;
+}
+
+.section-label {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  color: var(--fg-muted);
+  font-size: 1.05rem;
+  max-width: 520px;
+}
+
+/* Services */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.service-card {
+  position: relative;
+  padding: 32px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition);
+  overflow: hidden;
+}
+
+.service-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.service-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.service-card:hover::before {
+  opacity: 1;
+}
+
+.service-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-glow);
+  border-radius: var(--radius);
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.service-card h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--fg);
+  margin-bottom: 8px;
+}
+
+.service-card p {
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+/* Articles */
+.articles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.article-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all var(--transition);
+}
+
+.article-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.article-content {
+  padding: 24px;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.article-date {
+  font-size: 0.8rem;
+  color: var(--fg-subtle);
+  font-weight: 500;
+}
+
+.article-card h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.article-card h3 a {
+  color: var(--fg);
+  transition: color var(--transition);
+}
+
+.article-card h3 a:hover {
+  color: var(--accent);
+}
+
+.article-card p {
+  color: var(--fg-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.article-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  transition: gap var(--transition);
+}
+
+.article-link:hover {
+  gap: 10px;
+}
+
+/* Contact */
+.contact-section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 48px;
+  text-align: center;
+}
+
+.contact-section h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--fg);
+}
+
+.contact-section p {
+  color: var(--fg-muted);
+  margin-bottom: 32px;
+}
+
+.contact-form {
+  display: grid;
+  gap: 16px;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font-size: 0.95rem;
+  font-family: inherit;
+  transition: all var(--transition);
+}
+
+.contact-form input::placeholder,
+.contact-form textarea::placeholder {
+  color: var(--fg-subtle);
+}
+
+.contact-form input:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.contact-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.contact-form button {
+  justify-content: center;
+}
+
+/* Footer */
+.site-footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 0;
+  margin-top: 80px;
+}
+
+.site-footer .w {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.site-footer p {
+  color: var(--fg-subtle);
+  font-size: 0.85rem;
+}
+
+.footer-links {
+  display: flex;
+  gap: 20px;
+  list-style: none;
+}
+
+.footer-links a {
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  transition: color var(--transition);
+}
+
+.footer-links a:hover {
+  color: var(--fg);
+}
+
+/* Article page */
+.article-header {
+  padding: 80px 0 40px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+
+.article-header h1 {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.article-meta {
+  color: var(--fg-subtle);
+  font-size: 0.9rem;
+}
+
+.article-body {
+  max-width: 720px;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--fg);
+}
+
+.article-body h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 40px 0 16px;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+
+.article-body p {
+  margin-bottom: 20px;
+  color: var(--fg-muted);
+}
+
+.article-body ul,
+.article-body ol {
+  margin: 0 0 20px 24px;
+  color: var(--fg-muted);
+}
+
+.article-body li {
+  margin-bottom: 8px;
+}
+
+.article-body blockquote {
+  border-left: 3px solid var(--accent);
+  padding: 16px 20px;
+  margin: 24px 0;
+  background: var(--bg-card);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--fg-muted);
+}
+
+.article-body code {
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: var(--accent);
+}
+
+.article-body pre {
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin: 24px 0;
+  border: 1px solid var(--border);
+}
+
+.article-body pre code {
+  background: none;
+  padding: 0;
+  color: var(--fg);
+}
+
+.article-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  font-size: 0.9rem;
+}
+
+.article-body th,
+.article-body td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.article-body th {
+  font-weight: 600;
+  color: var(--fg);
+  background: var(--bg-card);
+}
+
+.article-body td {
+  color: var(--fg-muted);
+}
+
+/* CTA box */
+.cta-box {
+  background: linear-gradient(135deg, var(--bg-card), var(--bg-elevated));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin: 48px 0;
+  text-align: center;
+}
+
+.cta-box strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  color: var(--fg);
+}
+
+.cta-box p {
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+/* Not found / admin */
+.page-simple {
+  padding: 80px 0;
+  text-align: center;
+}
+
+.page-simple h1 {
+  font-size: 2rem;
+  margin-bottom: 16px;
+}
+
+.page-simple p {
+  color: var(--fg-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hero {
+    padding: 80px 0 60px;
+  }
+  
+  .stats-bar {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .contact-section {
+    padding: 32px 24px;
+  }
+  
+  .nav-links {
+    display: none;
+  }
+  
+  .section {
+    padding: 60px 0;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-content {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.service-card {
+  animation: fadeInUp 0.6s ease-out backwards;
+}
+
+.service-card:nth-child(1) { animation-delay: 0.1s; }
+.service-card:nth-child(2) { animation-delay: 0.2s; }
+.service-card:nth-child(3) { animation-delay: 0.3s; }
+.service-card:nth-child(4) { animation-delay: 0.4s; }
+`;
 
 const page = (origin, path, title, desc, body, extra = "") => new Response(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><meta name="description" content="${esc(desc)}">
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="${path.startsWith("/a/") ? "article" : "website"}"><meta property="og:url" content="${esc(origin + path)}">
 <meta name="twitter:card" content="summary"><meta name="twitter:title" content="${esc(title)}"><meta name="twitter:description" content="${esc(desc)}">
 <link rel="canonical" href="${esc(origin + path)}"><link rel="alternate" type="application/rss+xml" title="VANTAGE ARS" href="${origin}/feed.xml">
-<style>${CSS}</style>${extra}</head><body><div class="w"><header><a href="/">VANTAGE ARS</a></header>${body}
-<footer>Practical VoIP, networking and IT infrastructure guides from a working engineer. · <a href="/corrections">Corrections</a> · <a href="/feed.xml">RSS</a></footer></div></body></html>`,
+<style>${CSS}</style>${extra}</head><body>
+<header class="site-header"><div class="w"><a href="/" class="logo">VANTAGE<span>ARS</span></a><nav><ul class="nav-links"><li><a href="/#services">Services</a></li><li><a href="/#guides">Guides</a></li><li><a href="/#contact">Contact</a></li><li><a href="/corrections">Corrections</a></li></ul></nav></div></header>
+<main>${body}</main>
+<footer class="site-footer"><div class="w"><p>VoIP, networking and IT infrastructure guides from a working engineer in South Africa.</p><ul class="footer-links"><li><a href="/corrections">Corrections</a></li><li><a href="/feed.xml">RSS</a></li></ul></div></footer></body></html>`,
   { headers: { "content-type": "text/html; charset=utf-8", "cache-control": path.startsWith("/admin") ? "no-store" : "public, max-age=300" } });
 
 function renderTable(lines) {
@@ -295,18 +1017,17 @@ export default {
 
             
       
-      if (path === "/") {
+            if (path === "/") {
         const { results } = await env.DB.prepare("SELECT slug,title,description,published_at FROM articles WHERE status='published' ORDER BY published_at DESC").all();
-        const list = results.length ? results.map(a => `<div class="article-card"><div class="article-content"><h3><a href="/a/${esc(a.slug)}">${esc(a.title)}</a></h3><div class="meta">${esc(a.published_at || "")}</div><p>${esc(a.description || "")}</p><a href="/a/${esc(a.slug)}" class="read-more">Read article</a></div></div>`).join("") : "<p>First guides are on the way. Check back soon.</p>";
-        const icons = `<div class="icons" aria-hidden="true"><span class="icon">📡</span><span class="icon">🔒</span><span class="icon">🌐</span><span class="icon">⚙️</span><span class="icon">📊</span></div>`;
-        /* Hero with inline styles - avoids class= issue in template literal */
-        const hero = `<section style="position:relative;width:100%;min-height:100vh;overflow:hidden;padding:80px 20px 40px;background:#0a0a0f"><div style="position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 20% 20%, rgba(0,212,170,0.12),transparent),radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,100,200,0.1),transparent),radial-gradient(ellipse 50% 30% at 50% 20%, rgba(100,0,150,0.08),transparent);animation:bgShift 20s ease infinite;padding:0;pointer-events:none"><div style="position:absolute;width:300px;height:300px;border-radius:50%;background:var(--accent);top:-50px;left:-50px;filter:blur(80px);opacity:0.5;animation:orbit 18s ease infinite"></div><div style="position:absolute;width:200px;height:200px;background:#ff6b6b;bottom:-30px;right:-30px;filter:blur(80px);opacity:0.5;animation:orbit 18s ease infinite" animation-delay="-6s"></div><div style="position:absolute;width:150px;height:150px;background:#785ce9;top:50%;left:50%;transform:translate(-50%,-50%);filter:blur(80px);opacity:0.5;animation:orbit 18s ease infinite" animation-delay="-12s"></div></div><div style="position:relative;z-index:2;text-align:center;padding:0 20px"><span style="display:inline-block;padding:8px 20px;border-radius:100px;background:rgba(0,212,170,0.4);font-size:.75rem;text-transform:uppercase;letter-spacing:.3em;color:var(--accent);margin-bottom:30px;font-weight:600">Professional Guides</span><h1 style="font-size:clamp(3rem,10vw,8rem);line-height:1.1;letter-spacing:-.05;margin:0 0 20px;font-weight:900;background:linear-gradient(135deg,var(--fg) 0%,var(--muted) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">VANTAGE ARS <span style="color:var(--accent)">— VoIP, Networking & IT Infrastructure</span></h1><p style="font-size:1.25rem;color:var(--muted);max-width:600px;margin:0 auto 50px;font-weight:400">Pragmatic engineering for South African businesses. Secure voice, resilient networks, and practical fixes that work in the field.</p></div></section>`;
-        const services = `<section style="position:relative;padding:100px 20px;max-width:920px;margin:0 auto"><div style="display:inline-block;padding:6px 18px;border-radius:100px;background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.08);font-size:.7rem;text-transform:uppercase;letter-spacing:.2em;color:rgba(107,107,128,0.5);margin-bottom:80px">Our Services</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:30px"><article style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:40px 30px;position:relative;overflow:hidden;cursor:pointer;transition:transform .4s ease,box-shadow .4s ease;border-radius:20px"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),#00ffcc);transform:scaleX(0);transform-origin:left;transition:transform .4s ease;pointer-events:none"></span><h3 style="font-size:1.5rem;margin:0 0 12px;color:#e8e8f0;font-weight:700">VoIP & SIP Trunking</h3><p style="color:rgba(107,107,128,0.5);font-size:.95rem;line-height:1.7;margin:0">Interoperability, NAT traversal, QoS, failover, and carrier-grade troubleshooting.</p></article><article style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:40px 30px;position:relative;overflow:hidden;cursor:pointer;transition:transform .4s ease,box-shadow .4s ease;border-radius:20px"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),#00ffcc);transform:scaleX(0);transform-origin:left;transition:transform .4s ease;pointer-events:none"></span><h3 style="font-size:1.5rem;margin:0 0 12px;color:#e8e8f0;font-weight:700">Networking & Wi‑Fi</h3><p style="color:rgba(107,107,128,0.5);font-size:.95rem;line-height:1.7;margin:0">Mikrotik, routing, VLANs, firewalls, and performance tuning for SMBs.</p></article><article style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:40px 30px;position:relative;overflow:hidden;cursor:pointer;transition:transform .4s ease,box-shadow .4s ease;border-radius:20px"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),#00ffcc);transform:scaleX(0);transform-origin:left;transition:transform .4s ease;pointer-events:none"></span><h3 style="font-size:1.5rem;margin:0 0 12px;color:#e8e8f0;font-weight:700">Security & CCTV</h3><p style="color:rgba(107,107,128,0.5);font-size:.95rem;line-height:1.7;margin:0">Hikvision, access control, segmentation, and hardening with minimal friction.</p></article><article style="background:rgba(18,18,26,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:40px 30px;position:relative;overflow:hidden;cursor:pointer;transition:transform .4s ease,box-shadow .4s ease;border-radius:20px"><span style="position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--accent),#00ffcc);transform:scaleX(0);transform-origin:left;transition:transform .4s ease;pointer-events:none"></span><h3 style="font-size:1.5rem;margin:0 0 12px;color:#e8e8f0;font-weight:700">IT Support & Infrastructure</h3><p style="color:rgba(107,107,128,0.5);font-size:.95rem;line-height:1.7;margin:0">3rd-line support, PBX migrations, documentation, and SLA-aligned operations.</p></article></div></section>`;
-        const contact = `<h2 id="contact" style="margin:20px 0">Get in touch</h2><p style="color:rgba(107,107,128,0.5);font-size:.9rem">Tell us what you're dealing with and we'll respond personally.</p><form method="post" action="/api/lead"><input style="flex:1;padding:12px 24px;border-radius:100px;border:1px solid rgba(255,255,255,0.08);background:#0a0a0f;color:#e8e8f0;font-size:1rem;outline:none" name="name" placeholder="Your name" required><input style="flex:1;padding:12px 24px;border-radius:100px;border:1px solid rgba(255,255,255,0.08);background:#0a0a0f;color:#e8e8f0;font-size:1rem;outline:none" name="email" type="email" placeholder="Your email" required><textarea style="width:100%;padding:16px 24px;border-radius:16px;border:1px solid rgba(255,255,255,0.08);background:#0a0a0f;color:#e8e8f0;font-size:1rem;outline:none;min-height:120px" name="message" rows="4" placeholder="What do you need help with?" required></textarea><input style="position:absolute;left:-9999px" class="hp" name="website" tabindex="-1" autocomplete="off"><button style="display:inline-block;padding:20px 50px;border-radius:100px;border:none;background:var(--accent);color:#0a0a0f;font-size:1rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease" type="button">Send enquiry</button></form>`;
+        const articles = results.length ? results.map(a => `<article class="article-card"><div class="article-content"><div class="article-meta"><span class="article-date">${esc(a.published_at || "")}</span></div><h3><a href="/a/${esc(a.slug)}">${esc(a.title)}</a></h3><p>${esc(a.description || "")}</p><a href="/a/${esc(a.slug)}" class="article-link">Read guide</a></div></article>`).join("") : "<p>First guides are on the way. Check back soon.</p>";
         return page(origin, "/", "VANTAGE ARS — VoIP, Networking & IT Infrastructure", "Professional VoIP, networking, and IT infrastructure services for South African businesses.",
-          `${hero}${services}<h2>Latest guides</h2><div class="article-list">${list}</div>${contact}`);
+          `<section class="hero"><div class="hero-bg"></div><div class="hero-grid"></div><div class="w"><div class="hero-content"><div class="hero-badge">Cape Town, South Africa</div><h1>VoIP, Networking &<br><span class="highlight">IT Infrastructure</span></h1><p class="hero-description">Pragmatic engineering for South African businesses. Secure voice, resilient networks, and practical fixes that work in the field — from someone who has run them for 15+ years.</p><div class="hero-actions"><a href="#contact" class="btn btn-primary">Get in touch</a><a href="#services" class="btn btn-secondary">View services</a></div></div><div class="stats-bar"><div class="stat"><div class="stat-value">15+</div><div class="stat-label">Years experience</div></div><div class="stat"><div class="stat-value">9+</div><div class="stat-label">SA carriers supported</div></div><div class="stat"><div class="stat-value">3rd</div><div class="stat-label">Line support</div></div></div></div></section>
+<section class="section" id="services"><div class="w"><div class="section-header"><span class="section-label">What we do</span><h2 class="section-title">Services</h2><p class="section-desc">Practical solutions for voice, network, and infrastructure — grounded in real field experience.</p></div><div class="services-grid"><div class="service-card"><div class="service-icon">📡</div><h3>VoIP & SIP Trunking</h3><p>Interoperability, NAT traversal, QoS, failover, and carrier-grade troubleshooting for Panasonic, Siemens, NEC, and more.</p></div><div class="service-card"><div class="service-icon">🌐</div><h3>Networking & Wi-Fi</h3><p>Mikrotik, routing, VLANs, firewalls, and performance tuning for small to medium businesses.</p></div><div class="service-card"><div class="service-icon">🔒</div><h3>Security & CCTV</h3><p>Hikvision, access control, segmentation, and hardening with minimal friction for SMBs.</p></div><div class="service-card"><div class="service-icon">⚙️</div><h3>IT Support & Infrastructure</h3><p>3rd-line support, PBX migrations, documentation, and SLA-aligned operations.</p></div></div></div></section>
+<section class="section" id="guides"><div class="w"><div class="section-header"><span class="section-label">Knowledge base</span><h2 class="section-title">Latest guides</h2><p class="section-desc">Field-tested guides written from real support experience — no fluff, no hype.</p></div><div class="articles-grid">${articles}</div></div></section>
+<section class="section" id="contact"><div class="w"><div class="contact-section"><h2>Get in touch</h2><p>Tell us what you're dealing with and we'll respond personally.</p><form class="contact-form" method="post" action="/api/lead"><input name="name" placeholder="Your name" required><input name="email" type="email" placeholder="Your email" required><textarea name="message" rows="4" placeholder="What do you need help with?" required></textarea><input class="hp" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px"><button type="submit" class="btn btn-primary">Send enquiry</button></form></div></div></section>`);
       }
-if (path === "/corrections") {
+
+      if (path === "/corrections") {
         const { results } = await env.DB.prepare("SELECT c.*, a.title FROM corrections c JOIN articles a ON a.slug=c.slug ORDER BY c.id DESC").all();
         const list = results.length ? results.map(c => `<div class="c"><strong>${esc(c.created_at.slice(0, 10))} — <a href="/a/${esc(c.slug)}">${esc(c.title)}</a></strong><div>${esc(c.wrong)} Correct: ${esc(c.right)}</div></div>`).join("") : "<p>No corrections yet — this site is new.</p>";
         return page(origin, "/corrections", "Corrections — VANTAGE ARS", "Every correction this site has published, dated and public.", `<h1>Corrections</h1><p>When this site gets something wrong, the fix lands here and at the top of the affected article. Nothing is quietly edited.</p>${list}`);

@@ -35,14 +35,14 @@ const POINTS = [
     title: "Your rights",
     body: `Access, correction or deletion: email ${COMPANY.email}. South African POPIA rights apply alongside any other applicable rights.`,
   },
-] as const;
+];
 
 function PrivacyPage() {
   return (
     <PublicFrame>
       <article className="enter-up max-w-3xl py-16">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Privacy</p>
-        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+        <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Privacy</p>
+        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-6xl">
           Your details stay with the job.
         </h1>
         <p className="mt-3 text-xs text-subtle">Last updated: October 2026.</p>
@@ -54,7 +54,7 @@ function PrivacyPage() {
           {POINTS.map((point) => (
             <section
               key={point.title}
-              className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]"
+              className="panel panel-hover rounded-2xl p-6"
             >
               <h2 className="font-serif text-2xl">{point.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">{point.body}</p>

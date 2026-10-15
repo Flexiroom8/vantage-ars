@@ -21,7 +21,7 @@ export const Route = createRootRoute({
         content:
           "Worldwide remote VoIP, networking and IT infrastructure support from Vantage-ARS, with clear ZAR pricing.",
       },
-      { name: "theme-color", content: "#0e1c33" },
+      { name: "theme-color", content: "#050a14" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -32,7 +32,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@500;600;700&display=swap",
       },
     ],
   }),

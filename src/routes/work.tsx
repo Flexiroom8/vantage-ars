@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
+import { InfraIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
 import { SERVICE_PAGES } from "@/lib/site/services";
 
 export const Route = createFileRoute("/work")({
@@ -18,14 +19,17 @@ const STEPS = [
   {
     title: "Diagnose remotely first",
     body: "Endpoint and network symptoms plus the call-path information you can provide. Many faults are narrowed down without a site visit.",
+    Icon: SignalBars,
   },
   {
     title: "Quote in writing",
     body: "Scope, hours, travel and VAT treatment fixed on the quote. Nothing starts until you accept it.",
+    Icon: QuoteIcon,
   },
   {
     title: "Configure and test",
     body: "Approved systems are configured and tested against agreed checks, with a short completion note.",
+    Icon: InfraIcon,
   },
 ] as const;
 
@@ -33,11 +37,11 @@ function WorkPage() {
   return (
     <PublicFrame>
       <section className="enter-up pb-16 pt-16 lg:pt-24">
-        <p className="text-sm text-accent">How work runs</p>
-        <h1 className="mt-4 max-w-3xl font-serif text-5xl leading-[0.96] tracking-[-0.04em] sm:text-6xl">
+        <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">How work runs</p>
+        <h1 className="mt-4 max-w-3xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
           Remote first. Quoted first. Tested after.
         </h1>
-        <p className="mt-6 max-w-2xl text-lg text-muted">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
           Every job follows the same path: understand the fault, fix the price in writing, then
           do the agreed work. No retainer, no SLA promise — just defined work with a way to check
           it.
@@ -48,28 +52,36 @@ function WorkPage() {
         {STEPS.map((step, index) => (
           <div
             key={step.title}
-            className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]"
+            className={`panel panel-hover rounded-2xl p-6 ${index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"}`}
           >
-            <p className="font-mono text-sm text-accent">{String(index + 1).padStart(2, "0")}</p>
-            <h2 className="mt-2 font-serif text-2xl">{step.title}</h2>
+            <div className="flex items-center justify-between">
+              <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
+                <step.Icon className="size-6 text-accent" aria-hidden="true" />
+              </span>
+              <p className="font-mono text-sm text-subtle">{String(index + 1).padStart(2, "0")}</p>
+            </div>
+            <h2 className="mt-4 font-serif text-2xl">{step.title}</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
           </div>
         ))}
       </section>
 
       <section className="border-t border-border py-16">
-        <h2 className="font-serif text-4xl tracking-[-0.03em]">Where this applies</h2>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Where this applies</h2>
+          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">Three lines of work</p>
+        </div>
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {SERVICE_PAGES.map((page) => (
             <Link
               key={page.slug}
               to="/services/$slug"
               params={{ slug: page.slug }}
-              className="rounded-xl p-6 shadow-[var(--shadow-border)] hover:bg-raised"
+              className="panel panel-hover rounded-xl p-6"
             >
               <p className="font-mono text-xs text-accent">{page.number}</p>
               <p className="mt-2 font-serif text-2xl">{page.title}</p>
-              <p className="mt-1 text-sm text-muted">{page.lead.slice(0, 120)}…</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{page.lead.slice(0, 120)}…</p>
             </Link>
           ))}
         </div>
@@ -77,13 +89,13 @@ function WorkPage() {
           <Link
             to="/"
             hash="enquiry"
-            className="inline-flex h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg"
+            className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
           >
             Request a quote
           </Link>
           <Link
             to="/rates"
-            className="inline-flex h-11 items-center rounded-md px-5 text-sm shadow-[var(--shadow-border)]"
+            className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
           >
             See rates
           </Link>

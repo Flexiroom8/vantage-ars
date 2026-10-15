@@ -1,8 +1,23 @@
 import { useEffect, useRef } from "react";
 
-type Node = { x: number; y: number };
+type Node = { x: number; y: number; vx: number; vy: number };
 type Edge = [number, number];
 
+const NODE_DENSITY = 1 / 15000; // one node per ~15,000 px²
+const LINK_DIST = 170;
+const PACKETS = 14;
+const MAX_NODES = 110;
+
+function readVar(styles: CSSStyleDeclaration, name: string, fallback: string): string {
+  const value = styles.getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+/**
+ * The live background: a slow mesh of drifting nodes with packets riding the
+ * links. Pure canvas, pauses when the tab is hidden, and renders one still
+ * frame when the visitor prefers reduced motion.
+ */
 export function LiveField() {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -13,10 +28,17 @@ export function LiveField() {
     if (!ctx) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const host = document.querySelector<HTMLElement>(".site") ?? document.documentElement;
+    const styles = getComputedStyle(host);
+    const lineColor = readVar(styles, "--mesh-line", "rgba(76,194,255,0.16)");
+    const nodeColor = readVar(styles, "--mesh-node", "rgba(76,194,255,0.5)");
+    const packetColor = readVar(styles, "--mesh-packet", "rgba(76,194,255,0.95)");
+
     let nodes: Node[] = [];
     let edges: Edge[] = [];
     let raf = 0;
     let running = true;
+    let lastEdge = 0;
 
     const layout = () => {
       const w = window.innerWidth;
@@ -27,23 +49,45 @@ export function LiveField() {
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const cols = Math.max(4, Math.round(w / 190));
-      const rows = Math.max(4, Math.round(h / 170));
+      const total = Math.min(MAX_NODES, Math.max(28, Math.round(w * h * NODE_DENSITY)));
       nodes = [];
-      for (let r = 0; r < rows; r += 1) {
-        for (let c = 0; c < cols; c += 1) {
-          nodes.push({
-            x: ((c + 0.5) / cols) * w + Math.sin(c * 1.7 + r) * 16,
-            y: ((r + 0.5) / rows) * h + Math.cos(r * 1.3 + c) * 12,
-          });
-        }
+      for (let i = 0; i < total; i += 1) {
+        nodes.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.18,
+          vy: (Math.random() - 0.5) * 0.18,
+        });
       }
+      lastEdge = 0;
+    };
+
+    const step = (dt: number) => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      for (const n of nodes) {
+        n.x += n.vx * dt;
+        n.y += n.vy * dt;
+        if (n.x < -20 || n.x > w + 20) n.vx *= -1;
+        if (n.y < -20 || n.y > h + 20) n.vy *= -1;
+        n.x = Math.min(w + 20, Math.max(-20, n.x));
+        n.y = Math.min(h + 20, Math.max(-20, n.y));
+      }
+    };
+
+    const buildEdges = () => {
       edges = [];
       for (let i = 0; i < nodes.length; i += 1) {
-        const c = i % cols;
-        const r = Math.floor(i / cols);
-        if (c + 1 < cols) edges.push([i, i + 1]);
-        if (r + 1 < rows) edges.push([i, i + cols]);
+        let links = 0;
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const dx = nodes[i].x - nodes[j].x;
+          const dy = nodes[i].y - nodes[j].y;
+          if (dx * dx + dy * dy < LINK_DIST * LINK_DIST) {
+            edges.push([i, j]);
+            links += 1;
+            if (links >= 4) break;
+          }
+        }
       }
     };
 
@@ -52,32 +96,50 @@ export function LiveField() {
       const w = window.innerWidth;
       const h = window.innerHeight;
       ctx.clearRect(0, 0, w, h);
+
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(12, 92, 171, 0.22)";
+      ctx.strokeStyle = lineColor;
+      ctx.beginPath();
       for (const [a, b] of edges) {
-        ctx.beginPath();
         ctx.moveTo(nodes[a].x, nodes[a].y);
         ctx.lineTo(nodes[b].x, nodes[b].y);
-        ctx.stroke();
       }
-      ctx.fillStyle = "rgba(12, 92, 171, 0.45)";
-      for (const node of nodes) {
+      ctx.stroke();
+
+      ctx.fillStyle = nodeColor;
+      for (const n of nodes) {
         ctx.beginPath();
-        ctx.arc(node.x, node.y, 2, 0, Math.PI * 2);
+        ctx.arc(n.x, n.y, 1.8, 0, Math.PI * 2);
         ctx.fill();
       }
-      if (!reduce) {
-        for (let i = 0; i < 7; i += 1) {
-          const edge = edges[(i * 5) % edges.length];
+
+      if (!reduce && edges.length > 0) {
+        for (let i = 0; i < PACKETS; i += 1) {
+          const edge = edges[Math.floor((i * 2654435761) % edges.length)];
           if (!edge) continue;
           const [a, b] = edge;
-          const u = (time / 3200 + i / 7) % 1;
-          const x = nodes[a].x + (nodes[b].x - nodes[a].x) * u;
-          const y = nodes[a].y + (nodes[b].y - nodes[a].y) * u;
+          const t = (time / 2600 + i / PACKETS) % 1;
+          const x = nodes[a].x + (nodes[b].x - nodes[a].x) * t;
+          const y = nodes[a].y + (nodes[b].y - nodes[a].y) * t;
+          const glow = ctx.createRadialGradient(x, y, 0, x, y, 7);
+          glow.addColorStop(0, packetColor);
+          glow.addColorStop(1, "rgba(76,194,255,0)");
+          ctx.fillStyle = glow;
           ctx.beginPath();
-          ctx.fillStyle = "rgba(12, 92, 171, 1)";
-          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.arc(x, y, 7, 0, Math.PI * 2);
           ctx.fill();
+          ctx.fillStyle = packetColor;
+          ctx.beginPath();
+          ctx.arc(x, y, 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      if (!reduce) {
+        step(1);
+        if (time - lastEdge > 240) {
+          buildEdges();
+          lastEdge = time;
         }
         raf = requestAnimationFrame(draw);
       }
@@ -90,9 +152,10 @@ export function LiveField() {
     };
     const onResize = () => {
       layout();
+      buildEdges();
       if (reduce) draw(0);
     };
-    const onHide = () => {
+    const onVisibility = () => {
       if (document.hidden) {
         running = false;
         cancelAnimationFrame(raf);
@@ -100,14 +163,15 @@ export function LiveField() {
     };
 
     layout();
+    buildEdges();
     start();
     window.addEventListener("resize", onResize);
-    document.addEventListener("visibilitychange", onHide);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      document.removeEventListener("visibilitychange", onHide);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
@@ -129,10 +193,11 @@ export function PathExhibit() {
           <line x1="16" y1="28" x2="704" y2="28" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1.5" />
           {[16, 360, 704].map((x) => (
             <g key={x}>
-              <circle cx={x} cy="28" r="7" fill="currentColor" />
+              <circle cx={x} cy={28} r="7" fill="none" stroke="currentColor" strokeOpacity="0.5" />
+              <circle cx={x} cy={28} r="2.5" fill="currentColor" />
             </g>
           ))}
-          <circle r="4.5" className="signal-packet" fill="var(--color-fg)" />
+          <circle r="4.5" className="signal-packet" fill="var(--color-accent)" />
         </svg>
         <ol className="grid gap-8 sm:grid-cols-3">
           {STOPS.map((stop) => (
