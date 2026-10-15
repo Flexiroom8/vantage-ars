@@ -293,13 +293,17 @@ export default {
       if (path.startsWith("/admin")) return await admin(request, env, url, origin);
       if (path === "/api/lead" && request.method === "POST") return await handleLead(request, env, origin);
 
-      if (path === "/") {
+            if (path === "/") {
         const { results } = await env.DB.prepare("SELECT slug,title,description,published_at FROM articles WHERE status='published' ORDER BY published_at DESC").all();
-        const list = results.length ? results.map(a => `<div class="c"><a href="/a/${esc(a.slug)}">${esc(a.title)}</a><div class="m">${esc(a.published_at || "")}</div><div>${esc(a.description || "")}</div></div>`).join("") : "<p>First guides are on the way. Check back soon.</p>";
-        const contact = `<h2 id="contact">Need help with a VoIP, network or IT problem?</h2><form method="post" action="/api/lead"><input name="name" placeholder="Your name" required><input name="email" type="email" placeholder="Your email" required><textarea name="message" rows="4" placeholder="What do you need help with?" required></textarea><input class="hp" name="website" tabindex="-1" autocomplete="off"><button>Send enquiry</button></form>`;
-        return page(origin, "/", "VANTAGE ARS — VoIP, Networking & IT Infrastructure Guides", "Practical VoIP, telecoms, networking and IT infrastructure guides from an engineer with 15+ years in the field.",
-          `<h1>VoIP, networking and IT infrastructure — the practical version</h1><p>Field-tested guides for people who run and support real systems.</p><h2>Latest guides</h2>${list}${contact}`);
+        const list = results.length ? results.map(a => `<div class="card"><h3><a href="/a/${esc(a.slug)}">${esc(a.title)}</a></h3><div class="m">${esc(a.published_at || "")}</div><p>${esc(a.description || "")}</p></div>`).join("") : "<p>First guides are on the way. Check back soon.</p>";
+        const icons = `<div class="icons" aria-hidden="true"><span class="icon">📡</span><span class="icon">🔒</span><span class="icon">🌐</span><span class="icon">⚙️</span><span class="icon">📊</span></div>`;
+        const hero = `<section class="hero"><div class="bg-anim"><span class="a"></span><span class="b"></span><span class="c"></span></div><h1>VANTAGE ARS — Professional VoIP, Networking & IT Infrastructure</h1><p>Pragmatic engineering for South African businesses. Secure voice, resilient networks, and practical fixes that work in the field.</p>${icons}</section>`;
+        const services = `<section class="grid"><article class="card"><h3>VoIP & SIP Trunking</h3><p>Interoperability, NAT traversal, QoS, failover, and carrier-grade troubleshooting.</p></article><article class="card"><h3>Networking & Wi-Fi</h3><p>Mikrotik, routing, VLANs, firewalls, and performance tuning for SMBs.</p></article><article class="card"><h3>Security & CCTV</h3><p>Hikvision, access control, segmentation, and hardening with minimal friction.</p></article><article class="card"><h3>IT Support & Infrastructure</h3><p>3rd-line support, PBX migrations, documentation, and SLA-aligned operations.</p></article></section>`;
+        const contact = `<h2 id="contact">Get in touch</h2><p class="m">Tell us what you're dealing with and we'll respond personally.</p><form method="post" action="/api/lead"><input name="name" placeholder="Your name" required><input name="email" type="email" placeholder="Your email" required><textarea name="message" rows="4" placeholder="What do you need help with?" required></textarea><input class="hp" name="website" tabindex="-1" autocomplete="off"><button>Send enquiry</button></form>`;
+        return page(origin, "/", "VANTAGE ARS — VoIP, Networking & IT Infrastructure", "Professional VoIP, networking, and IT infrastructure services for South African businesses.",
+          `${hero}${services}<h2>Latest guides</h2><div class="grid">${list}</div>${contact}`);
       }
+
 
       if (path === "/corrections") {
         const { results } = await env.DB.prepare("SELECT c.*, a.title FROM corrections c JOIN articles a ON a.slug=c.slug ORDER BY c.id DESC").all();
