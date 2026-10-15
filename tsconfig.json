@@ -7,7 +7,7 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "nodenext",
     "jsx": "react-jsx",
     "strict": true,
     "isolatedModules": true,
@@ -27,6 +27,7 @@
         "./src/*"
       ]
     },
+    "rootDir": "src",
     "allowImportingTsExtensions": true
   },
   "include": [
