@@ -47,8 +47,17 @@ function ChatPanel() {
     if (!open) return;
     let stop = false;
     async function pull() {
-      const result = await readPublicChat({ data: { threadId: threadId() } });
-      if (!stop && result.ok) setLines(result.messages);
+      try {
+        const result = await readPublicChat({ data: { threadId: threadId() } });
+        if (stop) return;
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        setLines(result.messages);
+      } catch {
+        if (!stop) setError("The chat could not be loaded.");
+      }
     }
     void pull();
     const timer = window.setInterval(() => void pull(), 4000);

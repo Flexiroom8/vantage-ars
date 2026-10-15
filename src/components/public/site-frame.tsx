@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WatchtowerMark } from "@/components/brand/mark";
 import { COMPANY } from "@/lib/office/company";
 import { SERVICE_PAGES } from "@/lib/site/services";
@@ -14,8 +14,33 @@ const nav = [
 const trustPills = ["Written quote first", "No retainer", "Remote support worldwide"] as const;
 
 export function PublicFrame({ children }: { children: ReactNode }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+    function onPointer(event: PointerEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointer);
+    };
+  }, [menuOpen]);
+
   return (
     <div className="site relative min-h-dvh bg-bg">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:text-accent-fg"
+      >
+        Skip to main content
+      </a>
       <div className="relative z-10 bg-[#0e1c33] py-2 text-center text-[11px] font-medium uppercase tracking-[0.18em] text-white/80">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-3 px-4 sm:px-6">
           {trustPills.map((item) => (
@@ -61,34 +86,50 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             Get a quote
           </Link>
 
-          <details className="relative md:hidden">
-            <summary className="flex h-10 cursor-pointer list-none items-center rounded-md bg-white px-3 text-sm font-medium text-[#0e1c33]">
+          <div ref={menuRef} className="relative md:hidden">
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              onClick={() => setMenuOpen((open) => !open)}
+              className="flex h-10 cursor-pointer items-center rounded-md bg-white px-3 text-sm font-medium text-[#0e1c33]"
+            >
               Menu
-            </summary>
-            <nav aria-label="Mobile navigation" className="absolute right-0 z-40 mt-2 w-56 rounded-xl bg-surface p-2 text-fg shadow-[var(--shadow-border)]">
-              {nav.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  hash={item.hash}
-                  className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <button
-                type="button"
-                className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
-                onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
+            </button>
+            {menuOpen ? (
+              <nav
+                id="mobile-nav"
+                aria-label="Mobile navigation"
+                className="absolute right-0 z-40 mt-2 w-56 rounded-xl bg-surface p-2 text-fg shadow-[var(--shadow-border)]"
               >
-                Chat
-              </button>
-            </nav>
-          </details>
+                {nav.map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    hash={item.hash}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new Event("vantage-open-chat"));
+                  }}
+                >
+                  Chat
+                </button>
+              </nav>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
+      <main id="main-content" className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
 
       <footer className="relative z-10 border-t border-border bg-[#0e1c33] text-white">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-4">

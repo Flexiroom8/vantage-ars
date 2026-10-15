@@ -32,7 +32,7 @@ function ServicePage() {
         />
         <Card>
           <p className="text-xs uppercase tracking-[0.16em] text-muted">Boundary</p>
-          <p className="mt-2 font-serif text-2xl">ART-11 / ART-12</p>
+          <h2 className="mt-2 font-serif text-2xl">ART-11 / ART-12</h2>
           <p className="mt-2 text-sm text-muted">
             Reception files a fault or complaint to this desk. Marketing still owns a new sale.
             DESK cannot move a company into Sales or book a concession.

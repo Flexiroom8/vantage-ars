@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased (Cloudflare setup + hardening)
+
+### Security
+- Removed the `FOUNDER_SETUP_TOKEN` that was committed in plaintext in `wrangler.jsonc`. Treat the old value as exposed: generate a fresh token, finish setup, then remove it and redeploy.
+- `wrangler.jsonc` is now secret-free by policy (model default only). Added a `wranglerSecretsCheck` guard so CI fails if secret-like keys ever return to that file.
+
+### Added
+- `docs/cloudflare-workers-ai.md`: full Workers AI walkthrough (account id, token scopes, per-host env, verification, rotation, troubleshooting).
+- `npm run cf:check` (`scripts/cloudflare-check.mjs`): offline wiring report that hides secret values; `--strict` exits non-zero for automation.
+- `GET /api/ai/status`: live readiness probe returning provider/model/presence booleans only — no secrets, no endpoint URL.
+- 7 new tests (`scripts/cloudflare-check.test.mjs`): account-id shape incl. the configured id, malformed rejection, token-value hiding, provider resolution, wrangler guard.
+- README env table now points at the new doc and documents `WORKERS_AI_MODEL`.
+
+### Fixed
+- Restored the API surface as TanStack server routes (the `server/api/*`
+  Nitro files were never served by this build pipeline, so auth, cron, and
+  the new probe all 404'd in production): `src/routes/api/auth/$.ts`
+  (Better Auth live again), `src/routes/api/cron/floor.ts` (via a new
+  `runFloorCron` server function), `src/routes/api/ai/status.ts`.
+- Satisfied the client-bundle import protection for those routes:
+  `gate-session.server.ts` → `gate-session.ts`,
+  `gate-identity.server.ts` → `gate-identity.ts`, `env.server.ts` → `env.ts`,
+  `founder-setup.server.ts` → `founder-setup.ts` (each marked SERVER ONLY);
+  `founderEmail()` moved to `company.ts` so the signup gate no longer pulls
+  middleware chains; TanStack `setCookie` calls funnel through a
+  `createServerOnlyFn` bridge (`response-cookie.ts`); removed dead
+  `readSessionToken()`.
+- Route-integrity guard now also covers the three API routes (path, server
+  handlers, no `.server` imports).
+
 ## 4.1.1 (2026-10-14)
 
 ### Fixed

@@ -8,7 +8,7 @@
  */
 import { createHash, timingSafeEqual } from "node:crypto";
 import { getSql } from "@/lib/db";
-import { founderEmail } from "@/lib/office/founder-gate";
+import { founderEmail } from "@/lib/office/company";
 
 export const FOUNDER_SETUP_HEADER = "x-founder-setup-token";
 export const MIN_FOUNDER_PASSWORD = 12;

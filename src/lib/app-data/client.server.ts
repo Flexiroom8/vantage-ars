@@ -4,7 +4,7 @@ import {
   assertSameSiteRequest,
   CrossSiteRequestError,
 } from "../auth/isolation.server.ts";
-import { env, isWorkspacePreview } from "../env.server.ts";
+import { env, isWorkspacePreview } from "../env.ts";
 import { assertAppDataServerOnly } from "./server-only.ts";
 import {
   CONNECTOR_TOKEN_HEADER,
@@ -81,7 +81,7 @@ export function getConnectorAccessToken(): string | null {
   return inboundContext().token;
 }
 
-export { isWorkspacePreview } from "../env.server.ts";
+export { isWorkspacePreview } from "../env.ts";
 
 // Digest of the last preview token the gate answered 401 for. The readiness
 // probe reports "not ready" while that exact token is still the one on the

@@ -68,7 +68,7 @@ function InboxPage() {
       />
       <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
         <Card>
-          <p className="font-serif text-2xl">Log inbound</p>
+          <h2 className="font-serif text-2xl">Log inbound</h2>
           <form onSubmit={onSubmit} className="mt-4 space-y-3">
             <div>
               <Label htmlFor="companyName">Company</Label>

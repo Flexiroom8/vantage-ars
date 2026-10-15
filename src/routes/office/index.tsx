@@ -73,7 +73,7 @@ function CommandCenter() {
         <DispatchPanel />
         <Card>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Needs you</p>
-          <p className="mt-1 font-serif text-2xl text-fg">Your desk</p>
+          <h2 className="mt-1 font-serif text-2xl text-fg">Your desk</h2>
           <ul className="mt-4 space-y-3">
             {work.slice(0, 6).map((item) => (
               <li key={item.id}>

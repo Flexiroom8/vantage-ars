@@ -249,7 +249,11 @@ function EnquiryForm() {
           onChange={(event) => setForm({ ...form, website: event.target.value })}
         />
       </div>
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
       <Button type="submit" disabled={pending} className="w-full sm:w-auto">
         {pending ? "Sending…" : "Request a quote"}
       </Button>
@@ -336,6 +340,8 @@ function PaymentForm() {
             className="mt-2"
             required
             inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]+)?"
+            title="Enter the amount in rand, for example 690.00"
             placeholder="690.00"
             value={form.amount}
             onChange={(event) => setForm({ ...form, amount: event.target.value })}

@@ -1,16 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
-import { COMPANY } from "./company";
+import { FOUNDER_EMAIL, founderEmail } from "./company";
 
-export const FOUNDER_EMAIL = COMPANY.email.toLowerCase();
-
-/**
- * The one email that opens the office. Server settings may override the
- * published address with FOUNDER_EMAIL (server-side only).
- */
-export function founderEmail(): string {
-  const configured = typeof process !== "undefined" ? process.env.FOUNDER_EMAIL?.trim() : undefined;
-  return (configured || COMPANY.email).toLowerCase();
-}
+export { FOUNDER_EMAIL, founderEmail };
 
 async function founderFromToken(bearerToken: string | undefined): Promise<boolean> {
   const { assertSameSiteRequest } = await import("@/lib/auth/isolation.server");

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
@@ -59,9 +59,9 @@ function SupportDesk() {
           <div>
             <dt className="text-xs uppercase tracking-[0.16em] text-subtle">New work</dt>
             <dd className="mt-1 text-muted">
-              <a href="/#enquiry" className="underline-offset-4 hover:underline">
+              <Link to="/" hash="enquiry" className="underline-offset-4 hover:underline">
                 Use the enquiry form
-              </a>{" "}
+              </Link>{" "}
               if you need a quote.
             </dd>
           </div>
@@ -218,7 +218,11 @@ function DeskForm() {
               onChange={(event) => setForm({ ...form, website: event.target.value })}
             />
           </div>
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          ) : null}
           <Button type="submit" disabled={pending} className="w-full sm:w-auto">
             {pending ? "Sending…" : "Send to the desk"}
           </Button>

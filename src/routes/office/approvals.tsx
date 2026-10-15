@@ -128,10 +128,10 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
         onChange={(event) => setNote(event.target.value)}
       />
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" disabled={pending} onClick={() => resolve("rejected")}>
+        <Button variant="outline" disabled={pending} onClick={() => void resolve("rejected")}>
           Reject
         </Button>
-        <Button disabled={pending} onClick={() => resolve("approved")}>
+        <Button disabled={pending} onClick={() => void resolve("approved")}>
           Approve and execute
         </Button>
       </div>

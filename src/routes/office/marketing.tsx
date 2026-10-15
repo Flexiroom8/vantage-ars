@@ -30,7 +30,7 @@ function MarketingPage() {
         />
         <Card>
           <p className="text-xs uppercase tracking-[0.16em] text-muted">Boundary</p>
-          <p className="mt-2 font-serif text-2xl">ART-11 / ART-12</p>
+          <h2 className="mt-2 font-serif text-2xl">ART-11 / ART-12</h2>
           <p className="mt-2 text-sm text-muted">
             SIGNAL may create and qualify leads. The moment work becomes a sale it files a founder
             approval and stops. Sales cannot see a company until you move it.

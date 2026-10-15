@@ -42,11 +42,19 @@ function RatesPage() {
           </div>
         </section>
       ))}
-      <p className="flex flex-wrap gap-6 border-t border-border py-16 text-sm">
-        <Link to="/" hash="enquiry" className="text-accent underline-offset-4 hover:underline">
+      <p className="flex flex-wrap gap-3 border-t border-border py-16">
+        <Link
+          to="/"
+          hash="enquiry"
+          className="inline-flex h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg"
+        >
           Get a written quote
         </Link>
-        <Link to="/" hash="payment" className="text-muted underline-offset-4 hover:text-fg hover:underline">
+        <Link
+          to="/"
+          hash="payment"
+          className="inline-flex h-11 items-center rounded-md px-5 text-sm shadow-[var(--shadow-border)]"
+        >
           How to pay
         </Link>
       </p>

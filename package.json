@@ -15,6 +15,7 @@
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "db:migrate": "node scripts/migrate.mjs",
+    "cf:check": "node scripts/cloudflare-check.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -33,12 +33,11 @@ import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
-import { getCookie } from "@tanstack/react-start/server";
 import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
-import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
+import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import {
@@ -219,7 +218,7 @@ export const auth = betterAuth({
 
   // Local email/password — toggled only via `./email-password` (not a plugin).
   // Public sign-up is gated in `hooks.before`: only the founder email, once,
-  // with FOUNDER_SETUP_TOKEN (see ./founder-setup.server).
+  // with FOUNDER_SETUP_TOKEN (see ./founder-setup).
   ...(emailAndPasswordEnabled
     ? {
         emailAndPassword: {
@@ -234,7 +233,7 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/sign-up/email") return;
-      const { checkFounderSignUp, FOUNDER_SETUP_HEADER } = await import("./founder-setup.server");
+      const { checkFounderSignUp, FOUNDER_SETUP_HEADER } = await import("./founder-setup");
       const body = (ctx.body ?? {}) as { email?: unknown };
       const verdict = await checkFounderSignUp(body.email, ctx.headers?.get(FOUNDER_SETUP_HEADER));
       if (!verdict.ok) throw new APIError("FORBIDDEN", { message: verdict.error });
@@ -296,10 +295,6 @@ export const auth = betterAuth({
 
 /** True when Google/X sign-in through the broker is offered. */
 export const oauthEnabled = Boolean(grokOAuthPlugin);
-
-export function readSessionToken(): string | null {
-  return getCookie(SESSION_TOKEN_COOKIE) ?? null;
-}
 
 // Re-exported for convenience; the array lives in the dependency-free
 // `providers.ts` so the client can import it too.

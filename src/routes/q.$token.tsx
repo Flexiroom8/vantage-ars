@@ -40,6 +40,7 @@ function CustomerQuotePage() {
   const quote = Route.useLoaderData();
   const { token } = Route.useParams();
   const [answered, setAnswered] = useState<"accepted" | "declined" | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   if (!quote.ok) {
     return (
@@ -66,14 +67,19 @@ function CustomerQuotePage() {
 
   async function downloadPdf() {
     if (!quote.ok) return;
-    const { buildQuotePdf, downloadPdf: save, quotePdfName } = await import("@/lib/office/quote-pdf");
-    const bytes = await buildQuotePdf({
-      companyName: quote.companyName,
-      amount: formatZar(quote.amountCents),
-      body: quote.scope,
-      payment: quote.paymentNote,
-    });
-    save(bytes, quotePdfName(quote.companyName, quote.scope));
+    setPdfError(null);
+    try {
+      const { buildQuotePdf, downloadPdf: save, quotePdfName } = await import("@/lib/office/quote-pdf");
+      const bytes = await buildQuotePdf({
+        companyName: quote.companyName,
+        amount: formatZar(quote.amountCents),
+        body: quote.scope,
+        payment: quote.paymentNote,
+      });
+      save(bytes, quotePdfName(quote.companyName, quote.scope));
+    } catch {
+      setPdfError("The PDF could not be built. Try again, or contact the service desk.");
+    }
   }
 
   return (
@@ -100,6 +106,11 @@ function CustomerQuotePage() {
               Download PDF
             </Button>
           </div>
+          {pdfError ? (
+            <p role="alert" className="pt-4 text-sm text-danger">
+              {pdfError}
+            </p>
+          ) : null}
           <div className="pt-6">
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Scope</p>
             <p className="mt-3 whitespace-pre-line leading-relaxed">{quote.scope}</p>

@@ -116,6 +116,12 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh bg-bg text-fg">
+      <a
+        href="#office-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:text-accent-fg"
+      >
+        Skip to main content
+      </a>
       <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-hidden border-r border-border bg-bg p-4 lg:flex">
         <Link to="/office" className="mb-6 flex shrink-0 items-center gap-3 px-2">
           <WatchtowerMark className="size-6 text-accent" />
@@ -205,7 +211,7 @@ export function AppShell({
           </div>
         ) : null}
 
-        <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main id="office-main" className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );
