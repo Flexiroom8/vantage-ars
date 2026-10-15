@@ -20,6 +20,7 @@ export function pageHead(input: {
   const pathname = input.path === "/" ? "/" : input.path.replace(/^(?!\/)/, "/");
   const url = `${SITE_URL}${pathname}`;
   const image = input.image ?? `${SITE_URL}/og.jpg`;
+  const imageAlt = input.imageAlt ?? `Preview image for ${input.title}`;
 
   const meta: Meta[] = [
     { title: input.title },
@@ -30,11 +31,13 @@ export function pageHead(input: {
     { property: "og:description", content: input.description },
     { property: "og:url", content: url },
     { property: "og:image", content: image },
+    { property: "og:image:alt", content: imageAlt },
     { property: "og:locale", content: "en_ZA" },
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: input.title },
     { name: "twitter:description", content: input.description },
     { name: "twitter:image", content: image },
+    { name: "twitter:image:alt", content: imageAlt },
     { name: "theme-color", content: "#0e1c33" },
     { name: "robots", content: "index,follow" },
   ];
@@ -65,6 +68,7 @@ export function businessJsonLd() {
     name: COMPANY.tradingName,
     url: SITE_URL,
     email: COMPANY.email,
+    logo: `${SITE_URL}/favicon.svg`,
     image: `${SITE_URL}/og.jpg`,
     priceRange: "R690–R3,450",
     currenciesAccepted: "ZAR",
