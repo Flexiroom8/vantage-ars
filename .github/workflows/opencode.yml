@@ -1,54 +1,228 @@
 name: OpenCode
-run-name: "OpenCode #${{ github.event.issue.number || inputs.issue_number }}${{ github.event.issue.title && format(' — {0}', github.event.issue.title) || '' }}"
 
 on:
-  issues:
-    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
   workflow_dispatch:
     inputs:
-      issue_number:
-        description: Existing issue to run
+      prompt:
+        description: "Task for OpenCode"
         required: true
         type: string
 
-permissions: {}
-
 concurrency:
-  group: opencode-issue-${{ github.repository }}-${{ github.event.issue.number || inputs.issue_number }}
+  group: opencode-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: false
 
 jobs:
-  prepare:
-    if: github.event_name == 'workflow_dispatch' || (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'OpenCode'))
-    permissions:
-      contents: write
-      id-token: write
-      issues: write
-      actions: write
-    uses: AgentsLoop/OhMyGithub/.github/workflows/opencode-prepare.yml@1ed0818c6f6bde3293b127c17668fcad4b02c347
-    with:
-      runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
-
   opencode:
-    needs: prepare
-    if: needs.prepare.outputs.approved == 'true'
+    name: OpenCode Agent
+    runs-on: ubuntu-24.04
+
+    # For comments, only run when /oc or /opencode is present.
+    # workflow_dispatch is always allowed.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.comment.body || '', '/oc') ||
+      contains(github.event.comment.body || '', '/opencode')
+
+    timeout-minutes: 45
+
     permissions:
       contents: write
-      id-token: write
+      pull-requests: write
       issues: write
       actions: read
-      pull-requests: write
-    uses: AgentsLoop/OhMyGithub/.github/workflows/opencode-reusable.yml@1ed0818c6f6bde3293b127c17668fcad4b02c347
-    with:
-      runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
-      issue_number: ${{ needs.prepare.outputs.issue_number }}
-      request: ${{ needs.prepare.outputs.request }}
-      issue_title: ${{ needs.prepare.outputs.issue_title }}
-      labels_json: ${{ needs.prepare.outputs.labels_json }}
-      sender: ${{ needs.prepare.outputs.sender }}
-      target_ref: ${{ needs.prepare.outputs.target_ref }}
-      target_sha: ${{ needs.prepare.outputs.target_sha }}
-    secrets:
-      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-      OPENCODE_AUTH_JSON: ${{ secrets.OPENCODE_AUTH_JSON }}
-      AGENTSWEB_SSH_PUBLIC_KEY: ${{ secrets.AGENTSWEB_SSH_PUBLIC_KEY }}
+
+    steps:
+      # ------------------------------------------------------------
+      # 1. Basic diagnostics
+      # ------------------------------------------------------------
+      - name: Run information
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "========================================"
+          echo " Vantage-ARS OpenCode"
+          echo "========================================"
+          echo "Repository : $GITHUB_REPOSITORY"
+          echo "Event      : $GITHUB_EVENT_NAME"
+          echo "Ref        : $GITHUB_REF"
+          echo "SHA        : $GITHUB_SHA"
+          echo "Actor      : $GITHUB_ACTOR"
+          echo "Run ID     : $GITHUB_RUN_ID"
+          echo "Run number : $GITHUB_RUN_NUMBER"
+          echo "Runner OS  : $RUNNER_OS"
+          echo "========================================"
+
+      # ------------------------------------------------------------
+      # 2. Checkout
+      # ------------------------------------------------------------
+      - name: Checkout Vantage-ARS
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # ------------------------------------------------------------
+      # 3. Repository diagnostics
+      # ------------------------------------------------------------
+      - name: Repository diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Node:"
+          node --version || true
+
+          echo
+          echo "npm:"
+          npm --version || true
+
+          echo
+          echo "Git:"
+          git --version
+
+          echo
+          echo "Current branch/ref:"
+          git status --short --branch
+
+          echo
+          echo "Recent commits:"
+          git log --oneline -5 || true
+
+          echo
+          echo "Repository root:"
+          ls -la
+
+      # ------------------------------------------------------------
+      # 4. Determine prompt
+      # ------------------------------------------------------------
+      - name: Prepare manual prompt
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          MANUAL_PROMPT: ${{ inputs.prompt }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo 'OPENCODE_MANUAL_PROMPT<<EOF'
+            printf '%s\n' "$MANUAL_PROMPT"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      # ------------------------------------------------------------
+      # 5. Run official OpenCode GitHub Action
+      #
+      # IMPORTANT:
+      # This uses GitHub's repository token directly.
+      #
+      # XAI_API_KEY must exist under:
+      # Settings -> Secrets and variables -> Actions
+      # ------------------------------------------------------------
+      - name: Run OpenCode
+        id: opencode
+        uses: anomalyco/opencode/github@latest
+
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        with:
+          # Explicit provider/model.
+          #
+          # If your OpenCode installation reports a different current
+          # xAI model ID, change ONLY this value.
+          model: xai/grok-4
+
+          # Use GitHub's built-in token instead of requiring the
+          # OpenCode GitHub App/OIDC token exchange.
+          use_github_token: true
+
+          # Do not publish/share OpenCode sessions.
+          share: false
+
+          # Default trigger phrases.
+          mentions: /opencode,/oc
+
+          # Manual Actions -> Run workflow support.
+          prompt: ${{ github.event_name == 'workflow_dispatch' && env.OPENCODE_MANUAL_PROMPT || '' }}
+
+      # ------------------------------------------------------------
+      # 6. Success diagnostics
+      # ------------------------------------------------------------
+      - name: OpenCode completed successfully
+        if: success()
+        shell: bash
+        run: |
+          echo "========================================"
+          echo " OpenCode completed successfully"
+          echo "========================================"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Run:        $GITHUB_RUN_ID"
+          echo "SHA:        $GITHUB_SHA"
+          echo "========================================"
+
+      # ------------------------------------------------------------
+      # 7. Failure diagnostics
+      #
+      # Unlike the old lifecycle workflow, don't hide the failure
+      # behind opencode-run.exit.
+      # ------------------------------------------------------------
+      - name: Failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          echo "::error::OpenCode failed."
+
+          echo
+          echo "========================================"
+          echo " FAILURE DIAGNOSTICS"
+          echo "========================================"
+
+          echo
+          echo "--- Git status ---"
+          git status --short --branch || true
+
+          echo
+          echo "--- Recent commits ---"
+          git log --oneline -10 || true
+
+          echo
+          echo "--- Environment validation ---"
+
+          if [ -n "${XAI_API_KEY:-}" ]; then
+            echo "XAI_API_KEY: configured"
+          else
+            echo "::error::XAI_API_KEY is NOT configured."
+          fi
+
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
+            echo "GITHUB_TOKEN: available"
+          else
+            echo "::error::GITHUB_TOKEN is unavailable."
+          fi
+
+          echo
+          echo "--- OpenCode files ---"
+
+          find "$HOME" \
+            -maxdepth 4 \
+            \( -iname '*opencode*.log' \
+               -o -iname 'opencode-run.exit' \
+               -o -iname 'opencode-run.log' \) \
+            -print 2>/dev/null || true
+
+          echo
+          echo "========================================"
+          echo " Inspect the 'Run OpenCode' step above"
+          echo " for the primary provider/model error."
+          echo "========================================"
+
+        env:
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
