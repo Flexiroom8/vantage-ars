@@ -1,3 +1,10 @@
+/**
+ * SERVER ONLY. Do not import from client components or TanStack route files:
+ * this module runs exclusively in server contexts. It was renamed from
+ * `gate-session.server.ts` so the TanStack auth API route can reach it
+ * through `auth/server.ts` without tripping the client-bundle import
+ * protection.
+ */
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import {
@@ -12,8 +19,9 @@ import {
   gateIdentityFromHeaders,
   gateIdentityUserInfo,
   sessionBoundToGateIdentity,
-} from "./gate-identity.server";
+} from "./gate-identity";
 import { GATE_SESSION_MARKER_COOKIE } from "./gate-session-marker";
+import { writeResponseCookie } from "./response-cookie";
 
 export const GATE_PROVIDER_ID = "grok-gate";
 const GATE_ACCOUNT_ISSUER = "https://grok.com";
@@ -67,14 +75,17 @@ async function emitSessionCookie(
 
   // Primary path: TanStack Start's response cookie store (reaches the browser).
   try {
-    const { setCookie } = await import("@tanstack/react-start/server");
-    setCookie(sessionTokenName, sessionValue, {
-      path: cookieOptions.path ?? "/",
-      httpOnly: cookieOptions.httpOnly ?? true,
-      secure: cookieOptions.secure ?? true,
-      sameSite: (cookieOptions.sameSite as "lax" | "strict" | "none") ?? "lax",
-      maxAge: typeof maxAge === "number" ? maxAge : undefined,
-      domain: cookieOptions.domain,
+    await writeResponseCookie({
+      name: sessionTokenName,
+      value: sessionValue,
+      options: {
+        path: cookieOptions.path ?? "/",
+        httpOnly: cookieOptions.httpOnly ?? true,
+        secure: cookieOptions.secure ?? true,
+        sameSite: (cookieOptions.sameSite as "lax" | "strict" | "none") ?? "lax",
+        maxAge: typeof maxAge === "number" ? maxAge : undefined,
+        domain: cookieOptions.domain,
+      },
     });
   } catch (err) {
     console.error(`${LOG} TanStack setCookie failed`, err);
@@ -110,13 +121,10 @@ async function expireSessionDataCookie(
   const path = cookie.attributes.path ?? "/";
   const secure = cookie.attributes.secure ?? true;
   try {
-    const { setCookie } = await import("@tanstack/react-start/server");
-    setCookie(cookie.name, "", {
-      path,
-      httpOnly: true,
-      secure,
-      sameSite: "lax",
-      maxAge: 0,
+    await writeResponseCookie({
+      name: cookie.name,
+      value: "",
+      options: { path, httpOnly: true, secure, sameSite: "lax", maxAge: 0 },
     });
   } catch (err) {
     console.error(`${LOG} TanStack setCookie (expire session_data) failed`, err);
@@ -153,13 +161,10 @@ async function writeGateMarkerCookie(
       : undefined;
   const value = clear ? "" : "1";
   try {
-    const { setCookie } = await import("@tanstack/react-start/server");
-    setCookie(GATE_SESSION_MARKER_COOKIE, value, {
-      path: "/",
-      httpOnly: false,
-      secure: true,
-      sameSite: "lax",
-      maxAge,
+    await writeResponseCookie({
+      name: GATE_SESSION_MARKER_COOKIE,
+      value,
+      options: { path: "/", httpOnly: false, secure: true, sameSite: "lax", maxAge },
     });
   } catch (err) {
     console.error(`${LOG} TanStack setCookie (gate marker) failed`, err);

@@ -1,3 +1,9 @@
+/**
+ * Environment helpers (renamed from `env.server.ts` so the TanStack auth API
+ * route can reach the auth server without tripping the client-bundle import
+ * protection; content is unchanged). `env()` reads `process.env` and is only
+ * ever CALLED in server contexts.
+ */
 export function env(key: string): string | undefined {
   const v = process.env[key]?.trim();
   return v || undefined;

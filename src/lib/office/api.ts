@@ -508,6 +508,39 @@ export const downloadBackup = createServerFn({ method: "POST" })
 
 export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async () => paymentMethods(process.env));
 
+/**
+ * Draft-only floor run for the scheduled `GET /api/cron/floor` route.
+ * Authenticated by CRON_SECRET (NOT the founder session — the scheduler has
+ * no cookies). Lives here so the `.server` imports stay inside an exempt
+ * server-function handler; the TanStack route file only imports this module.
+ */
+export const runFloorCron = createServerFn({ method: "POST" })
+  .validator((input: { secret: string }) => ({ secret: typeof input?.secret === "string" ? input.secret : "" }))
+  .handler(async ({ data }): Promise<{ ok: boolean; executed?: number; briefing?: string; reason?: string }> => {
+    const expected = process.env.CRON_SECRET?.trim() ?? "";
+    if (expected.length < 16 || !secretEqual(data.secret, expected)) {
+      return { ok: false, reason: "Unauthorized" };
+    }
+    if (process.env.AUTO_DRAFTS?.trim().toLowerCase() !== "on") {
+      return { ok: false, reason: "AUTO_DRAFTS is not on." };
+    }
+    try {
+      const { operateFloor } = await import("./floor.server");
+      const result = await operateFloor({ sendMail: false });
+      return { ok: true, executed: result.executed, briefing: result.briefing };
+    } catch {
+      return { ok: false, reason: "The run failed." };
+    }
+  });
+
+/** Constant-time string compare without node:crypto (safe anywhere). */
+function secretEqual(a: string, b: string): boolean {
+  if (a.length !== b.length || a.length === 0) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export const restoreBackup = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
   .validator((input: { json: string }) => ({ json: typeof input?.json === "string" ? input.json : "" }))

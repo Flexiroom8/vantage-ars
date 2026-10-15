@@ -138,7 +138,7 @@ function QuoteForm({
   return (
     <Card className="mt-4">
       <p className="text-xs uppercase tracking-[0.16em] text-muted">Draft a quote</p>
-      <p className="mt-2 font-serif text-2xl">Published labour only.</p>
+      <h2 className="mt-2 font-serif text-2xl">Published labour only.</h2>
       <form onSubmit={onSubmit} className="mt-4 grid gap-3 sm:grid-cols-2">
         <div>
           <Label htmlFor="quote-company">Opportunity</Label>

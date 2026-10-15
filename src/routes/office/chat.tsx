@@ -35,8 +35,17 @@ function ChatDesk() {
     if (!active) return;
     let stop = false;
     async function pull() {
-      const result = await readPublicChat({ data: { threadId: active as string } });
-      if (!stop && result.ok) setLines(result.messages);
+      try {
+        const result = await readPublicChat({ data: { threadId: active as string } });
+        if (stop) return;
+        if (!result.ok) {
+          toast.error(result.error);
+          return;
+        }
+        setLines(result.messages);
+      } catch {
+        if (!stop) toast.error("The chat could not be loaded.");
+      }
     }
     void pull();
     const timer = window.setInterval(() => void pull(), 4000);
@@ -83,6 +92,7 @@ function ChatDesk() {
                 <button
                   type="button"
                   onClick={() => setActive(thread.id)}
+                  aria-current={active === thread.id}
                   className="w-full rounded-xl bg-surface px-3 py-3 text-left shadow-[var(--shadow-border)]"
                 >
                   <p className="text-sm">{thread.name}</p>

@@ -45,6 +45,7 @@ function PrivacyPage() {
         <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
           Your details stay with the job.
         </h1>
+        <p className="mt-3 text-xs text-subtle">Last updated: October 2026.</p>
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
           An enquiry or chat is not a contract. When you contact Vantage-ARS, the details you
           provide are used to respond and, if you ask for one, to prepare a written quote.

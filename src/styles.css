@@ -10,7 +10,7 @@
   --color-raised: #e6eef8;
   --color-fg: #122033;
   --color-muted: #4d6078;
-  --color-subtle: #7d8da3;
+  --color-subtle: #5f7186;
   --color-accent: #0c5cab;
   --color-accent-fg: #f7fbff;
   --color-border: #d5e0ee;
@@ -165,7 +165,7 @@ html:has(.site) body {
   --color-raised: #e6eef8;
   --color-fg: #122033;
   --color-muted: #4d6078;
-  --color-subtle: #7d8da3;
+  --color-subtle: #5f7186;
   --color-accent: #0c5cab;
   --color-accent-fg: #f7fbff;
   --color-border: #d5e0ee;
@@ -177,10 +177,6 @@ html:has(.site) body {
   --shadow-border-hover: 0 0 0 1px rgb(18 32 51 / 0.16);
   background: transparent;
   color: var(--color-fg);
-}
-
-.site summary::-webkit-details-marker {
-  display: none;
 }
 
 .signal-packet {

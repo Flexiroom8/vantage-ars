@@ -28,6 +28,7 @@ function TermsPage() {
       <article className="enter-up max-w-3xl py-16">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Before any work</p>
         <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">How work is agreed</h1>
+        <p className="mt-3 text-xs text-subtle">Last updated: October 2026.</p>
 
         <div className="mt-8 rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
           <p className="text-sm leading-relaxed text-muted">

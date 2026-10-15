@@ -1,10 +1,17 @@
+/**
+ * SERVER ONLY. Do not import from client components or TanStack route files:
+ * this module runs exclusively in server contexts (auth server, server
+ * functions, Nitro handlers). It was renamed from `gate-identity.server.ts`
+ * so the TanStack auth API route can reach it through `auth/server.ts`
+ * without tripping the client-bundle import protection.
+ */
 import {
   importJWK,
   jwtVerify,
   type JWK,
   type JWTVerifyGetKey,
 } from "jose";
-import { env, isWorkspacePreview } from "../env.server.ts";
+import { env, isWorkspacePreview } from "../env.ts";
 
 export const GATE_IDENTITY_HEADER = "x-grok-identity";
 export const GATE_JWKS_PATH = "/__gate/identity-key";

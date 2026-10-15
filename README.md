@@ -40,7 +40,8 @@ All settings are listed in `.env.example`. The important ones:
 | `FOUNDER_SETUP_TOKEN` | One-time code for creating the founder account (16+ characters). Remove it afterwards. |
 | `FOUNDER_EMAIL` | The only account allowed into the office. Defaults to the company email. |
 | `GROK_OAUTH` | `off` hides the Grok sign-in button. |
-| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff provider. With neither set, the staff report that they are unavailable. |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff provider. With neither set, the staff report that they are unavailable. Full walkthrough: `docs/cloudflare-workers-ai.md`. |
+| `WORKERS_AI_MODEL` | Optional Workers AI model override (default `@cf/meta/llama-3.3-70b-instruct-fp8-fast`). |
 | `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Founder notices and customer mail. |
 | `PAYMENT_*` | Bank details on the site and quotes. |
 | `AUTO_DRAFTS`, `CRON_SECRET` | Daily draft-only run (see below). |
@@ -92,6 +93,7 @@ Only you can do this, in your Google account: Security, 2-Step Verification, App
 
 ## Docs
 - `docs/business-scope-and-competitive-pricing.md`: scope, rates and department boundaries.
+- `docs/cloudflare-workers-ai.md`: account id, API token, per-host env, verification.
 - `docs/MERGE.md`: how the earlier projects were combined.
 - `CHANGELOG.md`: what changed and when.
 - The earlier repository layout, including the v3 Cloudflare Worker source, is preserved at git tag `pre-v4-archive`.

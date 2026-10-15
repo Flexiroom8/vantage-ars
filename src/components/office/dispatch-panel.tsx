@@ -61,6 +61,7 @@ export function DispatchPanel({
                 key={agent.id}
                 type="button"
                 onClick={() => setAgentId(agent.id)}
+                aria-pressed={agentId === agent.id}
                 className={cn(
                   "h-9 rounded-md px-3 text-xs tracking-wide uppercase transition-colors duration-150",
                   agentId === agent.id
