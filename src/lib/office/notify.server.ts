@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getSql } from "@/lib/db";
+import { getSql } from "../db";
 import type { FounderNotice } from "./notice";
 import { sendFounderMail } from "./smtp.server";
 

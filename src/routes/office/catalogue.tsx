@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useOfficeSnapshot } from "@/components/office/office-context";
 import { PageHeader } from "@/components/office/page-header";
 import { Badge } from "@/components/ui/badge";
-import { PUBLISHED_RATES } from "@/lib/office/catalogue";
+import { PUBLISHED_RATES } from "../../lib/office/catalogue";
 
 export const Route = createFileRoute("/office/catalogue")({
   component: CataloguePage,

@@ -6,9 +6,9 @@ import { TraceList } from "@/components/office/trace-list";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { downloadBackup, restoreBackup } from "@/lib/office/api";
-import { headMatches } from "@/lib/office/integrity";
-import { formatDateTime } from "@/lib/office/money";
+import { downloadBackup, restoreBackup } from "../../lib/office/api";
+import { headMatches } from "../../lib/office/integrity";
+import { formatDateTime } from "../../lib/office/money";
 
 export const Route = createFileRoute("/office/audit")({
   component: AuditPage,

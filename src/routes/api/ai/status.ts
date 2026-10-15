@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { resolveModelTarget } from "@/lib/office/ai-provider";
+import { resolveModelTarget } from "../../lib/office/ai-provider";
 
 /**
  * Public AI-staff readiness probe. Reports WHICH provider would answer and

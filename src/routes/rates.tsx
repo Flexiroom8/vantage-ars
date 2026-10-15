@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { pageHead } from "@/lib/site/seo";
+import { pageHead } from "../lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { SignalBars } from "@/components/public/motion-icons";
-import { RATE_GROUPS, ratesByIds } from "@/lib/office/catalogue";
-import { cn } from "@/lib/utils";
+import { RATE_GROUPS, ratesByIds } from "../lib/office/catalogue";
+import { cn } from "../lib/utils";
 
 const GROUP_IDS = ["labour", "quoted", "outside"] as const;
 

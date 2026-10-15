@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { pageHead } from "@/lib/site/seo";
+import { pageHead } from "../lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { InfraIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
-import { SERVICE_PAGES } from "@/lib/site/services";
+import { SERVICE_PAGES } from "../lib/site/services";
 
 export const Route = createFileRoute("/work")({
   head: () =>
@@ -52,8 +52,7 @@ function WorkPage() {
         {STEPS.map((step, index) => (
           <div
             key={step.title}
-            className={`panel panel-hover rounded-2xl p-6 ${index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"}`}
-          >
+            className={`panel panel-hover rounded-2xl p-6 ${index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"}`}>
             <div className="flex items-center justify-between">
               <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
                 <step.Icon className="size-6 text-accent" aria-hidden="true" />
