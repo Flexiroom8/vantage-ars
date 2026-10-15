@@ -1,0 +1,32 @@
+name = "vantage-ars"
+main = "src/worker.js"
+compatibility_date = "2026-09-28"
+
+workers_dev = true
+preview_urls = true
+
+# D1 database (shared "vantage-data")
+[[d1_databases]]
+binding = "DB"
+database_name = "vantage-data"
+database_id = "9eed1616-7546-4855-a150-11a92fb7621c"
+
+# Workers AI
+[ai]
+binding = "AI"
+
+# Cron — Monday 07:00 UTC
+[triggers]
+crons = ["0 7 * * 1"]
+
+# Custom domains
+[[routes]]
+pattern = "vantage-ars.co.za"
+custom_domain = true
+
+[[routes]]
+pattern = "www.vantage-ars.co.za"
+custom_domain = true
+
+[observability]
+enabled = true

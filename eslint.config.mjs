@@ -17,6 +17,7 @@ export default tseslint.config(
       "node_modules/**",
       ".agents/**",
       ".opencode/**",
+      "workers/**",
       "src/routeTree.gen.ts",
     ],
   },
