@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { businessJsonLd, pageHead } from "@/lib/site/seo";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,25 @@ describe("route files declare their own path", () => {
     const source = readFileSync(join(here, "../components/ui/button.tsx"), "utf8");
     assert.ok(source.includes("export { Button"));
     assert.ok(!source.includes("@import"));
+  });
+
+  it("pageHead includes social image alt text and canonical URL", () => {
+    const { meta, links } = pageHead({
+      title: "VoIP, networking & IT infrastructure · Vantage-ARS",
+      description: "Worldwide remote VoIP and network support.",
+      path: "/services/voip",
+      imageAlt: "Vantage-ARS VoIP support preview",
+    });
+
+    assert.ok(meta.some((item) => item.property === "og:image:alt" && item.content === "Vantage-ARS VoIP support preview"));
+    assert.ok(meta.some((item) => item.name === "twitter:image:alt" && item.content === "Vantage-ARS VoIP support preview"));
+    assert.ok(links.some((link) => link.rel === "canonical" && link.href === "https://vantage-ars.co.za/services/voip"));
+  });
+
+  it("businessJsonLd includes the public logo for richer schema metadata", () => {
+    const json = JSON.parse(String(businessJsonLd().children));
+    assert.equal(json.logo, "https://vantage-ars.co.za/favicon.svg");
+    assert.equal(json["@type"], "ProfessionalService");
   });
 
   for (const [file, path] of Object.entries(API_ROUTES)) {
