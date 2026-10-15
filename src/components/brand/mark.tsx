@@ -11,6 +11,7 @@ export function WatchtowerMark({ className, title = "Vantage-ARS" }: { className
       <rect x="4" y="4" width="4" height="16" fill="url(#g1)" rx="1" />
       <rect x="16" y="4" width="4" height="16" fill="url(#g1)" rx="1" />
       <rect x="4" y="4" width="16" height="4" fill="url(#g1)" rx="1" />
+      <circle className="mi-ping" cx="12" cy="2.6" r="2.2" fill="#7ec8ff" opacity="0.8" />
     </svg>
   );
 }

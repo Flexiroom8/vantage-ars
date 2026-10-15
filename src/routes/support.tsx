@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
+import { LiveNode } from "@/components/public/motion-icons";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,29 +39,29 @@ function SupportDesk() {
     <PublicFrame>
       <section className="enter-up grid gap-10 border-b border-border py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
         <div>
-          <p className="text-sm font-medium text-accent">Customer service</p>
-          <h1 className="mt-4 max-w-xl font-serif text-5xl leading-[0.96] tracking-[-0.04em] sm:text-6xl">
+          <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Customer service</p>
+          <h1 className="mt-4 max-w-xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
             Already a customer? This is the right place.
           </h1>
-          <p className="mt-6 max-w-lg text-base text-muted">
+          <p className="mt-6 max-w-lg text-base leading-relaxed text-muted">
             Tell us about a fault, a job already underway, or a complaint. We may send a short
             acknowledgement. It does not refund anything, cancel work, or change a price.
           </p>
         </div>
 
-        <dl className="self-end space-y-4 border-t border-border pt-6 text-sm lg:border-t-0 lg:pt-0">
+        <dl className="panel self-end space-y-4 rounded-2xl p-6 text-sm">
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-subtle">What this desk does</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">What this desk does</dt>
             <dd className="mt-1 text-muted">Records the matter for a person to review.</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-subtle">What it does not do</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">What it does not do</dt>
             <dd className="mt-1 text-muted">No refund, no new price, and no contract from this form.</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-[0.16em] text-subtle">New work</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">New work</dt>
             <dd className="mt-1 text-muted">
-              <Link to="/" hash="enquiry" className="underline-offset-4 hover:underline">
+              <Link to="/" hash="enquiry" className="text-accent underline-offset-4 hover:underline">
                 Use the enquiry form
               </Link>{" "}
               if you need a quote.
@@ -70,42 +72,48 @@ function SupportDesk() {
 
       <section className="grid gap-4 border-b border-border py-10 md:grid-cols-3">
         {[
-          ["A fault", "Something stopped. Say what it was doing, and what it does now."],
-          ["Work in progress", "Ask where an agreed job stands. This does not change the quote."],
-          ["A complaint", "Say what went wrong. A refund or a credit is not decided on this form."],
-        ].map(([title, body]) => (
-          <div key={title} className="rounded-2xl border border-border bg-surface p-5 shadow-[var(--shadow-border)]">
-            <h2 className="font-serif text-3xl">{title}</h2>
-            <p className="mt-3 text-sm text-muted">{body}</p>
+          { n: "01", title: "A fault", body: "Something stopped. Say what it was doing, and what it does now." },
+          { n: "02", title: "Work in progress", body: "Ask where an agreed job stands. This does not change the quote." },
+          { n: "03", title: "A complaint", body: "Say what went wrong. A refund or a credit is not decided on this form." },
+        ].map((item) => (
+          <div key={item.title} className="panel panel-hover rounded-2xl p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-serif text-3xl">{item.title}</h2>
+              <p className="font-mono text-sm text-subtle">{item.n}</p>
+            </div>
+            <p className="mt-3 text-sm leading-relaxed text-muted">{item.body}</p>
           </div>
         ))}
       </section>
 
       <section className="grid gap-10 py-16 lg:grid-cols-[1fr_0.9fr]">
         <DeskForm />
-        <div className="rounded-2xl border border-border bg-surface p-6 shadow-[var(--shadow-border)]">
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-accent">Need a quick check?</p>
+        <div className="panel rounded-2xl p-6">
+          <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-accent">
+            <LiveNode className="size-4" aria-hidden="true" />
+            Need a quick check?
+          </p>
           <h2 className="mt-3 font-serif text-3xl">Before you send the desk a note</h2>
           <ul className="mt-6 space-y-4 text-sm text-muted">
-            <li className="border-b border-fg/10 pb-3">Include what stopped working, when it started, and what you have already tried.</li>
-            <li className="border-b border-fg/10 pb-3">Add the customer or site name so the team can trace the work quickly.</li>
+            <li className="border-b border-border pb-3">Include what stopped working, when it started, and what you have already tried.</li>
+            <li className="border-b border-border pb-3">Add the customer or site name so the team can trace the work quickly.</li>
             <li>Keep the message factual. Avoid passwords, remote access keys, or payment details.</li>
           </ul>
         </div>
       </section>
 
       <section className="border-t border-border py-16" aria-labelledby="support-faq-heading">
-        <h2 id="support-faq-heading" className="font-serif text-4xl tracking-[-0.03em]">
+        <h2 id="support-faq-heading" className="text-4xl sm:text-5xl">
           Common questions
         </h2>
-        <div className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
+        <Accordion type="single" collapsible className="mt-8 border-t border-border">
           {FAQS.map((item) => (
-            <div key={item.q} className="border-t border-fg/15 pt-5">
-              <h3 className="text-sm font-medium">{item.q}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{item.a}</p>
-            </div>
+            <AccordionItem key={item.q} value={item.q}>
+              <AccordionTrigger>{item.q}</AccordionTrigger>
+              <AccordionContent>{item.a}</AccordionContent>
+            </AccordionItem>
           ))}
-        </div>
+        </Accordion>
       </section>
     </PublicFrame>
   );
@@ -146,14 +154,14 @@ function DeskForm() {
   return (
     <section>
       {done ? (
-        <div className="rounded-xl bg-surface p-6 shadow-[var(--shadow-border)]">
-          <p className="font-serif text-3xl">Recorded.</p>
+        <div className="panel rounded-2xl p-6">
+          <p className="font-serif text-3xl text-ok">Recorded.</p>
           <p className="mt-3 text-sm text-muted">
             Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been refunded, cancelled, or quoted.
           </p>
         </div>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-4 rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]">
+        <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
           <div>
             <Label htmlFor="desk-name">Your name</Label>
             <Input
@@ -223,7 +231,7 @@ function DeskForm() {
               {error}
             </p>
           ) : null}
-          <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+          <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
             {pending ? "Sending…" : "Send to the desk"}
           </Button>
         </form>

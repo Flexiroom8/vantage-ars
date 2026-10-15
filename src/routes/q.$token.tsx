@@ -50,10 +50,10 @@ function CustomerQuotePage() {
           <h1 className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">We can't open this quote.</h1>
           <p className="mt-4 text-muted">{quote.error}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/support" className="inline-flex h-11 items-center rounded-md bg-accent px-5 text-sm font-medium text-accent-fg">
+            <Link to="/support" className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold">
               Contact the service desk
             </Link>
-            <Link to="/" className="inline-flex h-11 items-center rounded-md px-5 text-sm shadow-[var(--shadow-border)]">
+            <Link to="/" className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold">
               Back to the site
             </Link>
           </div>
@@ -95,11 +95,11 @@ function CustomerQuotePage() {
           {state === "open" ? ` · valid until ${formatDate(quote.expiresAt)}` : ""}
         </p>
 
-        <div className="mt-10 rounded-xl bg-surface p-6 shadow-[var(--shadow-border)] sm:p-8">
+        <div className="panel mt-10 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
             <div>
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">Quoted total</p>
-              <p className="mt-2 font-mono text-4xl tabular-nums">{formatZar(quote.amountCents)}</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Quoted total</p>
+              <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-accent">{formatZar(quote.amountCents)}</p>
               <p className="mt-1 text-xs text-subtle">South African rand. VAT only applies if the scope below says so.</p>
             </div>
             <Button type="button" variant="secondary" onClick={() => void downloadPdf()}>
@@ -127,10 +127,10 @@ function CustomerQuotePage() {
         {state === "open" ? (
           <AnswerForm token={token} onDone={setAnswered} />
         ) : (
-          <div className="mt-8 rounded-xl bg-raised p-6">
+          <div className="panel mt-8 rounded-2xl p-6">
             {state === "accepted" ? (
               <>
-                <h2 className="font-serif text-2xl">Thank you. The quote is accepted.</h2>
+                <h2 className="text-2xl text-ok">Thank you. The quote is accepted.</h2>
                 <p className="mt-2 text-sm text-muted">
                   {quote.answerName && !answered ? `Accepted by ${quote.answerName}. ` : ""}
                   We'll be in touch to schedule the work. The invoice follows from us directly.
@@ -180,7 +180,7 @@ function AnswerForm({ token, onDone }: { token: string; onDone: (outcome: "accep
   }
 
   return (
-    <form className="mt-8 grid gap-5 rounded-xl bg-surface p-6 shadow-[var(--shadow-border)] sm:p-8" onSubmit={(event) => void send("accepted", event)}>
+    <form className="panel mt-8 grid gap-5 rounded-2xl p-6 sm:p-8" onSubmit={(event) => void send("accepted", event)}>
       <div>
         <h2 className="font-serif text-2xl">Your answer</h2>
         <p className="mt-1 text-sm text-muted">Accepting asks us to schedule the work at this price. Nothing is charged here.</p>
