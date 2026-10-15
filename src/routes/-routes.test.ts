@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { businessJsonLd, pageHead } from "../lib/site/seo";
+import { businessJsonLd, pageHead } from "../lib/site/seo.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
