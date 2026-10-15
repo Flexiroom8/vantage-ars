@@ -29,8 +29,46 @@ jobs:
     with:
       runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
 
-  opencode:
+  # Diagnostic job: collect runner info and surface environment early so we can debug failures
+  opencode-diagnostics:
     needs: prepare
+    if: needs.prepare.outputs.approved == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      diag: ${{ steps.diag.outputs.diag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Diagnostic - basic runner info
+        id: diag
+        run: |
+          set -euxo pipefail
+          echo "== runner info =="
+          uname -a || true
+          cat /etc/os-release || true
+          echo "== node / npm / bun info =="
+          node --version || true
+          npm --version || true
+          bun --version || true
+          echo "== disk usage =="
+          df -h || true
+          echo "== env preview =="
+          env | sort | sed -n '1,200p' || true
+          echo "diagnostics-collected" > diag.txt
+          echo "diag=done" >> $GITHUB_OUTPUT
+
+      - name: Upload diagnostics artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode-diagnostics
+          path: |
+            diag.txt
+            .github/workflows/opencode.yml
+
+  opencode:
+    needs: [prepare, opencode-diagnostics]
     if: needs.prepare.outputs.approved == 'true'
     permissions:
       contents: write
@@ -38,6 +76,13 @@ jobs:
       issues: write
       actions: read
       pull-requests: write
+    # Keep using the reusable workflow but set environment flags to increase timeouts and verbosity.
+    # The reusable workflow may read these env vars to alter behavior (install verbosity, healthcheck attempts).
+    env:
+      OPENCODE_WEB_WAIT_ATTEMPTS: '120'
+      OPENCODE_WEB_WAIT_INTERVAL: '1'
+      OPENCODE_INSTALL_VERBOSE: 'true'
+      OPENCODE_INSTALL_DEBUG: 'true'
     uses: AgentsLoop/OhMyGithub/.github/workflows/opencode-reusable.yml@1ed0818c6f6bde3293b127c17668fcad4b02c347
     with:
       runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
