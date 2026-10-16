@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 
 import { ensureDbReady, getPglite } from "../db";
+import { sendCustomerMail } from "../office/smtp.server";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session";
 import { GROK_PROVIDERS } from "./providers";
@@ -369,6 +370,18 @@ export const auth = betterAuth({
           maxPasswordLength: 256,
 
           autoSignIn: true,
+
+          resetPasswordTokenExpiresIn: 3600,
+
+          revokeSessionsOnPasswordReset: true,
+
+          sendResetPassword: async ({ user, url }) => {
+            await sendCustomerMail(
+              user.email,
+              "VANTAGE-ARS password reset",
+              `A password reset was requested for your VANTAGE-ARS account.\n\nUse this secure link to choose a new password:\n\n${url}\n\nThis link expires in 60 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
+            );
+          },
         },
       }
     : {}),
@@ -437,6 +450,11 @@ export const auth = betterAuth({
       },
 
       "/sign-up/email": {
+        window: 3600,
+        max: 5,
+      },
+
+      "/request-password-reset": {
         window: 3600,
         max: 5,
       },
