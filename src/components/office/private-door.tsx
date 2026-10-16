@@ -6,8 +6,15 @@ import { SignalBars } from "@/components/public/motion-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authClient, GROK_PROVIDERS, signIn, signOut } from "@/lib/auth/client";
-import { getSignInOptions, type SignInOptions } from "@/lib/auth/sign-in-options";
+import {
+  authClient,
+  GROK_PROVIDERS,
+  signOut,
+} from "@/lib/auth/client";
+import {
+  getSignInOptions,
+  type SignInOptions,
+} from "@/lib/auth/sign-in-options";
 import type { AppUser } from "@/lib/auth/use-current-user";
 import { COMPANY } from "@/lib/office/company";
 
@@ -38,7 +45,11 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
       })
       .catch((reason) => {
         if (!cancelled) {
-          setError(reason instanceof Error ? reason.message : "Unable to load sign-in options.");
+          setError(
+            reason instanceof Error
+              ? reason.message
+              : "Unable to load sign-in options.",
+          );
           setLoading(false);
         }
       });
@@ -77,22 +88,30 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
         });
 
         if (result.error) {
-          throw new Error(result.error.message || "Founder account setup failed.");
+          throw new Error(
+            result.error.message || "Founder account setup failed.",
+          );
         }
       } else {
-        const result = await signIn.email({
+        const result = await authClient.signIn.email({
           email,
           password,
         });
 
         if (result.error) {
-          throw new Error(result.error.message || "Sign-in failed.");
+          throw new Error(
+            result.error.message || "Sign-in failed.",
+          );
         }
       }
 
       window.location.href = "/office";
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Authentication failed.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Authentication failed.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -109,16 +128,23 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
       });
 
       if (result.error) {
-        throw new Error(result.error.message || "OAuth sign-in failed.");
+        throw new Error(
+          result.error.message || "OAuth sign-in failed.",
+        );
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "OAuth sign-in failed.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "OAuth sign-in failed.",
+      );
       setSubmitting(false);
     }
   }
 
   async function handleSignOut() {
     setSubmitting(true);
+
     try {
       await signOut();
       window.location.href = "/";
@@ -150,10 +176,12 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
             <div className="mb-8 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <WatchtowerMark className="h-8 w-8" />
+
                 <div>
                   <div className="font-mono text-xs font-semibold tracking-[0.18em]">
                     VANTAGE-ARS
                   </div>
+
                   <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
                     Private operations
                   </div>
@@ -168,7 +196,8 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
             </h1>
 
             <p className="mt-3 text-sm leading-6 text-muted">
-              The command centre is already authenticated for this session.
+              The command centre is already authenticated for this
+              session.
             </p>
 
             <div className="mt-8 flex gap-3">
@@ -205,6 +234,7 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
             <div className="flex items-center gap-3">
               <span className="live-dot" />
+
               <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
                 VANTAGE-ARS · PRIVATE OPERATIONS
               </span>
@@ -284,16 +314,24 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                   </div>
                 ) : null}
 
-                <form onSubmit={handleEmailSubmit} className="space-y-5">
+                <form
+                  onSubmit={handleEmailSubmit}
+                  className="space-y-5"
+                >
                   {setupMode ? (
                     <div className="space-y-2">
-                      <Label htmlFor="name">Founder name</Label>
+                      <Label htmlFor="name">
+                        Founder name
+                      </Label>
+
                       <Input
                         id="name"
                         name="name"
                         autoComplete="name"
                         value={name}
-                        onChange={(event) => setName(event.target.value)}
+                        onChange={(event) =>
+                          setName(event.target.value)
+                        }
                         required
                         disabled={submitting}
                         placeholder="Founder"
@@ -302,14 +340,19 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                   ) : null}
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email address</Label>
+                    <Label htmlFor="email">
+                      Email address
+                    </Label>
+
                     <Input
                       id="email"
                       name="email"
                       type="email"
                       autoComplete="email"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) =>
+                        setEmail(event.target.value)
+                      }
                       required
                       disabled={submitting}
                       placeholder="founder@vantage-ars.co.za"
@@ -317,14 +360,23 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">
+                      Password
+                    </Label>
+
                     <Input
                       id="password"
                       name="password"
                       type="password"
-                      autoComplete={setupMode ? "new-password" : "current-password"}
+                      autoComplete={
+                        setupMode
+                          ? "new-password"
+                          : "current-password"
+                      }
                       value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
                       required
                       disabled={submitting}
                       placeholder="••••••••••••"
@@ -333,14 +385,19 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
 
                   {setupMode ? (
                     <div className="space-y-2">
-                      <Label htmlFor="founder-token">Founder setup token</Label>
+                      <Label htmlFor="founder-token">
+                        Founder setup token
+                      </Label>
+
                       <Input
                         id="founder-token"
                         name="founder-token"
                         type="password"
                         autoComplete="off"
                         value={founderToken}
-                        onChange={(event) => setFounderToken(event.target.value)}
+                        onChange={(event) =>
+                          setFounderToken(event.target.value)
+                        }
                         required
                         disabled={submitting}
                         placeholder="Enter setup token"
@@ -391,7 +448,9 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                           type="button"
                           variant="outline"
                           disabled={submitting}
-                          onClick={() => handleOAuth(provider.id)}
+                          onClick={() =>
+                            handleOAuth(provider.id)
+                          }
                           className="w-full justify-center"
                         >
                           {provider.name ?? provider.id}
@@ -419,4 +478,6 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
       </div>
     </div>
   );
-      }
+}
+
+Important: this version specifically removes "signIn" from the import and changes the failing call to "authClient.signIn.email(...)".
