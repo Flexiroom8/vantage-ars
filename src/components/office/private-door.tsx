@@ -383,6 +383,17 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                     />
                   </div>
 
+                  {!setupMode ? (
+                    <div className="text-right">
+                      <Link
+                        to="/forgot-password"
+                        className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent transition-colors hover:text-fg"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                  ) : null}
+
                   {setupMode ? (
                     <div className="space-y-2">
                       <Label htmlFor="founder-token">
