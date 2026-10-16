@@ -479,5 +479,3 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
     </div>
   );
 }
-
-Important: this version specifically removes "signIn" from the import and changes the failing call to "authClient.signIn.email(...)".
