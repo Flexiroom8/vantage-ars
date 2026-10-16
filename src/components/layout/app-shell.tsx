@@ -9,7 +9,7 @@ import { COMPANY } from "@/lib/office/company";
 import { formatNowClock, formatZar } from "@/lib/office/format";
 import type { OfficeSnapshot } from "@/lib/office/types";
 import { cn } from "@/lib/utils";
-import { UserButton } from "@/components/office/user-button";
+import { UserButton } from "@/lib/auth/gates";
 
 type AppShellProps = {
   snapshot?: OfficeSnapshot | null;
@@ -210,7 +210,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
               disabled={halting || halted}
               onClick={handleHalt}
             >
-              {halting ? "Halting…" : halted ? "Office halted" : "Halt office"}
+              {halting ? "Haltingâ¦" : halted ? "Office halted" : "Halt office"}
             </Button>
           </div>
         </aside>
