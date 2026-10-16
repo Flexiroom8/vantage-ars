@@ -18,7 +18,6 @@ import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 
 import { ensureDbReady, getPglite } from "../db";
-import { sendCustomerMail } from "../office/smtp.server";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session";
 import { GROK_PROVIDERS } from "./providers";
@@ -376,6 +375,7 @@ export const auth = betterAuth({
           revokeSessionsOnPasswordReset: true,
 
           sendResetPassword: async ({ user, url }) => {
+            const { sendCustomerMail } = await import("../office/smtp.server");
             await sendCustomerMail(
               user.email,
               "VANTAGE-ARS password reset",
