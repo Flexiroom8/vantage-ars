@@ -1,218 +1,332 @@
-import { Link, useRouter } from "@tanstack/react-router";
-import type { ReactNode } from "react";
-import {
-  BookOpen,
-  ClipboardCheck,
-  Gavel,
-  Headset,
-  Inbox,
-  LayoutGrid,
-  MessageCircle,
-  Menu,
-  Radio,
-  Scale,
-  ScrollText,
-  Shield,
-  SquareActivity,
-  Tags,
-  Wrench,
-  Megaphone,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Link, useLocation, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
 import { WatchtowerMark } from "@/components/brand/mark";
+import { LiveField } from "@/components/public/live-field";
 import { Button } from "@/components/ui/button";
-import { UserButton } from "@/lib/auth/gates";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { haltOffice } from "@/lib/office/api";
-import { formatNowClock, formatZar } from "@/lib/office/money";
+import { COMPANY } from "@/lib/office/company";
+import { formatNowClock, formatZar } from "@/lib/office/format";
 import type { OfficeSnapshot } from "@/lib/office/types";
 import { cn } from "@/lib/utils";
+import { UserButton } from "@/components/office/user-button";
 
-const NAV = [
-  { to: "/office", label: "Command", icon: LayoutGrid },
-  { to: "/office/approvals", label: "Approvals", icon: ClipboardCheck },
-  { to: "/office/floor", label: "Floor", icon: Radio },
-  { to: "/office/inbox", label: "Inbox", icon: Inbox },
-  { to: "/office/chat", label: "Chat", icon: MessageCircle },
-  { to: "/office/service", label: "Service", icon: Headset },
-  { to: "/office/catalogue", label: "Catalogue", icon: Tags },
-  { to: "/office/marketing", label: "Marketing", icon: Megaphone },
-  { to: "/office/sales", label: "Sales", icon: Scale },
-  { to: "/office/ledger", label: "Ledger", icon: BookOpen },
-  { to: "/office/technical", label: "Technical", icon: Wrench },
-  { to: "/office/constitution", label: "Constitution", icon: Gavel },
-  { to: "/office/audit", label: "Audit", icon: ScrollText },
-  { to: "/office/metrics", label: "Metrics", icon: SquareActivity },
-] as const;
+type AppShellProps = {
+  snapshot?: OfficeSnapshot | null;
+  children: React.ReactNode;
+};
 
-function NavLinks({
-  pending,
+const NAV_ITEMS = [
+  { href: "/office", label: "Command" },
+  { href: "/office/approvals", label: "Approvals" },
+  { href: "/office/floor", label: "Floor" },
+  { href: "/office/inbox", label: "Inbox" },
+  { href: "/office/chat", label: "Chat" },
+  { href: "/office/service", label: "Service" },
+  { href: "/office/catalogue", label: "Catalogue" },
+  { href: "/office/marketing", label: "Marketing" },
+  { href: "/office/sales", label: "Sales" },
+  { href: "/office/ledger", label: "Ledger" },
+  { href: "/office/technical", label: "Technical" },
+  { href: "/office/constitution", label: "Constitution" },
+  { href: "/office/audit", label: "Audit" },
+  { href: "/office/metrics", label: "Metrics" },
+];
+
+function NavLink({
+  href,
+  label,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  onClick?: () => void;
+}) {
+  const location = useLocation();
+
+  const active =
+    href === "/office"
+      ? location.pathname === "/office"
+      : location.pathname.startsWith(href);
+
+  return (
+    <Link
+      to={href}
+      onClick={onClick}
+      className={cn(
+        "group relative flex items-center justify-between border px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all",
+        active
+          ? "border-accent/30 bg-accent/10 text-accent"
+          : "border-transparent text-muted hover:border-border/60 hover:bg-raised/40 hover:text-fg",
+      )}
+    >
+      <span>{label}</span>
+
+      <span
+        className={cn(
+          "h-1.5 w-1.5 rounded-full transition-opacity",
+          active
+            ? "bg-accent opacity-100"
+            : "bg-muted opacity-0 group-hover:opacity-40",
+        )}
+      />
+    </Link>
+  );
+}
+
+function OfficeNavigation({
+  mobile = false,
   onNavigate,
 }: {
-  pending: number;
+  mobile?: boolean;
   onNavigate?: () => void;
 }) {
   return (
-    <nav className="flex flex-col gap-1">
-      {NAV.map((item) => {
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className="flex h-11 items-center gap-3 rounded-md px-3 text-sm text-muted transition-colors duration-150 hover:bg-raised hover:text-fg"
-            activeProps={{ className: "bg-raised text-fg" }}
-            activeOptions={item.to === "/office" ? { exact: true } : undefined}
-          >
-            <Icon className="size-4" />
-            <span className="flex-1">{item.label}</span>
-            {item.to === "/office/approvals" && pending > 0 ? (
-              <span className="rounded-full bg-warn/15 px-2 py-0.5 font-mono text-[11px] text-warn">
-                {pending}
-              </span>
-            ) : null}
-          </Link>
-        );
-      })}
+    <nav
+      className={cn(
+        "space-y-1",
+        mobile ? "px-1 py-4" : "px-3 py-5",
+      )}
+    >
+      <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+        Operations
+      </div>
+
+      {NAV_ITEMS.slice(0, 11).map((item) => (
+        <NavLink
+          key={item.href}
+          {...item}
+          onClick={onNavigate}
+        />
+      ))}
+
+      <div className="mb-3 mt-7 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+        Governance
+      </div>
+
+      {NAV_ITEMS.slice(11).map((item) => (
+        <NavLink
+          key={item.href}
+          {...item}
+          onClick={onNavigate}
+        />
+      ))}
     </nav>
   );
 }
 
-export function AppShell({
-  snapshot,
-  children,
-}: {
-  snapshot: OfficeSnapshot;
-  children: ReactNode;
-}) {
+export function AppShell({ snapshot, children }: AppShellProps) {
   const router = useRouter();
-  const [clock, setClock] = useState(formatNowClock);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const pending = snapshot.approvals.filter((a) => a.status === "pending").length;
-  const [haltPending, setHaltPending] = useState(false);
+  const [halted, setHalted] = useState(false);
+  const [halting, setHalting] = useState(false);
 
-  useEffect(() => {
-    const id = window.setInterval(() => setClock(formatNowClock()), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
+  const treasury = snapshot?.treasury?.available ?? 0;
 
-  async function toggleHalt() {
-    setHaltPending(true);
+  async function handleHalt() {
+    if (halting) return;
+
+    setHalting(true);
+
     try {
-      await haltOffice({
-        data: {
-          halted: !snapshot.company.halted,
-          reason: snapshot.company.halted
-            ? "Founder resumed operations."
-            : "Founder halt. ART-10: agents must not resist.",
-        },
-      });
+      await haltOffice();
+      setHalted(true);
       await router.invalidate();
     } finally {
-      setHaltPending(false);
+      setHalting(false);
     }
   }
 
   return (
-    <div className="min-h-dvh bg-bg text-fg">
-      <a
-        href="#office-main"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-accent focus:px-4 focus:py-2 focus:text-sm focus:text-accent-fg"
-      >
-        Skip to main content
-      </a>
-      <aside className="fixed inset-y-0 left-0 hidden w-60 flex-col overflow-hidden border-r border-border bg-bg p-4 lg:flex">
-        <Link to="/office" className="mb-6 flex shrink-0 items-center gap-3 px-2">
-          <WatchtowerMark className="size-6 text-accent" />
-          <span className="leading-none">
-            <span className="block font-serif text-xl">Vantage</span>
-            <span className="block font-mono text-[10px] tracking-[0.28em] text-muted">ARS</span>
-          </span>
-        </Link>
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <NavLinks pending={pending} />
-        </div>
-        <div className="shrink-0 space-y-3 px-2 pt-6">
-          <p className="font-mono text-[11px] text-muted">vantage-ars.co.za</p>
-          <div className="text-xs text-muted">
-            <UserButton />
-          </div>
-          <Link to="/" className="block text-xs text-muted underline-offset-4 hover:text-fg hover:underline">
-            Public site
-          </Link>
-          <Button
-            variant={snapshot.company.halted ? "default" : "danger"}
-            size="sm"
-            className="w-full"
-            onClick={toggleHalt}
-            disabled={haltPending}
-          >
-            <Shield className="size-3.5" />
-            {snapshot.company.halted ? "Resume office" : "Halt office"}
-          </Button>
-        </div>
-      </aside>
+    <div className="relative min-h-dvh overflow-hidden bg-bg text-fg">
+      <LiveField />
 
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-bg/95 px-4 backdrop-blur-sm">
-          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col p-4">
-              <div className="mb-6 flex items-center gap-3 px-2">
-                <WatchtowerMark className="size-6 text-accent" />
-                <span className="font-serif text-xl">Vantage-ARS</span>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <NavLinks pending={pending} onNavigate={() => setMenuOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
+      <div className="relative z-10 min-h-dvh">
+        {/* Desktop sidebar */}
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/70 bg-surface/50 backdrop-blur-xl lg:flex lg:flex-col">
+          <div className="border-b border-border/70 px-5 py-5">
+            <Link
+              to="/office"
+              className="group flex items-center gap-3"
+            >
+              <WatchtowerMark className="h-9 w-9 shrink-0 transition-transform group-hover:scale-105" />
 
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <span className="hidden items-center gap-2 text-xs text-muted sm:flex">
-              <span
-                className={cn(
-                  "size-1.5 rounded-full",
-                  snapshot.company.halted ? "bg-danger" : "live-dot bg-ok",
-                )}
-              />
-              {snapshot.company.halted ? "Halted" : "A3 live"}
-            </span>
-            <span className="truncate font-mono text-xs text-muted">
-              {clock.date} · {clock.time} SAST
-            </span>
+              <div className="min-w-0">
+                <div className="font-mono text-xs font-semibold tracking-[0.2em]">
+                  VANTAGE-ARS
+                </div>
+
+                <div className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                  Network operations desk
+                </div>
+              </div>
+            </Link>
           </div>
-          <div className="flex items-center gap-3">
-            {pending > 0 ? (
-              <Link
-                to="/office/approvals"
-                className="inline-flex h-9 items-center rounded-full bg-warn/15 px-3 font-mono text-xs text-warn lg:hidden"
-              >
-                {pending}
-              </Link>
-            ) : null}
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-muted">Treasury</p>
-              <p className="font-mono text-sm tabular-nums text-fg">
-                {formatZar(snapshot.company.treasuryCents)}
-              </p>
+
+          <div className="border-b border-border/50 px-5 py-3">
+            <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em]">
+              <span className="flex items-center gap-2 text-muted">
+                <span
+                  className={cn(
+                    "live-dot",
+                    halted && "opacity-40",
+                  )}
+                />
+                {halted ? "Halted" : "A3 live"}
+              </span>
+
+              <span className="text-accent">SAST</span>
             </div>
           </div>
-        </header>
 
-        {snapshot.company.halted ? (
-          <div className="border-b border-danger/30 bg-danger/10 px-4 py-2 text-center text-sm text-danger">
-            Office halted. {snapshot.company.haltReason}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <OfficeNavigation />
           </div>
-        ) : null}
 
-        <main id="office-main" className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <div className="border-t border-border/70 p-4">
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <div className="border border-border/60 bg-bg/30 p-3">
+                <div className="font-mono text-[8px] uppercase tracking-[0.15em] text-muted">
+                  Treasury
+                </div>
+                <div className="mt-1 font-mono text-xs text-fg">
+                  {formatZar(treasury)}
+                </div>
+              </div>
+
+              <div className="border border-border/60 bg-bg/30 p-3">
+                <div className="font-mono text-[8px] uppercase tracking-[0.15em] text-muted">
+                  Clock
+                </div>
+                <div className="mt-1 font-mono text-xs text-fg">
+                  {formatNowClock()}
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center border-red-500/20 text-red-300 hover:border-red-500/40 hover:bg-red-500/5"
+              disabled={halting || halted}
+              onClick={handleHalt}
+            >
+              {halting ? "Halting…" : halted ? "Office halted" : "Halt office"}
+            </Button>
+          </div>
+        </aside>
+
+        {/* Mobile header */}
+        <div className="sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-xl lg:hidden">
+          <div className="flex h-16 items-center justify-between px-4">
+            <div className="flex items-center gap-3">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label="Open office navigation"
+                  >
+                    Menu
+                  </Button>
+                </SheetTrigger>
+
+                <SheetContent
+                  side="left"
+                  className="w-[290px] border-r border-border/70 bg-bg/95 p-0 backdrop-blur-xl"
+                >
+                  <div className="border-b border-border/70 px-5 py-5">
+                    <Link
+                      to="/office"
+                      className="flex items-center gap-3"
+                    >
+                      <WatchtowerMark className="h-9 w-9" />
+
+                      <div>
+                        <div className="font-mono text-xs font-semibold tracking-[0.2em]">
+                          VANTAGE-ARS
+                        </div>
+
+                        <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                          Network operations desk
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+
+                  <div className="max-h-[calc(100dvh-90px)] overflow-y-auto">
+                    <OfficeNavigation mobile />
+                  </div>
+                </SheetContent>
+              </Sheet>
+
+              <Link to="/office" className="flex items-center gap-2">
+                <WatchtowerMark className="h-7 w-7" />
+
+                <span className="font-mono text-[10px] font-semibold tracking-[0.18em]">
+                  VANTAGE-ARS
+                </span>
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="hidden font-mono text-[9px] uppercase tracking-[0.15em] text-muted sm:inline">
+                {halted ? "Halted" : "A3 live"}
+              </span>
+
+              <UserButton />
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="lg:pl-64">
+          <header className="hidden border-b border-border/70 bg-bg/65 backdrop-blur-xl lg:block">
+            <div className="flex h-16 items-center justify-between px-6 xl:px-8">
+              <div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+                  Private operations
+                </div>
+
+                <div className="mt-1 flex items-center gap-2 font-mono text-xs">
+                  <span className="live-dot" />
+                  {halted ? "Office halted" : "Network operations active"}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                    SAST
+                  </div>
+
+                  <div className="font-mono text-xs">
+                    {formatNowClock()}
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
+                    Treasury
+                  </div>
+
+                  <div className="font-mono text-xs text-accent">
+                    {formatZar(treasury)}
+                  </div>
+                </div>
+
+                <UserButton />
+              </div>
+            </div>
+          </header>
+
+          <main className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+            <div className="mx-auto w-full max-w-[1600px]">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
-}
+        }
