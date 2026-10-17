@@ -198,7 +198,14 @@ export function AppShell({ snapshot, children }: AppShellProps) {
                   Clock
                 </div>
                 <div className="mt-1 font-mono text-xs text-fg">
-                  {formatNowClock()}
+                  {(() => {
+                    const clock = formatNowClock();
+                    return (
+                      <>
+                        {clock.date} {clock.time}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -210,7 +217,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
               disabled={halting || halted}
               onClick={handleHalt}
             >
-              {halting ? "Haltingâ¦" : halted ? "Office halted" : "Halt office"}
+              {halting ? "Halting…" : halted ? "Office halted" : "Halt office"}
             </Button>
           </div>
         </aside>
@@ -301,7 +308,14 @@ export function AppShell({ snapshot, children }: AppShellProps) {
                   </div>
 
                   <div className="font-mono text-xs">
-                    {formatNowClock()}
+                    {(() => {
+                      const clock = formatNowClock();
+                      return (
+                        <>
+                          {clock.date} {clock.time}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -329,4 +343,4 @@ export function AppShell({ snapshot, children }: AppShellProps) {
       </div>
     </div>
   );
-        }
+}
