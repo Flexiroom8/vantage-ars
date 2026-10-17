@@ -18,11 +18,23 @@ function digest(value: string): Buffer {
 }
 
 /** Constant-time comparison of the presented token with the configured one. */
-export function setupTokenMatches(presented: string | null | undefined, configured = process.env.FOUNDER_SETUP_TOKEN): boolean {
+export function setupTokenMatches(
+  presented: string | null | undefined,
+  configured = process.env.FOUNDER_SETUP_TOKEN,
+): boolean {
   const expected = configured?.trim();
   if (!expected || expected.length < 16) return false;
   if (typeof presented !== "string" || !presented) return false;
   return timingSafeEqual(digest(presented.trim()), digest(expected));
+}
+
+export function normalizeFounderEmailInput(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
+export function isFounderEmail(value: unknown): boolean {
+  return normalizeFounderEmailInput(value) === founderEmail();
 }
 
 export async function founderAccountExists(): Promise<boolean> {
@@ -41,15 +53,45 @@ export async function founderSetupOpen(): Promise<boolean> {
 export type SetupVerdict = { ok: true } | { ok: false; error: string };
 
 /** Gate for Better Auth's `/sign-up/email`. Only the founder, once, with the token. */
-export async function checkFounderSignUp(email: unknown, presentedToken: string | null | undefined): Promise<SetupVerdict> {
-  if (typeof email !== "string" || email.trim().toLowerCase() !== founderEmail()) {
-    return { ok: false, error: "Sign-up is closed. This office has one founder account." };
+export async function checkFounderSignUp(
+  email: unknown,
+  presentedToken: string | null | undefined,
+): Promise<SetupVerdict> {
+  const normalized = normalizeFounderEmailInput(email);
+  if (normalized !== founderEmail()) {
+    return {
+      ok: false,
+      error: "Sign-up is closed. This office has one founder account.",
+    };
   }
   if (!setupTokenMatches(presentedToken)) {
     return { ok: false, error: "The setup token is missing or wrong." };
   }
   if (await founderAccountExists()) {
-    return { ok: false, error: "The founder account already exists. Sign in instead." };
+    return {
+      ok: false,
+      error: "The founder account already exists. Sign in instead.",
+    };
+  }
+  return { ok: true };
+}
+
+/** Guard for password resets: only the founder can request a reset for the office. */
+export async function checkFounderPasswordReset(
+  email: unknown,
+): Promise<SetupVerdict> {
+  const normalized = normalizeFounderEmailInput(email);
+  if (normalized !== founderEmail()) {
+    return {
+      ok: false,
+      error: "Use the founder email for this office to reset your password.",
+    };
+  }
+  if (!(await founderAccountExists())) {
+    return {
+      ok: false,
+      error: "The founder account has not been created yet. Set it up first.",
+    };
   }
   return { ok: true };
 }

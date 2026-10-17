@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash, timingSafeEqual } from "node:crypto";
 
+import { founderEmail } from "@/lib/office/company";
+import { isFounderEmail, normalizeFounderEmailInput } from "./founder-setup";
+
 // Mirrors setupTokenMatches() without importing the database module.
 function matches(presented: string | null | undefined, configured: string | undefined): boolean {
   const expected = configured?.trim();
@@ -23,4 +26,11 @@ test("setup token matches only the configured value", () => {
   assert.equal(matches("a-long-random-setup-tokeX", token), false);
   assert.equal(matches("", token), false);
   assert.equal(matches(null, token), false);
+});
+
+test("founder email normalization and checks are stable", () => {
+  const email = " Founder@Vantage-Ars.CO.ZA ";
+  assert.equal(normalizeFounderEmailInput(email), founderEmail());
+  assert.equal(isFounderEmail(email), true);
+  assert.equal(isFounderEmail("someone@example.com"), false);
 });
