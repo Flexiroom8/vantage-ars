@@ -75,23 +75,3 @@ export async function checkFounderSignUp(
   }
   return { ok: true };
 }
-
-/** Guard for password resets: only the founder can request a reset for the office. */
-export async function checkFounderPasswordReset(
-  email: unknown,
-): Promise<SetupVerdict> {
-  const normalized = normalizeFounderEmailInput(email);
-  if (normalized !== founderEmail()) {
-    return {
-      ok: false,
-      error: "Use the founder email for this office to reset your password.",
-    };
-  }
-  if (!(await founderAccountExists())) {
-    return {
-      ok: false,
-      error: "The founder account has not been created yet. Set it up first.",
-    };
-  }
-  return { ok: true };
-}
