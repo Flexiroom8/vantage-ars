@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth/client";
-import { founderEmail } from "@/lib/office/company";
 
 export const Route = createFileRoute("/forgot-password")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -15,7 +14,7 @@ export const Route = createFileRoute("/forgot-password")({
 
 function ForgotPasswordPage() {
   const { email: initialEmail } = Route.useSearch();
-  const [email, setEmail] = useState(initialEmail || founderEmail());
+  const [email, setEmail] = useState(initialEmail);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -29,11 +28,6 @@ function ForgotPasswordPage() {
       setError("Please enter the founder email address.");
       return;
     }
-    if (normalized !== founderEmail()) {
-      setError("Use the founder email for this office to reset your password.");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const result = await authClient.requestPasswordReset({
@@ -59,7 +53,7 @@ function ForgotPasswordPage() {
     <main className="flex min-h-dvh items-center justify-center bg-bg px-5 text-fg">
       <section className="glass panel w-full max-w-md p-7 sm:p-9">
         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-          VANTAGE-ARS · PRIVATE OPERATIONS
+          VANTAGE-ARS � PRIVATE OPERATIONS
         </div>
 
         <h1 className="mt-4 font-serif text-4xl tracking-tight">
@@ -97,7 +91,7 @@ function ForgotPasswordPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 disabled={submitting}
-                placeholder={founderEmail()}
+                placeholder="Founder email address"
               />
             </div>
 
@@ -106,7 +100,7 @@ function ForgotPasswordPage() {
               className="cta w-full justify-center"
               disabled={submitting}
             >
-              {submitting ? "Sending…" : "Send reset link"}
+              {submitting ? "Sendink�u���f" : "Send reset link"}
             </Button>
 
             <Link
