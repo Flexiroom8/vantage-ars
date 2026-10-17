@@ -1,54 +1,368 @@
 name: OpenCode
-run-name: "OpenCode #${{ github.event.issue.number || inputs.issue_number }}${{ github.event.issue.title && format(' — {0}', github.event.issue.title) || '' }}"
+
+run-name: >-
+  OpenCode #${{
+    github.event.issue.number || inputs.issue_number
+  }}${{
+    github.event.issue.title &&
+    format(' — {0}', github.event.issue.title) ||
+    ''
+  }}
 
 on:
   issues:
-    types: [opened]
+    types:
+      - opened
+
   workflow_dispatch:
     inputs:
       issue_number:
-        description: Existing issue to run
+        description: Existing GitHub issue number to process
         required: true
         type: string
 
+# -------------------------------------------------------------------
+# Global security defaults
+# -------------------------------------------------------------------
+
 permissions: {}
 
+# -------------------------------------------------------------------
+# Prevent two OpenCode executions from modifying the same issue
+# simultaneously.
+# -------------------------------------------------------------------
+
 concurrency:
-  group: opencode-issue-${{ github.repository }}-${{ github.event.issue.number || inputs.issue_number }}
+  group: >-
+    opencode-${{ github.repository }}-${{
+      github.event.issue.number || inputs.issue_number
+    }}
+
   cancel-in-progress: false
 
+# -------------------------------------------------------------------
+# Pinned OpenCode runtime
+# -------------------------------------------------------------------
+
+env:
+  OPENCODE_RUNTIME_REF: 1ed0818c6f6bde3293b127c17668fcad4b02c347
+
 jobs:
+
+  # =================================================================
+  # VALIDATE
+  # =================================================================
+
+  validate:
+    name: Validate request
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: read
+      contents: read
+
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'issues' &&
+        github.event.action == 'opened' &&
+        contains(
+          github.event.issue.labels.*.name,
+          'OpenCode'
+        )
+      )
+
+    outputs:
+      valid: ${{ steps.validate.outputs.valid }}
+
+    steps:
+
+      - name: Validate issue number
+        id: validate
+        shell: bash
+        env:
+          ISSUE_NUMBER: >-
+            ${{ github.event.issue.number || inputs.issue_number }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ISSUE_NUMBER}" ]]; then
+            echo "::error::No issue number was supplied."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          if ! [[ "${ISSUE_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid issue number: ${ISSUE_NUMBER}"
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          if [[ "${ISSUE_NUMBER}" == "0" ]]; then
+            echo "::error::Issue number must be greater than zero."
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "Issue number: ${ISSUE_NUMBER}"
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+
+  # =================================================================
+  # PREPARE
+  # =================================================================
+
   prepare:
-    if: github.event_name == 'workflow_dispatch' || (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'OpenCode'))
+    name: Prepare OpenCode
+
+    needs:
+      - validate
+
+    if: >-
+      needs.validate.result == 'success' &&
+      needs.validate.outputs.valid == 'true'
+
     permissions:
       contents: write
       id-token: write
       issues: write
       actions: write
-    uses: AgentsLoop/OhMyGithub/.github/workflows/opencode-prepare.yml@1ed0818c6f6bde3293b127c17668fcad4b02c347
+
+    uses: >-
+      AgentsLoop/OhMyGithub/.github/workflows/opencode-prepare.yml@
+      1ed0818c6f6bde3293b127c17668fcad4b02c347
+
     with:
-      runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
+      runtime_ref: >-
+        1ed0818c6f6bde3293b127c17668fcad4b02c347
+
+  # =================================================================
+  # OPENCODE EXECUTION
+  # =================================================================
 
   opencode:
-    needs: prepare
-    if: needs.prepare.outputs.approved == 'true'
+    name: Execute OpenCode
+
+    needs:
+      - validate
+      - prepare
+
+    if: >-
+      needs.validate.result == 'success' &&
+      needs.prepare.result == 'success' &&
+      needs.prepare.outputs.approved == 'true'
+
     permissions:
       contents: write
       id-token: write
       issues: write
       actions: read
       pull-requests: write
-    uses: AgentsLoop/OhMyGithub/.github/workflows/opencode-reusable.yml@1ed0818c6f6bde3293b127c17668fcad4b02c347
+
+    uses: >-
+      AgentsLoop/OhMyGithub/.github/workflows/opencode-reusable.yml@
+      1ed0818c6f6bde3293b127c17668fcad4b02c347
+
     with:
-      runtime_ref: 1ed0818c6f6bde3293b127c17668fcad4b02c347
-      issue_number: ${{ needs.prepare.outputs.issue_number }}
-      request: ${{ needs.prepare.outputs.request }}
-      issue_title: ${{ needs.prepare.outputs.issue_title }}
-      labels_json: ${{ needs.prepare.outputs.labels_json }}
-      sender: ${{ needs.prepare.outputs.sender }}
-      target_ref: ${{ needs.prepare.outputs.target_ref }}
-      target_sha: ${{ needs.prepare.outputs.target_sha }}
+
+      # ---------------------------------------------------------------
+      # Runtime
+      # ---------------------------------------------------------------
+
+      runtime_ref: >-
+        1ed0818c6f6bde3293b127c17668fcad4b02c347
+
+      # ---------------------------------------------------------------
+      # Issue information
+      # ---------------------------------------------------------------
+
+      issue_number: >-
+        ${{ needs.prepare.outputs.issue_number }}
+
+      issue_title: >-
+        ${{ needs.prepare.outputs.issue_title }}
+
+      request: >-
+        ${{ needs.prepare.outputs.request }}
+
+      labels_json: >-
+        ${{ needs.prepare.outputs.labels_json }}
+
+      # ---------------------------------------------------------------
+      # Repository targeting
+      # ---------------------------------------------------------------
+
+      sender: >-
+        ${{ needs.prepare.outputs.sender }}
+
+      target_ref: >-
+        ${{ needs.prepare.outputs.target_ref }}
+
+      target_sha: >-
+        ${{ needs.prepare.outputs.target_sha }}
+
     secrets:
-      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-      OPENCODE_AUTH_JSON: ${{ secrets.OPENCODE_AUTH_JSON }}
-      AGENTSWEB_SSH_PUBLIC_KEY: ${{ secrets.AGENTSWEB_SSH_PUBLIC_KEY }}
+
+      OPENCODE_API_KEY: >-
+        ${{ secrets.OPENCODE_API_KEY }}
+
+      OPENCODE_AUTH_JSON: >-
+        ${{ secrets.OPENCODE_AUTH_JSON }}
+
+      AGENTSWEB_SSH_PUBLIC_KEY: >-
+        ${{ secrets.AGENTSWEB_SSH_PUBLIC_KEY }}
+
+  # =================================================================
+  # FAILURE REPORTING
+  # =================================================================
+
+  failure-report:
+    name: Report OpenCode failure
+
+    needs:
+      - validate
+      - prepare
+      - opencode
+
+    if: >-
+      always() &&
+      (
+        needs.validate.result == 'failure' ||
+        needs.prepare.result == 'failure' ||
+        needs.opencode.result == 'failure'
+      )
+
+    permissions:
+      issues: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Determine issue
+        id: issue
+        shell: bash
+        env:
+          ISSUE_NUMBER: >-
+            ${{ github.event.issue.number || inputs.issue_number }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ISSUE_NUMBER}" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! [[ "${ISSUE_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Report failure on issue
+        if: steps.issue.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/opencode-failure.md <<'EOF'
+          ## OpenCode execution failed
+
+          The automated OpenCode workflow did not complete successfully.
+
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          **Commit:** `${{ github.sha }}`
+
+          **Workflow:** `${{ github.workflow }}`
+
+          **Event:** `${{ github.event_name }}`
+
+          Check the workflow run for the failed stage and logs.
+
+          No assumption is made that repository changes were successfully completed.
+          EOF
+
+          gh issue comment \
+            "${ISSUE_NUMBER}" \
+            --repo "${REPOSITORY}" \
+            --body-file /tmp/opencode-failure.md
+
+  # =================================================================
+  # SUCCESS REPORT
+  # =================================================================
+
+  success-report:
+    name: Report OpenCode completion
+
+    needs:
+      - validate
+      - prepare
+      - opencode
+
+    if: >-
+      needs.validate.result == 'success' &&
+      needs.prepare.result == 'success' &&
+      needs.opencode.result == 'success'
+
+    permissions:
+      issues: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Determine issue
+        id: issue
+        shell: bash
+        env:
+          ISSUE_NUMBER: >-
+            ${{ github.event.issue.number || inputs.issue_number }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${ISSUE_NUMBER}" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! [[ "${ISSUE_NUMBER}" =~ ^[0-9]+$ ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "number=${ISSUE_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Report completion on issue
+        if: steps.issue.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/opencode-success.md <<'EOF'
+          ## OpenCode execution completed
+
+          OpenCode completed its assigned workflow successfully.
+
+          **Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          **Commit:** `${{ github.sha }}`
+
+          Review the resulting branch or pull request before merging.
+          EOF
+
+          gh issue comment \
+            "${ISSUE_NUMBER}" \
+            --repo "${REPOSITORY}" \
+            --body-file /tmp/opencode-success.md
