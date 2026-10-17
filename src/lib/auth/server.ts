@@ -1,3 +1,4 @@
+import { createServerOnlyFn } from "@tanstack/react-start";
 import { betterAuth } from "better-auth";
 import { bearer, genericOAuth } from "better-auth/plugins";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -185,7 +186,7 @@ export const auth = betterAuth({
           autoSignIn: true,
           resetPasswordTokenExpiresIn: 3600,
           revokeSessionsOnPasswordReset: true,
-          sendResetPassword: async ({ user, url }) => {
+          sendResetPassword: createServerOnlyFn(async ({ user, url }) => {
             const { founderEmail } = await import("../office/company");
             if (user.email.trim().toLowerCase() !== founderEmail()) return;
             const { sendCustomerMail } = await import("../office/smtp.server");
@@ -194,7 +195,7 @@ export const auth = betterAuth({
               "VANTAGE-ARS password reset",
               `A password reset was requested for your VANTAGE-ARS account.\n\nUse this secure link to choose a new password:\n\n${url}\n\nThis link expires in 60 minutes.\n\nIf you did not request this change, you can ignore this message.`,
             );
-          },
+          }),
         },
       }
     : {}),
