@@ -1,7 +1,7 @@
-import { COMPANY } from "./company.ts";
-import { formatZar } from "./money.ts";
+import { founderEmail } from "./company";
+import { formatZar } from "./money";
 
-export const FOUNDER_EMAIL = COMPANY.email;
+export const FOUNDER_EMAIL = founderEmail();
 
 export type FounderNotice = {
   kind: "enquiry" | "approval" | "payment" | "chat" | "quote";
