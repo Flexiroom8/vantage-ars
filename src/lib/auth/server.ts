@@ -1,141 +1,268 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "@tanstack/react-router";
-import { WatchtowerMark } from "@/components/brand/mark";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { authClient } from "@/lib/auth/client";
-import { founderEmail } from "@/lib/office/company";
+import { betterAuth } from "better-auth";
+import { bearer, genericOAuth } from "better-auth/plugins";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { randomBytes } from "node:crypto";
+import { Pool } from "pg";
 
-export const Route = createFileRoute("/login")({
-  component: LoginPage,
-});
+import { ensureDbReady, getPglite } from "../db";
+import { emailAndPasswordEnabled } from "./email-password";
+import {
+  checkFounderPasswordReset,
+  checkFounderSignUp,
+  FOUNDER_SETUP_HEADER,
+} from "./founder-setup";
+import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session";
+import { GROK_PROVIDERS } from "./providers";
+import { pgliteDialect } from "./pglite-dialect";
+import {
+  GROK_ISSUER_DEFAULT,
+  PREVIEW_ALLOWED_HOSTS,
+  PREVIEW_CLIENT_ID,
+  PREVIEW_CLIENT_SECRET,
+} from "./preview";
 
-function LoginPage() {
-  const { user, isPending } = useCurrentUserState();
-  if (isPending) {
-    return (
-      <div className="grid min-h-dvh place-items-center bg-bg">
-        <p className="animate-pulse text-sm text-muted">Signing in…</p>
-      </div>
-    );
-  }
-  return <PrivateDoor user={user} />;
+/**
+ * Make sure the local database layer has been initialized.
+ */
+void ensureDbReady();
+
+/**
+ * ---------------------------------------------------------------------------
+ * Preview authentication secret
+ * ---------------------------------------------------------------------------
+ *
+ * Used only as a fallback when BETTER_AUTH_SECRET is not configured.
+ *
+ * Production should use the Vercel BETTER_AUTH_SECRET environment variable.
+ */
+const globalAuthRef = globalThis as typeof globalThis & {
+  __grokAuthPreviewSecret__?: string;
+};
+
+function previewAuthSecret(): string {
+  globalAuthRef.__grokAuthPreviewSecret__ ??= randomBytes(32).toString("hex");
+
+  return globalAuthRef.__grokAuthPreviewSecret__;
 }
 
-export const Route = createFileRoute("/forgot-password")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    email: typeof search.email === "string" ? search.email : founderEmail(),
-  }),
-  component: ForgotPasswordPage,
-});
+/**
+ * ---------------------------------------------------------------------------
+ * Environment helper
+ * ---------------------------------------------------------------------------
+ */
+const env = (key: string): string | undefined => {
+  const value = process.env[key]?.trim();
+  return value ? value : undefined;
+};
 
-function ForgotPasswordPage() {
-  const { email: initialEmail } = Route.useSearch();
-  const [email, setEmail] = useState(initialEmail || founderEmail());
-  const [submitting, setSubmitting] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
+const authDisabled = env("VITE_AUTH_ENABLED") === "false";
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError("");
+const grokIssuer = env("GROK_AUTH_ISSUER") ?? GROK_ISSUER_DEFAULT;
+const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
+const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
 
-    const normalized = email.trim().toLowerCase();
-    if (!normalized) {
-      setError("Please enter the founder email address.");
-      return;
-    }
-    if (normalized !== founderEmail()) {
-      setError("Use the founder email for this office to reset your password.");
-      return;
-    }
+export const authConfigured =
+  !authDisabled &&
+  (emailAndPasswordEnabled || Boolean(grokClientId && grokClientSecret));
 
-    setSubmitting(true);
-    try {
-      const result = await authClient.requestPasswordReset({
-        email: normalized,
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (result.error) {
-        throw new Error(result.error.message || "Unable to request password reset.");
+const explicitBaseURL = env("BETTER_AUTH_URL");
+
+const previewAllowedHosts: string[] = [...PREVIEW_ALLOWED_HOSTS];
+
+const LOCAL_DEV_ORIGINS: string[] = [
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
+  "http://[::1]:8080",
+];
+
+const PRODUCTION_ORIGINS: string[] = [
+  "https://vantage-ars.co.za",
+  "https://www.vantage-ars.co.za",
+  "https://vercel.vantage-ars.co.za",
+];
+
+const baseURL =
+  explicitBaseURL ??
+  {
+    allowedHosts: [
+      ...previewAllowedHosts,
+      "localhost",
+      "127.0.0.1",
+      "[::1]",
+      "vantage-ars.co.za",
+      "www.vantage-ars.co.za",
+      "vercel.vantage-ars.co.za",
+    ],
+    protocol: "auto" as const,
+    fallback: "https://www.vantage-ars.co.za",
+  };
+
+const trustedOrigins: string[] = explicitBaseURL
+  ? [
+      ...new Set([
+        explicitBaseURL,
+        ...PRODUCTION_ORIGINS,
+        ...LOCAL_DEV_ORIGINS,
+      ]),
+    ]
+  : [
+      ...previewAllowedHosts,
+      ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
+      ...PRODUCTION_ORIGINS,
+      ...LOCAL_DEV_ORIGINS,
+    ];
+
+const databaseUrl = env("DATABASE_URL");
+
+const database = databaseUrl
+  ? new Pool({ connectionString: databaseUrl })
+  : {
+      dialect: pgliteDialect(() => getPglite()),
+      type: "postgres" as const,
+    };
+
+export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
+
+const grokOAuthWanted =
+  env("GROK_OAUTH") !== "off" &&
+  (Boolean(env("GROK_AUTH_CLIENT_ID")) || !explicitBaseURL);
+
+const issuerBase = grokIssuer.replace(/\/+$/, "");
+const grokAuthorizationUrl = `${issuerBase}/api/auth/oauth2/authorize`;
+const grokTokenUrl = `${issuerBase}/api/auth/oauth2/token`;
+const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
+
+const grokOAuthPlugin =
+  authConfigured &&
+  grokOAuthWanted &&
+  grokClientId &&
+  grokClientSecret
+    ? genericOAuth({
+        config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
+          providerId,
+          clientId: grokClientId as string,
+          clientSecret: grokClientSecret as string,
+          authorizationUrl: grokAuthorizationUrl,
+          tokenUrl: grokTokenUrl,
+          userInfoUrl: grokUserInfoUrl,
+          scopes: ["openid", "profile", "email"],
+          authorizationUrlParams: {
+            idp,
+            prompt: "login",
+          },
+        })),
+      })
+    : null;
+
+export const auth = betterAuth({
+  baseURL,
+  secret: env("BETTER_AUTH_SECRET") ?? previewAuthSecret(),
+  database,
+  trustedOrigins,
+  account: {
+    encryptOAuthTokens: true,
+    accountLinking: {
+      enabled: true,
+      trustedProviders: [
+        ...GROK_PROVIDERS.map((provider) => provider.providerId),
+        GATE_PROVIDER_ID,
+      ],
+      requireLocalEmailVerified: false,
+    },
+  },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 300,
+    },
+  },
+  ...(emailAndPasswordEnabled
+    ? {
+        emailAndPassword: {
+          enabled: true,
+          minPasswordLength: 12,
+          maxPasswordLength: 256,
+          autoSignIn: true,
+          resetPasswordTokenExpiresIn: 3600,
+          revokeSessionsOnPasswordReset: true,
+          sendResetPassword: async ({ user, url }) => {
+            const { sendCustomerMail } = await import("../office/smtp.server");
+            await sendCustomerMail(
+              user.email,
+              "VANTAGE-ARS password reset",
+              `A password reset was requested for your VANTAGE-ARS account.\n\nUse this secure link to choose a new password:\n\n${url}\n\nThis link expires in 60 minutes.\n\nIf you did not request this change, you can ignore this message.`,
+            );
+          },
+        },
       }
-      setSent(true);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "Unable to request password reset.",
+    : {}),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === "/request-password-reset") {
+        const body = (ctx.body ?? {}) as { email?: unknown };
+        const verdict = await checkFounderPasswordReset(body.email);
+        if (!verdict.ok) {
+          throw new APIError("FORBIDDEN", { message: verdict.error });
+        }
+        return;
+      }
+
+      if (ctx.path !== "/sign-up/email") {
+        return;
+      }
+
+      const body = (ctx.body ?? {}) as { email?: unknown };
+      const verdict = await checkFounderSignUp(
+        body.email,
+        ctx.headers?.get(FOUNDER_SETUP_HEADER),
       );
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
-  return (
-    <main className="flex min-h-dvh items-center justify-center bg-bg px-5 text-fg">
-      <section className="glass panel w-full max-w-md p-7 sm:p-9">
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-          VANTAGE-ARS · PRIVATE OPERATIONS
-        </div>
+      if (!verdict.ok) {
+        throw new APIError("FORBIDDEN", { message: verdict.error });
+      }
+    }),
+  },
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 300, max: 8 },
+      "/sign-up/email": { window: 3600, max: 5 },
+      "/request-password-reset": { window: 3600, max: 5 },
+    },
+  },
+  advanced: {
+    ipAddress: {
+      ipAddressHeaders: [
+        "x-vercel-forwarded-for",
+        "cf-connecting-ip",
+        "x-real-ip",
+        "x-forwarded-for",
+      ],
+    },
+    useSecureCookies: false,
+    defaultCookieAttributes: {
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+    },
+    cookies: {
+      session_token: { name: SESSION_TOKEN_COOKIE },
+      session_data: { name: "__Host-grok-auth.session_data" },
+      account_data: { name: "__Host-grok-auth.account_data" },
+      dont_remember: { name: "__Host-grok-auth.dont_remember" },
+    },
+  },
+  plugins: [
+    gateIdentitySessions(),
+    ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
+    bearer(),
+    tanstackStartCookies(),
+  ],
+});
 
-        <h1 className="mt-4 font-serif text-4xl tracking-tight">
-          {sent ? "Reset link sent." : "Reset founder access."}
-        </h1>
+export const oauthEnabled = Boolean(grokOAuthPlugin);
 
-        {sent ? (
-          <>
-            <p className="mt-4 text-sm leading-6 text-muted">
-              If the founder account exists for this office, a secure password-reset
-              link has been sent. Check your inbox and spam folder.
-            </p>
-            <Link to="/login" className="cta mt-7 flex justify-center">
-              Return to sign in
-            </Link>
-          </>
-        ) : (
-          <form onSubmit={submit} className="mt-7 space-y-5">
-            {error ? (
-              <div
-                role="alert"
-                className="border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300"
-              >
-                {error}
-              </div>
-            ) : null}
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Founder email</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                required
-                disabled={submitting}
-                placeholder={founderEmail()}
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="cta w-full justify-center"
-              disabled={submitting}
-            >
-              {submitting ? "Sending…" : "Send reset link"}
-            </Button>
-
-            <Link
-              to="/login"
-              className="block text-center font-mono text-[10px] uppercase tracking-[0.16em] text-muted hover:text-fg"
-            >
-              Return to sign in
-            </Link>
-          </form>
-        )}
-      </section>
-    </main>
-  );
-}
+export { GROK_PROVIDERS } from "./providers";
