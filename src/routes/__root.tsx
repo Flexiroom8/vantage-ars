@@ -6,6 +6,7 @@ import { PublicChat } from "@/components/chat/live-chat";
 import { PublicFrame } from "@/components/public/site-frame";
 import { Link } from "@tanstack/react-router";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Vantage-ARS";
@@ -51,6 +52,7 @@ export const Route = createRootRoute({
           </TooltipProvider>
         </AuthProvider>
         <Toaster theme="dark" position="bottom-right" />
+        <Analytics />
         <Scripts />
       </body>
     </html>
