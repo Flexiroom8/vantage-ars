@@ -50,7 +50,7 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 67 checks, no mocks and no
+scheduler, and asserts on what the real agents did — 89 checks, no mocks and no
 sample data. If autonomy breaks, this fails.
 
 ## Environment
@@ -87,8 +87,11 @@ variables to set, the founder setup, the domain cutover, and how to verify it.
 3. Set `AUTONOMY=on` and a generated `CRON_SECRET`. The ten-minute tick is
    scheduled by the `office-scheduler` GitHub Actions workflow — add the same
    `CRON_SECRET` as a repository secret (Settings → Secrets and variables →
-   Actions) so the scheduler call authenticates. `vercel.json` keeps a daily
-   run as a fallback (Vercel's Hobby plan rejects crons more often than daily).
+   Actions) so the scheduler call authenticates. GitHub's cron is best-effort
+   on quiet repositories, so the office also nudges itself: a hit on
+   `/api/health` or a real page view starts a catch-up tick when the last one
+   is over ten minutes old. `vercel.json` keeps a daily run as the final
+   fallback (Vercel's Hobby plan rejects crons more often than daily).
 4. Deploy. `npm run build` applies migrations.
 5. Check `https://www.vantage-ars.co.za/api/health` — `scheduler.overdue` should
    be `false`.
@@ -109,7 +112,9 @@ npm ci && npm run build && npm start      # .output/server/index.mjs, PORT defau
 **Health.** `GET /api/health` answers "is the business running?" — database,
 audit chain, scheduler freshness, work queue, mail delivery, and the money
 position. It returns 503 when something that matters is wrong, and never exposes
-a secret or a customer. Sign in and it returns the full picture.
+a secret or a customer. Sign in and it returns the full picture. Hitting it also
+nudges a stale scheduler back on cadence, so an uptime monitor doubles as the
+heartbeat.
 
 **Autonomy UI.** `/office` shows the scheduler state, every duty and when it is
 next due, the live queue, and what each agent did last. The same panel runs the

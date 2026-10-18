@@ -6,6 +6,8 @@ All notable changes to Vantage-ARS.
 
 ### Added
 
+**The office nudges itself when free hosting throttles the timer.** GitHub's cron for a low-traffic repository is best-effort — gaps of hours were observed in production — and Vercel's daily cron is only a floor. So `GET /api/health` and the real page-view beacon now start a catch-up tick whenever the last one is more than ten minutes old: the surfaces that already prove the office is alive are also what keep it alive. The nudge is gated on `AUTONOMY=on`, respects the circuit breaker, runs the exact tick the timer runs with every guard in place, and waits only briefly — the surface answers regardless, and the next hit retries.
+
 **The founder gets a daily briefing.** `vantage_briefing` compiles one honest summary a day — books, approvals waiting, pipeline, the last day's runs, the queue — and records it as a founder notice. Every figure is read from a record at the moment it is written; nothing is estimated. On an empty office it says nothing, because there is nothing truthful to say.
 
 **Marketing now generates demand instead of waiting for it.** Two new SIGNAL duties turn the site's own traffic into pipeline, and every step stops at the founder:

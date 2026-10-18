@@ -570,6 +570,28 @@ async function main() {
     `${verdict.checked} → ${verdict2.checked}`,
   );
 
+  // ── 22. A public surface may nudge a stale scheduler ───────────────────────
+  const { kickFloorIfStale } = await import("../src/lib/office/kick.server.ts");
+  const freshNudge = await kickFloorIfStale();
+  check(
+    "a fresh scheduler declines an opportunistic nudge",
+    freshNudge.kicked === false && freshNudge.reason === "fresh",
+    JSON.stringify(freshNudge),
+  );
+  await sql`update office_state set last_tick_at = now() - interval '30 minutes'`;
+  const staleNudge = await kickFloorIfStale();
+  check(
+    "a stale scheduler is nudged back on cadence by a public surface",
+    staleNudge.kicked === true && /Duties due and planned/.test(String(staleNudge.detail)),
+    JSON.stringify(staleNudge).slice(0, 200),
+  );
+  const afterNudge = await sql`select last_tick_at from office_state`;
+  check(
+    "the nudge recorded the catch-up tick",
+    Date.now() - Date.parse(new Date(afterNudge[0].last_tick_at).toISOString()) < 60_000,
+    String(afterNudge[0].last_tick_at),
+  );
+
   // ── Result ─────────────────────────────────────────────────────────────────
   const passed = checks.length - failures;
   process.stdout.write(`\n${passed}/${checks.length} checks passed.\n`);

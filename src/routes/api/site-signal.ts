@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { reportSiteView } from "@/lib/office/api";
+import { nudgeScheduler, reportSiteView } from "@/lib/office/api";
 
 /**
  * Beacon endpoint for real page views.
@@ -29,6 +29,14 @@ export const Route = createFileRoute("/api/site-signal")({
           });
         } catch {
           // Fall through to 204. Analytics never break a page.
+        }
+        // A real page view means someone is on the site; if the scheduler has
+        // fallen behind, this is a free chance to catch up. The beacon caller
+        // never waits on this response, so the tick may use its full budget.
+        try {
+          await nudgeScheduler({ data: { waitMs: 9_000 } });
+        } catch {
+          // Analytics never break a page — and never fail on the office either.
         }
         return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
       },

@@ -42,7 +42,7 @@ import { ensureOffice, appendAudit } from "./store.server";
 /** How many items one tick will drain per agent. Keeps a tick bounded. */
 const MAX_ITEMS_PER_AGENT = 8;
 /** Consecutive failing ticks before the scheduler refuses to keep trying. */
-const FAILURE_LIMIT = 5;
+export const FAILURE_LIMIT = 5;
 
 export type TickResult = {
   ok: boolean;

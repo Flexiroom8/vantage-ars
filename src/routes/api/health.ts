@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getOfficeHealth } from "@/lib/office/api";
+import { getOfficeHealth, nudgeScheduler } from "@/lib/office/api";
 
 /**
  * Liveness and readiness for the whole office, in one JSON document.
@@ -19,6 +19,11 @@ export const Route = createFileRoute("/api/health")({
       GET: async () => {
         try {
           const health = await getOfficeHealth();
+          // A monitor polling health is also a liveness signal for the
+          // scheduler: on free hosting tiers the timer throttles, so this hit
+          // may start a catch-up tick. Bounded so a monitor's request always
+          // answers, and it can never fail the health document.
+          await nudgeScheduler({ data: { waitMs: 2_000 } }).catch(() => undefined);
           return Response.json(health, {
             status: health.ok ? 200 : 503,
             headers: {

@@ -111,7 +111,10 @@ Then, in a browser:
 1. Sign in at `/office`. You should see the **Autonomy** panel with
    "Running by itself", 26 duties, and a queue.
 2. Press **Run the floor**. It should report what it did.
-3. Wait ten minutes and reload. `lastTickAt` should have moved on its own.
+3. Wait ten minutes and reload. `lastTickAt` should have moved on its own. If
+   the GitHub schedule is throttled (it is best-effort on quiet repositories),
+   a hit on `/api/health` or a real page view nudges a catch-up tick once the
+   last one is over ten minutes old — `lastTickAt` moves then too.
 4. Watch `GET /api/health` — `scheduler.overdue` must stay `false`.
 
 ## 6. Set up monitoring
@@ -121,6 +124,10 @@ a non-200. The endpoint returns 503 when the database is unreachable, the audit
 chain fails, the scheduler goes stale, or the office is halted — which are the
 four conditions where the business is not actually running even though the pages
 still render.
+
+The check is also useful on the way in: each hit restarts a throttled scheduler
+(a catch-up tick when the last one is over ten minutes old), so the monitor both
+watches the office and keeps its ten-minute cadence honest on free hosting tiers.
 
 ## 7. Backups
 

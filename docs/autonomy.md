@@ -112,7 +112,9 @@ Five independent brakes, any one of which is sufficient:
 ## Idempotency
 
 The scheduler runs on a timer that retries, on multiple serverless instances,
-and can be triggered by hand at the same moment. Three mechanisms make that safe:
+can be triggered by hand at the same moment, and is nudged opportunistically
+when a public surface (a health poll, a page-view beacon) sees that the last
+tick is more than ten minutes old. Three mechanisms make all of that safe:
 
 - A **partial unique index** on `work_items.dedupe_key where status = 'open'`
   means a recurring duty can never stack two open items for the same record. The
@@ -143,7 +145,11 @@ AUTONOMY=on CRON_SECRET=$(openssl rand -hex 32)   # in the host environment
 ```
 
 Then either press **Run the floor** on `/office` — the same code path — or wait
-for the schedule. `/api/health` reports whether it is actually running:
+for the schedule. The schedule alone is not enough: GitHub throttles frequent
+cron on quiet repositories, so a hit on `/api/health` or the page-view beacon
+also starts a catch-up tick when the last one is over ten minutes old. A
+monitor polling health therefore doubles as the heartbeat. `/api/health` reports
+whether it is actually running:
 
 ```sh
 curl -s https://www.vantage-ars.co.za/api/health | jq '.scheduler, .problems'
@@ -157,4 +163,4 @@ npm run verify:office
 
 This boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did — 67 checks, no mocks, no fixtures.
+asserts on what the real agents actually did — 89 checks, no mocks, no fixtures.
