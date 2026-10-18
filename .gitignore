@@ -9,6 +9,10 @@
 # build output and caches
 node_modules/
 .vercel/
+# Local miniflare state: SQLite databases and caches from `wrangler dev`.
+# These are machine-local and can contain KV/D1/R2 data. Never commit them.
+.wrangler/
+.dev.vars
 .tanstack/
 .node_modules.lock
 dist/

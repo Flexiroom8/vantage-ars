@@ -19,6 +19,8 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkRouteImport } from './routes/work'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiSiteSignalRouteImport } from './routes/api/site-signal'
 import { Route as OfficeIndexRouteImport } from './routes/office/index'
 import { Route as OfficeApprovalsRouteImport } from './routes/office/approvals'
 import { Route as OfficeAuditRouteImport } from './routes/office/audit'
@@ -87,6 +89,16 @@ const TermsRoute = TermsRouteImport.update({
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
   path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSiteSignalRoute = ApiSiteSignalRouteImport.update({
+  id: '/api/site-signal',
+  path: '/api/site-signal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
@@ -196,6 +208,8 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -226,6 +240,8 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -258,6 +274,8 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -291,6 +309,8 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -321,6 +341,8 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -352,6 +374,8 @@ export interface FileRouteTypes {
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -384,6 +408,8 @@ export interface RootRouteChildren {
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   WorkRoute: typeof WorkRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiSiteSignalRoute: typeof ApiSiteSignalRoute
   QTokenRoute: typeof QTokenRoute
   ServicesSlugRoute: typeof ServicesSlugRoute
   ApiAiStatusRoute: typeof ApiAiStatusRoute
@@ -461,6 +487,20 @@ declare module '@tanstack/react-router' {
       path: '/work'
       fullPath: '/work'
       preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/site-signal': {
+      id: '/api/site-signal'
+      path: '/api/site-signal'
+      fullPath: '/api/site-signal'
+      preLoaderRoute: typeof ApiSiteSignalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/office/': {
@@ -647,6 +687,8 @@ const rootRouteChildren: RootRouteChildren = {
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   WorkRoute: WorkRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiSiteSignalRoute: ApiSiteSignalRoute,
   QTokenRoute: QTokenRoute,
   ServicesSlugRoute: ServicesSlugRoute,
   ApiAiStatusRoute: ApiAiStatusRoute,

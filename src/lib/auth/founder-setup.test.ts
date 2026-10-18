@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash, timingSafeEqual } from "node:crypto";
 
-import { founderEmail } from "@/lib/office/company";
-import { isFounderEmail, normalizeFounderEmailInput } from "./founder-setup";
+// `founderEmail()` reads the environment, so pin it for the duration of the
+// module. Without this the test silently depends on whatever FOUNDER_EMAIL the
+// developer or CI happens to export.
+process.env.FOUNDER_EMAIL = "Founder@Vantage-Ars.CO.ZA";
+const { founderEmail } = await import("@/lib/office/company");
+const { isFounderEmail, normalizeFounderEmailInput } = await import("./founder-setup");
 
 // Mirrors setupTokenMatches() without importing the database module.
 function matches(presented: string | null | undefined, configured: string | undefined): boolean {
@@ -29,8 +33,11 @@ test("setup token matches only the configured value", () => {
 });
 
 test("founder email normalization and checks are stable", () => {
-  const email = " Founder@Vantage-Ars.CO.ZA ";
-  assert.equal(normalizeFounderEmailInput(email), founderEmail());
-  assert.equal(isFounderEmail(email), true);
+  assert.equal(founderEmail(), "founder@vantage-ars.co.za");
+  assert.equal(normalizeFounderEmailInput(" Founder@Vantage-Ars.CO.ZA "), founderEmail());
+  assert.equal(isFounderEmail(" Founder@Vantage-Ars.CO.ZA "), true);
+  assert.equal(isFounderEmail("founder@vantage-ars.co.za"), true);
   assert.equal(isFounderEmail("someone@example.com"), false);
+  assert.equal(isFounderEmail("  "), false);
+  assert.equal(normalizeFounderEmailInput(undefined), "");
 });

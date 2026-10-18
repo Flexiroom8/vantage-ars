@@ -1,0 +1,24 @@
+/**
+ * The public paths worth measuring.
+ *
+ * One list, imported by the client beacon, the server writer and the build's
+ * dev middleware, so a page can never be tracked in one place and ignored in
+ * another. Adding a page here is the whole change.
+ */
+export const TRACKED_PATHS = [
+  "/",
+  "/rates",
+  "/work",
+  "/support",
+  "/terms",
+  "/privacy",
+  "/services/voip",
+  "/services/networking",
+  "/services/it-infrastructure",
+] as const;
+
+const TRACKED = new Set<string>(TRACKED_PATHS);
+
+export function isTrackedPage(path: string): boolean {
+  return TRACKED.has(path.split("?")[0].split("#")[0] || "/");
+}

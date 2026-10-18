@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
 import { useOfficeSnapshot } from "@/components/office/office-context";
+import { AutonomyPanel } from "@/components/office/autonomy-panel";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { MailNote } from "@/components/office/mail-note";
 import { PageHeader } from "@/components/office/page-header";
@@ -17,6 +19,10 @@ export const Route = createFileRoute("/office/")({
 
 function CommandCenter() {
   const snapshot = useOfficeSnapshot();
+  // Bumped after anything that changes the scheduler, so the autonomy panel
+  // re-reads instead of showing the previous run's numbers.
+  const [pulse, setPulse] = useState(0);
+  const refresh = useCallback(() => setPulse((value) => value + 1), []);
   const pending = snapshot.approvals.filter((a) => a.status === "pending");
   const liveAgents = snapshot.agents.filter((a) => a.status !== "halted").length;
   const unrouted = snapshot.inbound.filter((i) => i.status === "received").length;
@@ -32,7 +38,7 @@ function CommandCenter() {
         kicker="Command · Johannesburg"
         title="The office is on the floor."
         description="Agents act inside their roles. You approve cost, customer win, customer loss, and every marketing-to-sales handoff."
-        action={<RunFloorButton halted={snapshot.company.halted} />}
+        action={<RunFloorButton halted={snapshot.company.halted} onDone={refresh} />}
       />
       <MailNote notices={snapshot.notices} mail={snapshot.mail} />
 
@@ -67,6 +73,12 @@ function CommandCenter() {
         <SituationChip to="/office/sales" label="Pipeline" value={formatZar(pipeline)} />
         <SituationChip to="/office/technical" label="Open tickets" value={openTickets} warn={openTickets > 0} />
         <SituationChip to="/office/ledger" label="Receivable" value={formatZar(snapshot.company.receivableCents)} />
+        <SituationChip
+          to="/office/floor"
+          label="Blocked"
+          value={snapshot.decisions.filter((d) => d.status === "blocked").length}
+          warn={snapshot.health.hardViolations > 0}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -98,6 +110,10 @@ function CommandCenter() {
         </Card>
       </div>
 
+      <div className="mt-6">
+        <AutonomyPanel refreshToken={pulse} />
+      </div>
+
       <section className="mt-8">
         <div className="mb-3 flex items-end justify-between">
           <h2 className="font-serif text-2xl">Floor</h2>
@@ -110,7 +126,9 @@ function CommandCenter() {
             <div key={agent.id} className="bg-surface p-4">
               <div className="flex items-center justify-between">
                 <p className="font-mono text-[11px] tracking-[0.16em] text-muted">{agent.callsign}</p>
+                <span className="sr-only">{agent.status}</span>
                 <span
+                  aria-hidden="true"
                   className={cn(
                     "size-1.5 rounded-full",
                     agent.status === "halted"
@@ -131,7 +149,9 @@ function CommandCenter() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Latest decisions</h2>
         {snapshot.decisions.length === 0 ? (
-          <p className="text-sm text-muted">No autonomous decisions yet. Brief the orchestrator to start the day.</p>
+          <p className="text-sm text-muted">
+            No autonomous decisions yet. The scheduler runs them on its own cadence.
+          </p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-xl bg-surface shadow-[var(--shadow-border)]">
             {snapshot.decisions.slice(0, 8).map((decision) => (
@@ -191,7 +211,7 @@ function SituationChip({
   value,
   warn,
 }: {
-  to: "/office/inbox" | "/office/service" | "/office/sales" | "/office/technical" | "/office/ledger";
+  to: "/office/inbox" | "/office/service" | "/office/sales" | "/office/technical" | "/office/ledger" | "/office/floor";
   value: string | number;
   label: string;
   warn?: boolean;

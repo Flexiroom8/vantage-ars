@@ -2,7 +2,7 @@ export {
   formatDate,
   formatDateTime,
   formatNowClock,
+  formatRelative,
   formatTime,
   formatZar,
-  vatOn,
 } from "./money";
