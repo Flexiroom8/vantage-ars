@@ -443,6 +443,133 @@ async function main() {
   check("the scheduler reports its duties", status.dueDuties.length >= 20);
   check("the scheduler recorded runs", status.recentRuns.length > 5, String(status.recentRuns.length));
 
+  // ── 18. Marketing finds demand in the site's own traffic ───────────────────
+  // Real visitor records, exactly what the public site writes. Two visits to a
+  // buying page, one to the quote page, and several to a page that is not a
+  // buying signal.
+  const { recordSiteEvent } = await import("../src/lib/office/office-view.server.ts");
+  await recordSiteEvent({ kind: "page_view", path: "/rates" });
+  await recordSiteEvent({ kind: "page_view", path: "/rates" });
+  await recordSiteEvent({ kind: "page_view", path: "/quote" });
+  await recordSiteEvent({ kind: "page_view", path: "/" });
+  await recordSiteEvent({ kind: "page_view", path: "/" });
+
+  await advanceAndTick(1500); // past the daily prospect cadence — 2490
+  await advanceAndTick(200); // qualification's own cadence — 2690
+
+  const prospectLeads = await sql`
+    select id, company_name, stage, score, summary from leads where company_name like 'Prospect %'
+  `;
+  check(
+    "repeat visits to a buying page became a prospect lead",
+    prospectLeads.some((lead) => lead.company_name === "Prospect · /rates"),
+    JSON.stringify(prospectLeads.map((lead) => lead.company_name)),
+  );
+  check(
+    "the prospect carries the site's own evidence and no invented contact",
+    prospectLeads.length > 0 && prospectLeads.every((lead) => /recorded visit/.test(String(lead.summary)) && !String(lead.summary).includes("@")),
+    JSON.stringify(prospectLeads.map((lead) => lead.summary)),
+  );
+  check(
+    "a page that is not a buying signal was ignored",
+    !prospectLeads.some((lead) => lead.company_name === "Prospect · /"),
+    JSON.stringify(prospectLeads.map((lead) => lead.company_name)),
+  );
+  check(
+    "the prospect was qualified out of engaged without being sold",
+    prospectLeads.length > 0 && prospectLeads.every((lead) => lead.stage === "nurture" && Number(lead.score) < 45),
+    JSON.stringify(prospectLeads.map((lead) => `${lead.company_name}:${lead.stage}(${lead.score})`)),
+  );
+  check(
+    "qualification scored the prospect without erasing what the site recorded",
+    prospectLeads.every((lead) => /recorded visit/.test(String(lead.summary))),
+    JSON.stringify(prospectLeads.map((lead) => String(lead.summary).slice(0, 60))),
+  );
+  const prospectHandoffs = await sql`
+    select id from approvals where kind = 'sales_handoff' and company_name like 'Prospect %'
+  `;
+  check("anonymous interest never reached the founder as a sale", prospectHandoffs.length === 0, JSON.stringify(prospectHandoffs));
+
+  // Qualification must stay a one-time transition. It is due every three
+  // hours; if it re-scored decided leads the chain would grow duplicates
+  // forever while the office looked busy.
+  const updateLeadDecisions = async () =>
+    Number((await sql`select count(*)::int as n from decisions where action_kind = 'update_lead'`)[0].n);
+  const updatesBefore = await updateLeadDecisions();
+  await advanceAndTick(1440);
+  await advanceAndTick(1440);
+  const updatesAfter = await updateLeadDecisions();
+  check(
+    "qualification runs once per lead, not every three hours",
+    updatesAfter === updatesBefore,
+    `update_lead decisions went ${updatesBefore} → ${updatesAfter}`,
+  );
+
+  // ── 19. The weekly campaign drafts itself, at R0, owned-channel ────────────
+  await advanceAndTick(5000); // past the weekly campaign cadence — 10570
+  const campaigns = await sql`select name, channel, status, budget_cents, summary from campaigns`;
+  const weeklyDrafts = campaigns.filter((c) => /Owned-channel campaign/.test(String(c.name)));
+  check("the weekly campaign drafted itself from nurtured demand", weeklyDrafts.length >= 1, JSON.stringify(campaigns.map((c) => c.name)));
+  check(
+    "the campaign is an owned-channel draft at R0",
+    weeklyDrafts.every((c) => c.channel === "owned" && c.status === "draft" && Number(c.budget_cents) === 0),
+    JSON.stringify(weeklyDrafts),
+  );
+  check(
+    "the campaign names the real nurtured leads it is for",
+    weeklyDrafts.some((c) => String(c.summary).includes("Prospect · /rates")),
+    JSON.stringify(weeklyDrafts.map((c) => String(c.summary).slice(0, 80))),
+  );
+
+  // ── 20. The orchestrator briefs the founder with real figures ──────────────
+  const briefings = await sql`
+    select subject, status, detail from founder_notices where subject like '%daily briefing%'
+  `;
+  check("the orchestrator briefed the founder daily", briefings.length >= 1, JSON.stringify(briefings.map((b) => b.subject)));
+  const briefingDecisions = await sql`
+    select rationale from decisions where action_kind = 'notify_operator' and title like 'Daily briefing%'
+  `;
+  check(
+    "the briefing reports the real treasury, not a constant",
+    briefingDecisions.some((row) => String(row.rationale).includes(`treasury ${formatZar(644000)}`)),
+    JSON.stringify(briefingDecisions.map((row) => String(row.rationale).slice(0, 80))),
+  );
+  check(
+    "the briefing carries the queue and the last day's activity",
+    briefingDecisions.some((row) => /Queue now:/.test(String(row.rationale)) && /Last 24 hours:/.test(String(row.rationale))),
+    JSON.stringify(briefingDecisions.map((row) => String(row.rationale).slice(0, 80))),
+  );
+  check(
+    "the briefing never claims a customer was emailed",
+    briefings.every((row) => row.status !== "sent" || /SMTP/.test(String(row.detail))),
+    JSON.stringify(briefings.map((row) => row.status)),
+  );
+
+  // ── 21. A week of autonomous marketing kept the chain intact ───────────────
+  const chain2 = await sql`
+    select id, previous_hash, record_hash, created_at from (
+      select id, previous_hash, record_hash, created_at from audit_events
+      union all
+      select id, previous_hash, record_hash, created_at from decisions
+    ) c order by created_at asc
+  `;
+  const head2 = await sql`select last_audit_hash from company_state`;
+  const verdict2 = verifyChainLinks(
+    chain2.map((row) => ({
+      id: String(row.id),
+      previousHash: String(row.previous_hash),
+      recordHash: String(row.record_hash),
+      createdAt: new Date(row.created_at).toISOString(),
+    })),
+    String(head2[0].last_audit_hash),
+  );
+  check("the chain still verifies after a week of autonomous marketing", verdict2.ok, verdict2.detail);
+  check(
+    "the week added real decisions to the chain",
+    verdict2.checked > verdict.checked,
+    `${verdict.checked} → ${verdict2.checked}`,
+  );
+
   // ── Result ─────────────────────────────────────────────────────────────────
   const passed = checks.length - failures;
   process.stdout.write(`\n${passed}/${checks.length} checks passed.\n`);

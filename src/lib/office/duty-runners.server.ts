@@ -129,6 +129,94 @@ const reportAbandonedWork: Runner = async (item) => {
   };
 };
 
+/**
+ * The daily briefing. Every figure below is read from a real row at the moment
+ * the briefing is written — money from the company books, pipeline from the
+ * lead and opportunity tables, activity from the run log. Nothing is estimated,
+ * rounded up, or carried over from the last briefing.
+ */
+const reportDailyBriefing: Runner = async (item, _view) => {
+  const sql = await getSql();
+  const date = str(item.payload.date) || new Date().toISOString().slice(0, 10);
+
+  const books = await sql<Record<string, unknown>>`
+    select treasury_cents, receivable_cents, payable_cents from company_state where id = ${COMPANY.id}
+  `.then((rows) => rows[0] ?? {});
+  const leads = await sql<{ stage: string; n: number }>`
+    select stage, count(*)::int as n from leads group by stage order by stage
+  `;
+  const pipeline = await sql<{ stage: string; n: number; value_cents: number }>`
+    select stage, count(*)::int as n, coalesce(sum(value_cents), 0)::int as value_cents
+    from opportunities where stage not in ('lost') group by stage order by stage
+  `;
+  const approvals = await sql<{ n: number }>`
+    select count(*)::int as n from approvals where status = 'pending'
+  `.then((rows) => Number(rows[0]?.n ?? 0));
+  const queue = await sql<{ open: number; claimed: number; abandoned: number }>`
+    select
+      count(*) filter (where status = 'open')::int as open,
+      count(*) filter (where status = 'claimed')::int as claimed,
+      count(*) filter (where status = 'abandoned')::int as abandoned
+    from work_items
+  `.then((rows) => rows[0] ?? { open: 0, claimed: 0, abandoned: 0 });
+  const activity = await sql<{ n: number; executed: number; escalated: number; failed: number }>`
+    select
+      count(*)::int as n,
+      coalesce(sum(executed), 0)::int as executed,
+      coalesce(sum(escalated), 0)::int as escalated,
+      count(*) filter (where status = 'error')::int as failed
+    from agent_runs
+    where started_at > now() - interval '24 hours'
+  `.then((rows) => rows[0] ?? { n: 0, executed: 0, escalated: 0, failed: 0 });
+  const openTickets = await sql<{ n: number }>`
+    select count(*)::int as n from tickets where status != 'resolved'
+  `.then((rows) => Number(rows[0]?.n ?? 0));
+  const campaigns = await sql<{ status: string; n: number }>`
+    select status, count(*)::int as n from campaigns group by status order by status
+  `;
+  const visits = await sql<{ n: number }>`
+    select count(*)::int as n from site_events where occurred_at > now() - interval '24 hours'
+  `.then((rows) => Number(rows[0]?.n ?? 0));
+
+  const lines = [
+    `Books: treasury ${formatZar(Number(books.treasury_cents ?? 0))}, receivable ${formatZar(Number(books.receivable_cents ?? 0))}, payable ${formatZar(Number(books.payable_cents ?? 0))}.`,
+    `Waiting on you: ${approvals} approval(s).`,
+    leads.length
+      ? `Leads: ${leads.map((row) => `${row.n} ${row.stage}`).join(", ")}.`
+      : "Leads: none on file.",
+    pipeline.length
+      ? `Open pipeline: ${pipeline.map((row) => `${row.n} in ${row.stage} (${formatZar(Number(row.value_cents))})`).join(", ")}.`
+      : "Open pipeline: empty.",
+    `Last 24 hours: ${Number(activity.n)} run(s), ${Number(activity.executed)} action(s) executed, ${Number(activity.escalated)} put to you, ${Number(activity.failed)} failed.`,
+    `Queue now: ${Number(queue.open)} open, ${Number(queue.claimed)} claimed, ${Number(queue.abandoned)} abandoned.`,
+    `Service: ${openTickets} open ticket(s). Campaigns: ${campaigns.length ? campaigns.map((row) => `${row.n} ${row.status}`).join(", ") : "none"}. Site: ${visits} recorded visit(s) in the last 24 hours.`,
+  ];
+
+  const result = await applyProposedAction(
+    "vantage",
+    {
+      kind: "notify_operator",
+      title: `Daily briefing · ${date}`,
+      rationale: lines.join("\n"),
+      confidence: 0.98,
+      amountCents: 0,
+      payload: {},
+    },
+    { source: "scheduler", workItem: item.id },
+  );
+
+  const { deliverFounderNotice } = await import("./notify.server");
+  const { founderBriefingNotice } = await import("./notice");
+  await deliverFounderNotice(founderBriefingNotice({ date, lines }));
+
+  return {
+    outcome: `Briefed the founder for ${date}: ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
 // ── FOYER ─────────────────────────────────────────────────────────────────────
 
 const routeInbound: Runner = async (item) => {
@@ -367,12 +455,14 @@ const qualifyLead: Runner = async (item) => {
     "signal",
     {
       kind: "update_lead",
-      title: `${stage === "disqualified" ? "Disqualified" : "Scored"} ${str(item.payload.companyName)}`,
+      title: `${stage === "disqualified" ? "Disqualified" : "Scored"} ${str(item.payload.companyName) || leadId}`,
       rationale: summary,
       confidence: spam ? 0.92 : 0.8,
       amountCents: 0,
       relatedId: leadId,
-      payload: { stage, score },
+      // The score is the office's opinion; the lead's summary is the buyer's
+      // words, and stays that way so later duties score the customer, not us.
+      payload: { stage, score, keepSummary: true },
     },
     { source: "scheduler", workItem: item.id },
   );
@@ -855,6 +945,7 @@ export const RUNNERS: Record<string, Runner> = {
   report_silent_agent: reportSilentAgent,
   report_stuck_backlog: reportStuckBacklog,
   report_abandoned_work: reportAbandonedWork,
+  report_daily_briefing: reportDailyBriefing,
   route_inbound: routeInbound,
   classify_inbound: classifyInbound,
   escalate_stale_enquiry: escalateStaleEnquiry,

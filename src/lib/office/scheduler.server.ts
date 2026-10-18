@@ -188,6 +188,7 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
       if (!runner) {
         await completeWork(item.id, `No runner for kind "${item.kind}". Left for the founder to inspect.`);
         failed += 1;
+        ran.push({ duty: item.kind as DutyId, owner: agentId, filed: 0, ran: 1, note: `No runner is registered for kind "${item.kind}" — this duty planned work nothing can execute.` });
         continue;
       }
 

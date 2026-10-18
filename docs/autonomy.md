@@ -25,7 +25,7 @@ nothing needed doing, and the office says so rather than manufacturing activity.
                  └──────┬───────┘
                         │  no
                  ┌──────▼───────────┐
-      23 duties → │      PLAN        │  pure function of the real office state
+      26 duties → │      PLAN        │  pure function of the real office state
                  └──────┬───────────┘  returns work, or nothing
                         │
                  ┌──────▼───────────┐
@@ -51,6 +51,7 @@ outside its owner's role.
 |---|---|---|---|
 | VANTAGE | `vantage_liveness` | 30m | Reports an agent that has work waiting and is not working, or has never run |
 | VANTAGE | `vantage_backlog` | 60m | Reports a stuck queue and anything abandoned after retries |
+| VANTAGE | `vantage_briefing` | 24h | One factual daily summary for the founder: books, pipeline, queue, last day's activity — every figure from a record |
 | FOYER | `foyer_intake` | 10m | Classifies unrouted enquiries into a lead or a service ticket |
 | FOYER | `foyer_stale_intake` | 60m | Escalates an enquiry nobody answered after four hours |
 | SIGNAL | `signal_site_signals` | 12h | Reads real recorded page views and says what they mean |

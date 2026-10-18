@@ -9,6 +9,7 @@ export type FounderNoticeKind =
   | "payment"
   | "chat"
   | "quote"
+  | "briefing"
   | "office_alert";
 
 export type FounderNotice = {
@@ -25,6 +26,25 @@ function oneLine(value: string, max: number): string {
  * An operational alert the founder needs to see: the office stopped itself, the
  * audit chain failed, or something needs a decision that has no other surface.
  */
+/**
+ * The daily summary an unattended office owes its founder: what is on the
+ * books, what is waiting on a decision, and whether the queue is clear. Every
+ * line is derived from a record — nothing here is an estimate.
+ */
+export function founderBriefingNotice(input: { date: string; lines: string[] }): FounderNotice {
+  return {
+    kind: "briefing",
+    subject: `Vantage-ARS · daily briefing · ${oneLine(input.date, 20)}`,
+    body: [
+      "One factual summary of the office, compiled from its records. Nothing in it was sent to a customer.",
+      "",
+      ...input.lines.map((line) => oneLine(line, 400)),
+      "",
+      "Open the office at https://vantage-ars.co.za/office",
+    ].join("\n"),
+  };
+}
+
 export function founderOfficeAlertNotice(input: {
   title: string;
   detail: string;

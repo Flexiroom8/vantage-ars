@@ -28,8 +28,9 @@ enquiries, marketing scores leads on what the buyer actually wrote, flags repeat
 site interest as prospects, and drafts weekly owned-channel campaigns, then files
 a founder-gated handoff when demand is real; sales drafts real follow-ups on real
 quotes, the service desk drafts acknowledgements, technical writes procedures,
-finance chases overdue invoices, admin checks the filing, and compliance halts
-the office if the audit chain ever fails to verify.
+finance chases overdue invoices, admin checks the filing, the orchestrator
+briefs you once a day from the books, and compliance halts the office if the
+audit chain ever fails to verify.
 
 None of them email a customer, spend money, win or lose a customer, or publish
 anything. Those are founder approvals, with the constitutional trace attached.

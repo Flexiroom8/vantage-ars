@@ -6,12 +6,20 @@ All notable changes to Vantage-ARS.
 
 ### Added
 
+**The founder gets a daily briefing.** `vantage_briefing` compiles one honest summary a day — books, approvals waiting, pipeline, the last day's runs, the queue — and records it as a founder notice. Every figure is read from a record at the moment it is written; nothing is estimated. On an empty office it says nothing, because there is nothing truthful to say.
+
 **Marketing now generates demand instead of waiting for it.** Two new SIGNAL duties turn the site's own traffic into pipeline, and every step stops at the founder:
 
 - `signal_prospect` (daily): repeat, anonymous visits to a buying page (`/rates`, `/quote`, a service page) are flagged as a `Prospect ·` lead. No contact is invented, no customer is created, and nothing reaches the founder until qualification scores it as real demand.
 - `signal_draft_campaign` (weekly): one owned-channel campaign draft per week for nurtured or qualified leads not yet in sales. Drafting runs autonomously at R0; activation and any spend are a founder approval.
 
 **Queue hygiene.** The scheduler prunes finished work items each tick so the work table stays a queue, and reports pruning in its detail.
+
+### Fixed
+
+**Qualification no longer churns, and never erases what the buyer wrote.** `signal_qualify_leads` is due every three hours, and it used to re-score every lead every time — re-deciding the same lead forever — while `update_lead` overwrote the lead's summary, which is the buyer's own words, with the office's scoring note. Qualification is now a one-time transition out of `engaged`, and the evidence text is preserved so downstream duties score the customer, not themselves.
+
+**Planner and runner registry can no longer drift apart.** `signal_prospect` planned work under a kind no runner was registered for, so every prospect item was closed by the queue without becoming a lead. New regression test `duty-runners.test.ts` plans every duty against a busy office and proves each kind it can produce is one a registered runner executes; the scheduler also reports unregistered kinds loudly in its tick detail instead of counting them as done.
 
 ## 4.2.0 — 2026-10-18
 

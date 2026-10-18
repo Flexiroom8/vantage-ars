@@ -728,14 +728,17 @@ describe("prospect duty", () => {
     assert.equal(work.length, 2);
     for (const item of work) {
       assert.equal(item.agentId, "signal");
-      assert.equal(item.kind, "create_lead");
+      assert.equal(item.kind, "prospect_from_site_signals");
       assert.ok(item.dedupeKey.startsWith("prospect:"), item.dedupeKey);
       assert.ok(item.reason.includes("flagged interest, not a confirmed buyer"), item.reason);
       assert.equal(item.payload?.source, "site_signal");
+      // The runner addresses the lead by path and count, so the payload must
+      // carry them; a mismatch here once produced "Prospect · " with no path.
+      const path = String(item.payload?.path ?? "");
+      assert.ok(["/rates", "/quote"].includes(path), path);
+      assert.equal(item.payload?.visitCount, path === "/rates" ? 2 : 1);
+      assert.ok(String(item.payload?.evidence ?? "").includes(path));
     }
-    const evidence = work.map((item) => String(item.payload?.evidence ?? ""));
-    assert.ok(evidence.some((text) => text.includes("/rates")), JSON.stringify(evidence));
-    assert.ok(evidence.some((text) => text.includes("/quote")), JSON.stringify(evidence));
   });
 
   it("ignores pages that are not buying signals", () => {
@@ -762,7 +765,61 @@ describe("prospect duty", () => {
       ],
     }));
     assert.equal(twice.length, 1);
+    assert.equal(twice[0].payload?.path, "/services/voip");
+    assert.equal(twice[0].payload?.visitCount, 2);
     assert.ok(String(twice[0].payload?.evidence ?? "").includes("/services/voip"));
+  });
+});
+
+describe("qualify duty", () => {
+  it("scores a fresh lead once, while it is still engaged", () => {
+    const work = planDuty("signal_qualify_leads", view({
+      leads: [
+        { id: "ld1", companyName: "Acme", stage: "engaged", score: 40, summary: "We need a quote for 20 extensions.", inboundId: null, updatedAt: hoursAgo(1) },
+      ],
+    }));
+    assert.equal(work.length, 1);
+    assert.equal(work[0].agentId, "signal");
+    assert.equal(work[0].kind, "qualify_lead");
+    assert.equal(work[0].payload?.companyName, "Acme");
+    assert.equal(work[0].dedupeKey, "qualify:ld1");
+  });
+
+  it("never re-scores a lead that already has a stage", () => {
+    // Scoring runs every three hours. If it kept working on decided leads it
+    // would re-decide the same lead forever and churn the decision chain.
+    for (const stage of ["nurture", "qualified", "disqualified", "ready_for_sales", "in_sales", "lost"]) {
+      const work = planDuty("signal_qualify_leads", view({
+        leads: [
+          { id: "ld1", companyName: "Acme", stage, score: 40, summary: "We need a quote.", inboundId: null, updatedAt: hoursAgo(1) },
+        ],
+      }));
+      assert.deepEqual(work, [], `re-planned a ${stage} lead`);
+    }
+  });
+});
+
+describe("briefing duty", () => {
+  it("says nothing on an empty office", () => {
+    assert.deepEqual(planDuty("vantage_briefing", view()), []);
+  });
+
+  it("briefs the founder once a day when the office has real state", () => {
+    const work = planDuty("vantage_briefing", view({ treasuryCents: 644000 }));
+    assert.equal(work.length, 1);
+    assert.equal(work[0].agentId, "vantage");
+    assert.equal(work[0].kind, "report_daily_briefing");
+    assert.equal(work[0].dedupeKey, `briefing:${NOW.slice(0, 10)}`);
+  });
+
+  it("is triggered by any real record, not just money", () => {
+    for (const patch of [
+      { approvalsPending: [{ id: "ap1", kind: "sales_handoff", title: "Handoff", companyName: "Acme", createdAt: hoursAgo(1) }] },
+      { campaigns: [{ id: "c1", name: "Weekly", channel: "owned", status: "draft", budgetCents: 0, spendCents: 0, summary: "draft", createdAt: hoursAgo(1) }] },
+      { documents: [{ id: "d1", title: "Brief", kind: "content_brief", status: "draft", relatedId: null, createdAt: hoursAgo(1) }] },
+    ]) {
+      assert.equal(planDuty("vantage_briefing", view(patch)).length, 1, JSON.stringify(patch));
+    }
   });
 });
 

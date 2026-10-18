@@ -786,14 +786,27 @@ async function executeAuthorized(
     }
     case "update_lead": {
       if (action.relatedId) {
-        await sql`
-          update leads
-          set stage = ${String(action.payload.stage ?? "engaged")},
-              score = ${num(action.payload.score, 50)},
-              summary = ${action.rationale},
-              updated_at = now()
-          where id = ${action.relatedId}
-        `;
+        // Callers that only moved the stage (`keepSummary`) must not overwrite
+        // the lead's own words: the summary is the buyer's text, and downstream
+        // duties score what the buyer actually wrote, not the agent's note.
+        if (action.payload.keepSummary === true) {
+          await sql`
+            update leads
+            set stage = ${String(action.payload.stage ?? "engaged")},
+                score = ${num(action.payload.score, 50)},
+                updated_at = now()
+            where id = ${action.relatedId}
+          `;
+        } else {
+          await sql`
+            update leads
+            set stage = ${String(action.payload.stage ?? "engaged")},
+                score = ${num(action.payload.score, 50)},
+                summary = ${action.rationale},
+                updated_at = now()
+            where id = ${action.relatedId}
+          `;
+        }
       }
       break;
     }

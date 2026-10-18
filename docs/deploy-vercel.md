@@ -109,7 +109,7 @@ curl -s -o /dev/null -w '%{http_code}\n' https://www.vantage-ars.co.za/api/cron/
 Then, in a browser:
 
 1. Sign in at `/office`. You should see the **Autonomy** panel with
-   "Running by itself", 23 duties, and a queue.
+   "Running by itself", 26 duties, and a queue.
 2. Press **Run the floor**. It should report what it did.
 3. Wait ten minutes and reload. `lastTickAt` should have moved on its own.
 4. Watch `GET /api/health` — `scheduler.overdue` must stay `false`.

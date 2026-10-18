@@ -172,6 +172,7 @@ export type WorkQueueView = {
 export type DutyId =
   | "vantage_liveness"
   | "vantage_backlog"
+  | "vantage_briefing"
   | "foyer_intake"
   | "foyer_stale_intake"
   | "signal_site_signals"
@@ -199,6 +200,7 @@ export type DutyId =
 export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   vantage_liveness: 30,
   vantage_backlog: 60,
+  vantage_briefing: 1440,
   foyer_intake: 10,
   foyer_stale_intake: 60,
   signal_site_signals: 720,
@@ -227,6 +229,7 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
 export const DUTY_OWNER: Record<DutyId, string> = {
   vantage_liveness: "vantage",
   vantage_backlog: "vantage",
+  vantage_briefing: "vantage",
   foyer_intake: "foyer",
   foyer_stale_intake: "foyer",
   signal_site_signals: "signal",
@@ -255,6 +258,7 @@ export const DUTY_OWNER: Record<DutyId, string> = {
 export const DUTY_TITLES: Record<DutyId, string> = {
   vantage_liveness: "Check the floor is alive",
   vantage_backlog: "Report a blocked backlog",
+  vantage_briefing: "Brief the founder daily",
   foyer_intake: "Intake and classify new enquiries",
   foyer_stale_intake: "Chase enquiries nobody picked up",
   signal_site_signals: "Read real site signals",
@@ -406,6 +410,8 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planLiveness(view);
     case "vantage_backlog":
       return planBacklog(view);
+    case "vantage_briefing":
+      return planBriefing(view);
     case "foyer_intake":
       return planFoyerIntake(view);
     case "foyer_stale_intake":
@@ -493,6 +499,41 @@ function planBacklog(view: DutyView): PlannedWork[] {
   }
 
   return work;
+}
+
+/**
+ * The orchestrator's daily briefing. An office that runs unattended owes the
+ * founder one honest summary a day: what is on the books, what is waiting on a
+ * decision, and whether the queue is clear. It only exists when there is real
+ * state to describe — on an empty office it says nothing, because there is
+ * nothing truthful to say.
+ */
+function planBriefing(view: DutyView): PlannedWork[] {
+  const hasState =
+    view.leads.length > 0 ||
+    view.opportunities.length > 0 ||
+    view.tickets.length > 0 ||
+    view.inbound.length > 0 ||
+    view.ledger.length > 0 ||
+    view.documents.length > 0 ||
+    view.campaigns.length > 0 ||
+    view.chatThreads.length > 0 ||
+    view.approvalsPending.length > 0 ||
+    view.treasuryCents > 0 ||
+    view.receivableCents > 0 ||
+    view.payableCents > 0;
+  if (!hasState) return [];
+  const date = new Date(view.now).toISOString().slice(0, 10);
+  return [
+    {
+      agentId: "vantage",
+      kind: "report_daily_briefing",
+      reason: "The office has real work on the books. One factual summary a day, from records only.",
+      priority: 70,
+      payload: { date },
+      dedupeKey: `briefing:${date}`,
+    },
+  ];
 }
 
 function planLiveness(view: DutyView): PlannedWork[] {
@@ -640,13 +681,15 @@ function planProspect(view: DutyView): PlannedWork[] {
     const scored = scoreLead(`${count} recorded visit(s) to ${path} with no enquiry filed yet.`, name);
     work.push({
       agentId: "signal",
-      kind: "create_lead",
+      kind: "prospect_from_site_signals",
       reason: `${path} was visited ${count} time(s) today with no enquiry filed — flagged interest, not a confirmed buyer.`,
       priority: highIntent ? 22 : 16,
       payload: {
         source: "site_signal",
         stage: "engaged",
         score: scored.score,
+        path,
+        visitCount: count,
         evidence: `${count} recorded visit(s) to ${path}; no enquiry follows them yet.`,
       },
       dedupeKey: `prospect:${path}:${today}`,
@@ -691,8 +734,12 @@ function planDraftCampaign(view: DutyView): PlannedWork[] {
 }
 
 function planQualifyLeads(view: DutyView): PlannedWork[] {
+  // Qualification is a one-time transition out of "engaged", not a periodic
+  // re-score: once a lead has a stage, scoring it again every few hours would
+  // churn the decision chain and re-decide work already done. A lead whose
+  // situation really changed arrives as a new inbound record, not a new score.
   return view.leads
-    .filter((lead) => !lead.stage.endsWith("_qualified") && lead.stage !== "lost" && lead.stage !== "in_sales")
+    .filter((lead) => lead.stage === "engaged")
     .filter((lead) => lead.summary.trim().length > 0)
     .map((lead) => {
       const scored = scoreLead(`${lead.summary} ${lead.companyName}`, lead.companyName);
@@ -701,7 +748,7 @@ function planQualifyLeads(view: DutyView): PlannedWork[] {
         kind: "qualify_lead",
         reason: `${lead.companyName} (stage ${lead.stage}) scores ${scored.score} from what they actually wrote.`,
         priority: 30 - Math.min(25, Math.round(scored.score / 4)),
-        payload: { leadId: lead.id, score: scored.score, reasons: scored.reasons, demand: scored.demand, support: scored.support, spam: scored.spam },
+        payload: { leadId: lead.id, companyName: lead.companyName, score: scored.score, reasons: scored.reasons, demand: scored.demand, support: scored.support, spam: scored.spam },
         dedupeKey: `qualify:${lead.id}`,
       };
     });
