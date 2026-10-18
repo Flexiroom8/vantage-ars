@@ -88,14 +88,20 @@ const [
         order by max(m.created_at) desc nulls last
         limit 40
       `,
-    // The whole chain, not a window: a fork can hide anywhere.
+    // The whole chain, not a window: a fork can hide anywhere. The stored
+    // head rides along in the SAME statement on purpose — read separately, a
+    // tick committing an append between the two reads made verification fail
+    // spuriously while the office was busy, which would have halted the
+    // office through SEAL and tripped every health monitor.
     sql<Record<string, unknown>>`
-      select id, previous_hash, record_hash, created_at, kind from (
+      select chain.id, chain.previous_hash, chain.record_hash, chain.created_at,
+             (select last_audit_hash from company_state where id = ${COMPANY.id}) as head_hash
+      from (
         select id, previous_hash, record_hash, created_at, kind, 0 as source from audit_events
         union all
         select id, previous_hash, record_hash, created_at, action_kind as kind, 1 as source from decisions
       ) chain
-      order by created_at asc
+      order by chain.created_at asc
     `,
   ]);
 
@@ -107,7 +113,7 @@ const [
       recordHash: text(row.record_hash),
       createdAt: iso(row.created_at),
     })),
-    text(company.last_audit_hash),
+    text(chainRows.length ? chainRows[0].head_hash : company.last_audit_hash),
   );
 
   const quoteLinks = await sql<Record<string, unknown>>`

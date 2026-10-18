@@ -19,6 +19,8 @@ All notable changes to Vantage-ARS.
 
 ### Fixed
 
+**A busy office can no longer misread its own audit chain.** The office view read the chain rows and the stored head in two separate statements, so a tick committing an append between the two reads made verification fail spuriously — a false "the chain does not verify" that would have halted the office through SEAL and tripped every health monitor. Found in production once ticks and health polls started overlapping. The chain and its head are now read in one statement, one snapshot, so the view can never see half of its own write.
+
 **Qualification no longer churns, and never erases what the buyer wrote.** `signal_qualify_leads` is due every three hours, and it used to re-score every lead every time — re-deciding the same lead forever — while `update_lead` overwrote the lead's summary, which is the buyer's own words, with the office's scoring note. Qualification is now a one-time transition out of `engaged`, and the evidence text is preserved so downstream duties score the customer, not themselves.
 
 **Planner and runner registry can no longer drift apart.** `signal_prospect` planned work under a kind no runner was registered for, so every prospect item was closed by the queue without becoming a lead. New regression test `duty-runners.test.ts` plans every duty against a busy office and proves each kind it can produce is one a registered runner executes; the scheduler also reports unregistered kinds loudly in its tick detail instead of counting them as done.

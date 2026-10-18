@@ -569,6 +569,16 @@ async function main() {
     verdict2.checked > verdict.checked,
     `${verdict.checked} → ${verdict2.checked}`,
   );
+  // The view reads the chain and the stored head in one statement, so a busy
+  // office can never see its own in-flight append as a broken chain — the
+  // false positive that would halt the office through SEAL.
+  const { readDutyView } = await import("../src/lib/office/office-view.server.ts");
+  const busyView = await readDutyView(at());
+  check(
+    "a busy office still trusts its chain after the tick that wrote it",
+    busyView.chainIntact === true,
+    "the view reported the chain as broken moments after its own tick appended to it",
+  );
 
   // ── 22. A public surface may nudge a stale scheduler ───────────────────────
   const { kickFloorIfStale } = await import("../src/lib/office/kick.server.ts");

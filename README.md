@@ -50,7 +50,7 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 89 checks, no mocks and no
+scheduler, and asserts on what the real agents did — 90 checks, no mocks and no
 sample data. If autonomy breaks, this fails.
 
 ## Environment
