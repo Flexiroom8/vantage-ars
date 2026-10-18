@@ -82,9 +82,11 @@ variables to set, the founder setup, the domain cutover, and how to verify it.
 ### Vercel + Neon (recommended)
 1. Import the GitHub repo in Vercel.
 2. Add a Neon database and set `DATABASE_URL`, then the auth settings above.
-3. Set `AUTONOMY=on` and a generated `CRON_SECRET`. `vercel.json` runs
-   `/api/cron/floor` every ten minutes; Vercel sends `CRON_SECRET` as the bearer
-   token automatically.
+3. Set `AUTONOMY=on` and a generated `CRON_SECRET`. The ten-minute tick is
+   scheduled by the `office-scheduler` GitHub Actions workflow — add the same
+   `CRON_SECRET` as a repository secret (Settings → Secrets and variables →
+   Actions) so the scheduler call authenticates. `vercel.json` keeps a daily
+   run as a fallback (Vercel's Hobby plan rejects crons more often than daily).
 4. Deploy. `npm run build` applies migrations.
 5. Check `https://www.vantage-ars.co.za/api/health` — `scheduler.overdue` should
    be `false`.

@@ -22,8 +22,10 @@ single manual "Run the floor" button.
   claimed atomically, bounded retries with backoff.
 - `AutonomyPanel` on `/office`: scheduler state, every duty and when it is next
   due, the live queue, and what each agent did last.
-- `AUTONOMY=on` + `CRON_SECRET` enable unattended runs. `vercel.json` now runs
-  `/api/cron/floor` every 10 minutes rather than daily.
+- `AUTONOMY=on` + `CRON_SECRET` enable unattended runs. The ten-minute tick is
+  scheduled by the `office-scheduler` GitHub Actions workflow (Vercel's Hobby
+  plan rejects crons more often than daily); `vercel.json` keeps a daily
+  `/api/cron/floor` run as a fallback.
 
 **Sales.** `close_quote_followup` drafts a real follow-up once a genuine quote
 has waited two days, and says in the letter whether the customer actually opened

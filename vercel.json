@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/cron/floor",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 5 * * *"
     }
   ],
   "headers": [
