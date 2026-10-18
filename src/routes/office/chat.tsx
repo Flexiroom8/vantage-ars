@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listOfficeChats, readPublicChat, replyOfficeChat } from "@/lib/office/api";
+import { listOfficeChats, readOfficeChat, replyOfficeChat } from "@/lib/office/api";
+import { safeIntervalMs, useChatPolling } from "@/lib/chat-polling";
 
 export const Route = createFileRoute("/office/chat")({
   component: ChatDesk,
@@ -31,29 +32,25 @@ function ChatDesk() {
     void loadThreads().catch(() => toast.error("The chats could not be loaded."));
   }, []);
 
-  useEffect(() => {
-    if (!active) return;
-    let stop = false;
-    async function pull() {
-      try {
-        const result = await readPublicChat({ data: { threadId: active as string } });
-        if (stop) return;
-        if (!result.ok) {
-          toast.error(result.error);
-          return;
-        }
-        setLines(result.messages);
-      } catch {
-        if (!stop) toast.error("The chat could not be loaded.");
-      }
-    }
-    void pull();
-    const timer = window.setInterval(() => void pull(), 4000);
-    return () => {
-      stop = true;
-      window.clearInterval(timer);
-    };
-  }, [active]);
+  // 1,800/hour authenticated: a chat desk should feel live. The helper still
+  // pauses on a hidden tab and backs off when nothing changes.
+  const signatureRef = useRef("");
+  useChatPolling({
+    enabled: Boolean(active),
+    intervalMs: safeIntervalMs(1800),
+    idleIntervalMs: safeIntervalMs(1800) * 4,
+    pull: async () => {
+      if (!active) return false;
+      const result = await readOfficeChat({ data: { threadId: active } });
+      const signature = result.messages.map((message) => `${message.id}:${message.createdAt}`).join("|");
+      if (signature === signatureRef.current) return false;
+      signatureRef.current = signature;
+      setLines(result.messages);
+      return true;
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "The chat could not be loaded."),
+  });
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -66,7 +63,7 @@ function ChatDesk() {
         return;
       }
       setDraft("");
-      const next = await readPublicChat({ data: { threadId: active } });
+      const next = await readOfficeChat({ data: { threadId: active } });
       if (next.ok) setLines(next.messages);
     } catch {
       toast.error("The reply could not be sent.");

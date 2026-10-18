@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { postPublicChat, readPublicChat } from "@/lib/office/api";
+import {
+  PUBLIC_CHAT_IDLE_INTERVAL_MS,
+  PUBLIC_CHAT_INTERVAL_MS,
+  useChatPolling,
+} from "@/lib/chat-polling";
 
 type Line = { id: string; role: "customer" | "office" | "founder"; body: string };
 
@@ -43,29 +48,31 @@ function ChatPanel() {
     setName(localStorage.getItem(NAME_KEY) ?? "");
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    let stop = false;
-    async function pull() {
+  const signature = useRef("");
+  useChatPolling({
+    enabled: open,
+    intervalMs: PUBLIC_CHAT_INTERVAL_MS,
+    idleIntervalMs: PUBLIC_CHAT_IDLE_INTERVAL_MS,
+    pull: async () => {
       try {
         const result = await readPublicChat({ data: { threadId: threadId() } });
-        if (stop) return;
         if (!result.ok) {
           setError(result.error);
-          return;
+          return false;
         }
+        setError(null);
+        const next = result.messages.map((message) => `${message.id}:${message.createdAt}`).join("|");
+        if (next === signature.current) return false;
+        signature.current = next;
         setLines(result.messages);
+        return true;
       } catch {
-        if (!stop) setError("The chat could not be loaded.");
+        setError("The chat could not be loaded.");
+        return false;
       }
-    }
-    void pull();
-    const timer = window.setInterval(() => void pull(), 4000);
-    return () => {
-      stop = true;
-      window.clearInterval(timer);
-    };
-  }, [open]);
+    },
+    onChange: () => scroller.current?.scrollTo({ top: scroller.current.scrollHeight }),
+  });
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });

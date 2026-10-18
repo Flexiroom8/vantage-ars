@@ -11,8 +11,10 @@ import { founderChatNotice, founderEnquiryNotice, founderPaymentNotice, founderQ
 import { parseCustomerAnswer, plausibleToken } from "./quote-link";
 import { founderMiddleware, officeAccessMiddleware } from "./founder-gate";
 import { priceQuote, type QuoteLocation } from "./quote";
+import { operateFloor } from "./floor.server";
 import {
   answerPublicQuote,
+  appendAudit,
   applyProposedAction,
   createQuoteLink,
   listQuoteLinks,
@@ -34,6 +36,9 @@ import {
   setOfficeHalt,
   setTicketStatus,
 } from "./store.server";
+import { tick, runNow, schedulerStatus } from "./scheduler.server";
+import type { OfficeHealth } from "./health.server";
+import { listWork, workCounts } from "./work-queue.server";
 import type { DispatchResult, OfficeSnapshot, ProposedAction } from "./types";
 
 async function applyPlan(
@@ -95,7 +100,14 @@ export const getOfficeSnapshot = createServerFn({ method: "GET" })
 const enquiryLimiter = createRateLimiter(8, 60 * 60 * 1000);
 const paymentLimiter = createRateLimiter(8, 60 * 60 * 1000);
 const chatLimiter = createRateLimiter(40, 60 * 60 * 1000);
-const chatReadLimiter = createRateLimiter(120, 60 * 60 * 1000);
+/**
+ * Budget for `safeIntervalMs(PUBLIC_CHAT_READS_PER_HOUR)` at
+ * `PUBLIC_CHAT_IDLE_INTERVAL_MS`, plus headroom for a visitor who leaves the
+ * panel open and posts. The floor previously polled at 4s against a 120/hour
+ * limit and locked itself out.
+ */
+const chatReadLimiter = createRateLimiter(240, 60 * 60 * 1000);
+const siteViewLimiter = createRateLimiter(120, 60 * 60 * 1000);
 
 function callerKey(request: Request | undefined): string {
   return clientKey(request?.headers);
@@ -114,6 +126,11 @@ async function allowPaymentNotice(key: string): Promise<boolean> {
 async function allowChat(key: string): Promise<boolean> {
   if (!chatLimiter.allow(key)) return false;
   return durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000, Date.now(), () => chatLimiter.allow(key));
+}
+
+async function allowSiteView(key: string): Promise<boolean> {
+  if (!siteViewLimiter.allow(key)) return false;
+  return durableAllow(await getSql(), "site_view", key, 120, 3600_000, Date.now(), () => siteViewLimiter.allow(key));
 }
 
 async function allowChatRead(key: string): Promise<boolean> {
@@ -297,6 +314,19 @@ export const readPublicChat = createServerFn({ method: "POST" })
 export const listOfficeChats = createServerFn({ method: "GET" })
   .middleware([founderMiddleware])
   .handler(async () => listChats());
+
+/**
+ * Founder-authenticated chat read.
+ *
+ * The public read path is rate limited hard, because it is reachable by anyone.
+ * The founder's desk is not, and it needs to poll faster to be usable — so it
+ * gets its own function rather than borrowing the visitor's budget, which is
+ * what made both desks throttle themselves out after eight minutes.
+ */
+export const readOfficeChat = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { threadId: string }) => ({ threadId: str(input?.threadId, 80) }))
+  .handler(async ({ data }) => ({ ok: true as const, messages: await readChat(data.threadId) }));
 
 export const replyOfficeChat = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
@@ -489,16 +519,55 @@ export const runFloor = createServerFn({ method: "POST" })
     await ensureOffice();
     const snapshot = await readSnapshot();
     if (snapshot.company.halted) return emptyFail("Office is halted. Resume before running the floor.");
-    const { operateFloor } = await import("./floor.server");
-    const ran = await operateFloor();
+    // The founder button and the scheduler share one code path. Pressing the
+    // button must exercise exactly what runs unattended, or "it works when I
+    // press it" stops meaning anything.
+    const result = await operateFloor();
+    const scheduler = await tick();
     return {
       ok: true,
-      briefing: ran.briefing,
-      executed: ran.executed,
-      escalated: 0,
-      blocked: 0,
+      briefing: [result.briefing, scheduler.detail].filter(Boolean).join(" "),
+      executed: result.executed + scheduler.executed,
+      escalated: scheduler.escalated,
+      blocked: scheduler.blocked,
       decisionIds: [],
       approvalIds: [],
+    };
+  });
+
+/** Founder-triggered autonomous run, with the scheduler's own report. */
+export const runAutonomy = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .handler(async () => {
+    await ensureOffice();
+    return runNow();
+  });
+
+/** What the office is doing, why, and when each duty is next due. */
+export const getSchedulerStatus = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => schedulerStatus());
+
+/** The live work queue and the last runs, for the Floor page. */
+export const getWorkQueue = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => {
+    const items = await listWork(120);
+    return {
+      counts: await workCounts(),
+      items: items.map((item) => ({
+        id: item.id,
+        agentId: item.agentId,
+        kind: item.kind,
+        reason: item.reason,
+        status: item.status,
+        priority: item.priority,
+        attempts: item.attempts,
+        maxAttempts: item.maxAttempts,
+        dueAt: item.dueAt,
+        outcome: item.outcome,
+        lastError: item.lastError,
+      })),
     };
   });
 
@@ -509,27 +578,60 @@ export const downloadBackup = createServerFn({ method: "POST" })
 export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async () => paymentMethods(process.env));
 
 /**
- * Draft-only floor run for the scheduled `GET /api/cron/floor` route.
- * Authenticated by CRON_SECRET (NOT the founder session — the scheduler has
- * no cookies). Lives here so the `.server` imports stay inside an exempt
- * server-function handler; the TanStack route file only imports this module.
+ * Scheduled autonomous run for `GET /api/cron/floor`.
+ *
+ * Authenticated by `CRON_SECRET` (NOT the founder session — the scheduler has no
+ * cookies) and gated on `AUTONOMY=on`, so an unattended office is a deliberate
+ * choice rather than a default. Lives here so the `.server` imports stay inside
+ * an exempt server-function handler.
  */
-export const runFloorCron = createServerFn({ method: "POST" })
+export const runOfficeCron = createServerFn({ method: "POST" })
   .validator((input: { secret: string }) => ({ secret: typeof input?.secret === "string" ? input.secret : "" }))
-  .handler(async ({ data }): Promise<{ ok: boolean; executed?: number; briefing?: string; reason?: string }> => {
+  .handler(async ({ data }): Promise<
+    | {
+        ok: true;
+        ranAt: string;
+        planned: number;
+        executed: number;
+        escalated: number;
+        blocked: number;
+        failed: number;
+        ran: { duty: string; owner: string; note: string }[];
+        detail: string;
+      }
+    | { ok: false; reason: string }
+  > => {
     const expected = process.env.CRON_SECRET?.trim() ?? "";
     if (expected.length < 16 || !secretEqual(data.secret, expected)) {
       return { ok: false, reason: "Unauthorized" };
     }
-    if (process.env.AUTO_DRAFTS?.trim().toLowerCase() !== "on") {
-      return { ok: false, reason: "AUTO_DRAFTS is not on." };
+    if (process.env.AUTONOMY?.trim().toLowerCase() !== "on") {
+      return { ok: false, reason: "AUTONOMY is not on." };
     }
     try {
-      const { operateFloor } = await import("./floor.server");
-      const result = await operateFloor({ sendMail: false });
-      return { ok: true, executed: result.executed, briefing: result.briefing };
-    } catch {
-      return { ok: false, reason: "The run failed." };
+      const result = await tick();
+      if (!result.ok) return { ok: false, reason: result.detail };
+      if (result.planned + result.ran.length > 0) {
+        await appendAudit(
+          "office_tick",
+          "Scheduled autonomous run",
+          result.detail,
+          "vantage",
+        );
+      }
+      return {
+        ok: true,
+        ranAt: result.ranAt,
+        planned: result.planned,
+        executed: result.executed,
+        escalated: result.escalated,
+        blocked: result.blocked,
+        failed: result.failed,
+        ran: result.ran.map((entry) => ({ duty: entry.duty, owner: entry.owner, note: entry.note })),
+        detail: result.detail,
+      };
+    } catch (error) {
+      return { ok: false, reason: error instanceof Error ? error.message : "The run failed." };
     }
   });
 
@@ -613,4 +715,60 @@ export const answerCustomerQuote = createServerFn({ method: "POST" })
       // The answer is already recorded.
     }
     return { ok: true as const, outcome: parsed.outcome };
+  });
+
+/**
+ * Record one real page view. Public, because the beacon comes from a visitor's
+ * browser — but it records only what the request already contained, and only
+ * for paths the site actually publishes. Rate limited so it cannot be used to
+ * fill the table.
+ */
+export const reportSiteView = createServerFn({ method: "POST" })
+  .validator(
+    (input: { path?: string; kind?: string; referrer?: string; country?: string; agentFamily?: string }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { isTrackedPage } = await import("@/lib/site/tracked");
+    const path = str(data?.path, 200).split("?")[0].split("#")[0] || "/";
+    if (!isTrackedPage(path)) return { ok: true as const, recorded: false };
+    let request: Request | undefined;
+    try {
+      const server = await import("@tanstack/react-start/server");
+      request = server.getRequest();
+    } catch {
+      request = undefined;
+    }
+    if (!(await allowSiteView(callerKey(request)))) {
+      // Silently drop rather than tell a visitor their page view failed.
+      return { ok: true as const, recorded: false };
+    }
+    const { recordSiteEvent } = await import("./office-view.server");
+    try {
+      await recordSiteEvent({
+        kind: str(data.kind, 40) || "page_view",
+        path,
+        referrer: str(data.referrer, 300) || null,
+        country: str(data.country, 80) || null,
+        agentFamily: str(data.agentFamily, 300) || null,
+      });
+      return { ok: true as const, recorded: true };
+    } catch {
+      return { ok: true as const, recorded: false };
+    }
+  });
+
+/**
+ * Office health for `GET /api/health`.
+ *
+ * The unauthenticated response is deliberately coarse: enough to tell an
+ * operator or a monitor that the business is running, and nothing that leaks a
+ * secret, a customer, or internal detail. The founder session upgrades it to the
+ * full picture, which is why this uses `officeAccessMiddleware` (which resolves
+ * the founder without throwing) rather than `founderMiddleware`.
+ */
+export const getOfficeHealth = createServerFn({ method: "GET" })
+  .middleware([officeAccessMiddleware])
+  .handler(async ({ context }): Promise<OfficeHealth> => {
+    const { officeHealth } = await import("./health.server");
+    return officeHealth({ full: context.founder === true });
   });

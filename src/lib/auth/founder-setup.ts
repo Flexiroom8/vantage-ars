@@ -1,17 +1,25 @@
 /**
- * Founder account setup for email/password sign-in (server-only).
+ * Founder account setup for email/password sign-in.
  *
  * The office has exactly one account: the founder (`COMPANY.email`). Public
  * sign-up is closed. The founder account can be created once, and only by a
  * request that carries the `FOUNDER_SETUP_TOKEN` set in the server environment.
  * Remove the token from the environment after setup.
+ *
+ * The database is reached through a lazy import so that importing the pure
+ * helpers (which the client-side tests and the setup screen both do) never pulls
+ * a Postgres/PGLite driver into the process.
  */
 import { createHash, timingSafeEqual } from "node:crypto";
-import { getSql } from "@/lib/db";
 import { founderEmail } from "@/lib/office/company";
 
 export const FOUNDER_SETUP_HEADER = "x-founder-setup-token";
-export const MIN_FOUNDER_PASSWORD = 12;
+
+export {
+  MAX_FOUNDER_PASSWORD,
+  MIN_FOUNDER_PASSWORD,
+  RESET_TOKEN_TTL_SECONDS,
+} from "./founder-password";
 
 function digest(value: string): Buffer {
   return createHash("sha256").update(value, "utf8").digest();
@@ -38,6 +46,7 @@ export function isFounderEmail(value: unknown): boolean {
 }
 
 export async function founderAccountExists(): Promise<boolean> {
+  const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   const rows = await sql<{ n: number }>`select count(*)::int as n from "user" where lower(email) = ${founderEmail()}`;
   return Number(rows[0]?.n ?? 0) > 0;

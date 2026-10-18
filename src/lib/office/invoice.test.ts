@@ -70,9 +70,45 @@ describe("quote to invoice", () => {
     assert.equal(paymentInstructionsText(TEST_BANK).includes("0000000001"), true);
     assert.equal(paymentNote(paymentInstructionsText(TEST_BANK)), paymentInstructionsText(TEST_BANK));
     assert.equal(paymentInstructionsText(TEST_BANK).toLowerCase().includes("card payment is not available"), true);
-    assert.equal(documentRef("abc"), "VA-ABC");
+  });
+});
+
+describe("document references", () => {
+  const REF_ALPHABET = /^[0-9ABCDEFGHJKMNPQRSTVWXYZ]+$/;
+
+  it("is a stable VA- reference in a phone-safe alphabet", () => {
+    const ref = documentRef("3f2b1c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d");
+    assert.match(ref, /^VA-[0-9A-Z]{10}$/);
+    assert.match(ref.slice(3), REF_ALPHABET);
+    assert.equal(ref, documentRef("3f2b1c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d"));
   });
 
+  it("excludes characters that are misread over the phone", () => {
+    const samples = Array.from({ length: 200 }, (_, i) => documentRef(`id-${i}`));
+    for (const ref of samples) {
+      assert.equal(/[ILOU]/.test(ref), false, `${ref} contains a misreadable character`);
+    }
+  });
+
+  it("does not collide across many documents", () => {
+    // The previous 8-hex implementation collided around 77k documents. Two
+    // thousand must be unambiguous.
+    const seen = new Set<string>();
+    for (let i = 0; i < 2000; i += 1) {
+      const ref = documentRef(`00000000-0000-4000-8000-${i.toString(16).padStart(12, "0")}`);
+      assert.equal(seen.has(ref), false, `collision on ${ref} at ${i}`);
+      seen.add(ref);
+    }
+  });
+
+  it("handles an id with no hex digits rather than producing NaN", () => {
+    const ref = documentRef("zzzz");
+    assert.match(ref, /^VA-[0-9A-Z]{10}$/);
+    assert.equal(ref, documentRef("zzzz"));
+  });
+});
+
+describe("quote to invoice", () => {
   it("puts the payment details on the quote the founder sends", () => {
     const sent = withPaymentNote(
       customerQuoteText("INTERNAL QUOTE DRAFT. This has not been sent. Remote support. Reference: VA-ABC12345."),

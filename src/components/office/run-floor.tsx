@@ -4,11 +4,25 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { runFloor } from "@/lib/office/api";
 
-export function RunFloorButton({ halted }: { halted: boolean }) {
+/**
+ * The founder's manual trigger.
+ *
+ * It calls exactly the same code path the scheduled run uses, so "it works when
+ * I press the button" means something. It is a convenience, not a prerequisite:
+ * with `AUTONOMY=on` the office does this without anyone pressing it.
+ */
+export function RunFloorButton({
+  halted,
+  onDone,
+}: {
+  halted: boolean;
+  onDone?: () => void;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function onRun() {
+    if (pending) return;
     setPending(true);
     try {
       const result = await runFloor();
@@ -20,6 +34,7 @@ export function RunFloorButton({ halted }: { halted: boolean }) {
         `${result.executed} executed · ${result.escalated} to you · ${result.blocked} blocked`,
         { description: result.briefing },
       );
+      onDone?.();
       await router.invalidate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "The floor could not run.");
@@ -29,8 +44,8 @@ export function RunFloorButton({ halted }: { halted: boolean }) {
   }
 
   return (
-    <Button variant="secondary" onClick={onRun} disabled={pending || halted}>
-      {pending ? "Evaluating…" : "Run the floor"}
+    <Button variant="secondary" onClick={onRun} disabled={pending || halted} aria-busy={pending}>
+      {pending ? "Evaluating…" : halted ? "Office halted" : "Run the floor"}
     </Button>
   );
 }

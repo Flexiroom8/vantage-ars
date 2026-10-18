@@ -4,6 +4,10 @@ import { sha256Hex, stableStringify } from "./hash.ts";
  * Office backup envelope. Tables are plain row arrays; a SHA-256 over the stable
  * JSON of the tables lets a restore tool (or you) detect a damaged or edited file.
  * Auth tables (user, session, account, verification) are deliberately never exported.
+ *
+ * `quote_links` is included: without it a restore silently kills every customer
+ * quote link that is still open, and those customers can never answer.
+ * `rate_hits` is excluded — it is transient throttling state with no business value.
  */
 export const BACKUP_TABLES = [
   "company_state",
@@ -22,7 +26,35 @@ export const BACKUP_TABLES = [
   "founder_notices",
   "chat_threads",
   "chat_messages",
+  "quote_links",
+  "work_items",
+  "agent_runs",
+  "office_state",
 ] as const;
+
+/** Order matters on restore: parents before children. */
+export const BACKUP_RESTORE_ORDER: readonly string[] = [
+  "company_state",
+  "constitution_provisions",
+  "agents",
+  "inbound_items",
+  "leads",
+  "opportunities",
+  "campaigns",
+  "ledger_entries",
+  "tickets",
+  "documents",
+  "approvals",
+  "decisions",
+  "audit_events",
+  "founder_notices",
+  "chat_threads",
+  "chat_messages",
+  "quote_links",
+  "office_state",
+  "work_items",
+  "agent_runs",
+];
 
 export type BackupTables = Record<string, Record<string, unknown>[]>;
 

@@ -3,14 +3,41 @@ import { formatZar } from "./money";
 
 export const FOUNDER_EMAIL = founderEmail();
 
+export type FounderNoticeKind =
+  | "enquiry"
+  | "approval"
+  | "payment"
+  | "chat"
+  | "quote"
+  | "office_alert";
+
 export type FounderNotice = {
-  kind: "enquiry" | "approval" | "payment" | "chat" | "quote";
+  kind: FounderNoticeKind;
   subject: string;
   body: string;
 };
 
 function oneLine(value: string, max: number): string {
   return value.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+/**
+ * An operational alert the founder needs to see: the office stopped itself, the
+ * audit chain failed, or something needs a decision that has no other surface.
+ */
+export function founderOfficeAlertNotice(input: {
+  title: string;
+  detail: string;
+  where?: string;
+}): FounderNotice {
+  return {
+    kind: "office_alert",
+    subject: `VANTAGE-ARS · ${oneLine(input.title, 120)}`,
+    body: [
+      oneLine(input.detail, 1200),
+      input.where ? `See: https://vantage-ars.co.za${input.where}` : "Open the office at https://vantage-ars.co.za/office",
+    ].join("\n"),
+  };
 }
 
 export function founderEnquiryNotice(input: {

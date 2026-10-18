@@ -52,3 +52,28 @@ export function formatNowClock(): { date: string; time: string } {
   const now = new Date();
   return { date: sastDate.format(now), time: sastTime.format(now) };
 }
+
+/**
+ * Human "3m ago" / "in 2h" for scheduler and queue timestamps. Deliberately
+ * coarse: this is for scanning a list, not for reading a precise instant — use
+ * `formatDateTime` when the exact time matters.
+ */
+export function formatRelative(iso: string, now: number = Date.now()): string {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return "unknown";
+  const seconds = Math.round((now - then) / 1000);
+  const future = seconds < 0;
+  const magnitude = Math.abs(seconds);
+  const phrase = (value: number, unit: string): string =>
+    `${value}${unit}${value === 1 ? "" : "s"}`;
+  const text =
+    magnitude < 45
+      ? "just now"
+      : magnitude < 3600
+        ? phrase(Math.round(magnitude / 60), "m")
+        : magnitude < 86400
+          ? phrase(Math.round(magnitude / 3600), "h")
+          : phrase(Math.round(magnitude / 86400), "d");
+  if (text === "just now") return text;
+  return future ? `in ${text}` : `${text} ago`;
+}

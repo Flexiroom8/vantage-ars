@@ -5,7 +5,6 @@ import { LiveField } from "@/components/public/live-field";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { haltOffice } from "@/lib/office/api";
-import { COMPANY } from "@/lib/office/company";
 import { formatNowClock, formatZar } from "@/lib/office/format";
 import type { OfficeSnapshot } from "@/lib/office/types";
 import { cn } from "@/lib/utils";
@@ -53,6 +52,7 @@ function NavLink({
     <Link
       to={href}
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={cn(
         "group relative flex items-center justify-between border px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all",
         active
@@ -63,6 +63,7 @@ function NavLink({
       <span>{label}</span>
 
       <span
+        aria-hidden="true"
         className={cn(
           "h-1.5 w-1.5 rounded-full transition-opacity",
           active
@@ -117,20 +118,32 @@ function OfficeNavigation({
 
 export function AppShell({ snapshot, children }: AppShellProps) {
   const router = useRouter();
-  const [halted, setHalted] = useState(false);
   const [halting, setHalting] = useState(false);
+  const [haltError, setHaltError] = useState("");
 
-  const treasury = snapshot?.treasury?.available ?? 0;
+  // The server is the only authority on halt state — never mirror it in local
+  // state, or the button lies the moment the scheduler halts the office.
+  const halted = snapshot?.company.halted === true;
+  const treasury = snapshot?.company.treasuryCents ?? 0;
+  const receivable = snapshot?.company.receivableCents ?? 0;
+  const payable = snapshot?.company.payableCents ?? 0;
 
-  async function handleHalt() {
+  async function toggleHalt() {
     if (halting) return;
-
+    setHaltError("");
     setHalting(true);
-
     try {
-      await haltOffice();
-      setHalted(true);
+      await haltOffice({
+        data: {
+          halted: !halted,
+          reason: halted
+            ? "Founder resumed operations from the office shell."
+            : "Founder halted the office from the office shell.",
+        },
+      });
       await router.invalidate();
+    } catch (reason) {
+      setHaltError(reason instanceof Error ? reason.message : "Could not change the halt state.");
     } finally {
       setHalting(false);
     }
@@ -139,6 +152,13 @@ export function AppShell({ snapshot, children }: AppShellProps) {
   return (
     <div className="relative min-h-dvh overflow-hidden bg-bg text-fg">
       <LiveField />
+
+      <a
+        href="#office-main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-surface focus:px-4 focus:py-2 focus:font-mono focus:text-xs focus:text-accent"
+      >
+        Skip to content
+      </a>
 
       <div className="relative z-10 min-h-dvh">
         {/* Desktop sidebar */}
@@ -210,15 +230,33 @@ export function AppShell({ snapshot, children }: AppShellProps) {
               </div>
             </div>
 
+            <p aria-live="polite" className="sr-only">
+              {halted
+                ? "Office halted. Agents cannot act."
+                : `Office live. Treasury ${formatZar(treasury)}, receivable ${formatZar(receivable)}, payable ${formatZar(payable)}.`}
+            </p>
+
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-center border-red-500/20 text-red-300 hover:border-red-500/40 hover:bg-red-500/5"
-              disabled={halting || halted}
-              onClick={handleHalt}
+              className={cn(
+                "w-full justify-center",
+                halted
+                  ? "border-ok/30 text-ok hover:bg-ok/5"
+                  : "border-danger/25 text-danger hover:border-danger/45 hover:bg-danger/5",
+              )}
+              disabled={halting}
+              aria-busy={halting}
+              onClick={toggleHalt}
             >
-              {halting ? "Halting…" : halted ? "Office halted" : "Halt office"}
+              {halting ? "Working…" : halted ? "Resume office" : "Halt office"}
             </Button>
+
+            {haltError ? (
+              <p role="alert" className="mt-2 text-center font-mono text-[9px] text-danger">
+                {haltError}
+              </p>
+            ) : null}
           </div>
         </aside>
 
@@ -240,6 +278,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
 
                 <SheetContent
                   side="left"
+                  aria-label="Office navigation"
                   className="w-[290px] border-r border-border/70 bg-bg/95 p-0 backdrop-blur-xl"
                 >
                   <div className="border-b border-border/70 px-5 py-5">
@@ -334,7 +373,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
             </div>
           </header>
 
-          <main className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+          <main id="office-main" className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
             <div className="mx-auto w-full max-w-[1600px]">
               {children}
             </div>

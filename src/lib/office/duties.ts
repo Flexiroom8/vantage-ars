@@ -1,0 +1,958 @@
+/**
+ * Autonomous duties — the pure planning half.
+ *
+ * Each duty answers one question about the *real* state of the office and
+ * returns work items, or nothing. No duty may invent a customer, a figure, or a
+ * record: everything here is derived from rows that already exist, which is why
+ * this module is a pure function of its input and is exhaustively unit-tested.
+ *
+ * A duty returning an empty list is a healthy, successful run. "Nothing needed
+ * doing" is the correct answer most of the time, and the office must be able to
+ * say so honestly rather than manufacture activity to look busy.
+ */
+import { PUBLISHED_RATES } from "./catalogue";
+
+const HOUR = 60;
+const DAY = 24 * HOUR;
+
+export type PlannedWork = {
+  agentId: string;
+  kind: string;
+  reason: string;
+  priority: number;
+  payload?: Record<string, unknown>;
+  /** One open item per (duty, subject). Omit only for genuinely one-shot work. */
+  dedupeKey: string;
+  /** Overrides the default of 3 attempts for duties that must not retry. */
+  maxAttempts?: number;
+};
+
+export type InboundView = {
+  id: string;
+  channel: string;
+  companyName: string;
+  subject: string;
+  summary: string;
+  intent: string;
+  status: string;
+  createdAt: string;
+};
+
+export type LeadView = {
+  id: string;
+  companyName: string;
+  stage: string;
+  score: number;
+  summary: string;
+  inboundId: string | null;
+  updatedAt: string;
+};
+
+export type OpportunityView = {
+  id: string;
+  companyName: string;
+  stage: string;
+  valueCents: number;
+  summary: string;
+  updatedAt: string;
+};
+
+export type QuoteView = {
+  id: string;
+  title: string;
+  kind: string;
+  status: string;
+  relatedId: string | null;
+  createdAt: string;
+};
+
+export type TicketView = {
+  id: string;
+  title: string;
+  severity: string;
+  status: string;
+  ownerAgent: string;
+  summary: string;
+  relatedId: string | null;
+  updatedAt: string;
+};
+
+export type LedgerView = {
+  id: string;
+  kind: string;
+  counterparty: string;
+  amountCents: number;
+  status: string;
+  relatedId: string | null;
+  createdAt: string;
+};
+
+export type DocumentView = {
+  id: string;
+  title: string;
+  kind: string;
+  status: string;
+  relatedId: string | null;
+  createdAt: string;
+};
+
+export type AgentView = {
+  id: string;
+  callsign: string;
+  status: string;
+  lastHeartbeat: string | null;
+};
+
+export type SiteEventView = { kind: string; path: string; occurredAt: string };
+
+export type ChatThreadView = {
+  id: string;
+  name: string;
+  status: string;
+  updatedAt: string;
+  lastMessageAt: string | null;
+  unansweredCount: number;
+};
+
+export type QuoteLinkView = {
+  documentId: string;
+  state: string;
+  viewCount: number;
+  createdAt: string;
+  lastViewedAt: string | null;
+};
+
+export type DutyView = {
+  now: string;
+  halted: boolean;
+  inbound: InboundView[];
+  leads: LeadView[];
+  opportunities: OpportunityView[];
+  quotes: QuoteView[];
+  tickets: TicketView[];
+  ledger: LedgerView[];
+  documents: DocumentView[];
+  approvalsPending: { id: string; kind: string; title: string; companyName: string | null; createdAt: string }[];
+  agents: AgentView[];
+  siteEvents: SiteEventView[];
+  chatThreads: ChatThreadView[];
+  quoteLinks: QuoteLinkView[];
+  treasuryCents: number;
+  receivableCents: number;
+  payableCents: number;
+  publishedPathCount: number;
+  chainIntact: boolean;
+  /** Work the queue already knows about; the orchestrator's view of the backlog. */
+  work: WorkQueueView[];
+};
+
+export type WorkQueueView = {
+  id: string;
+  agentId: string;
+  kind: string;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  dueAt: string;
+  lastError: string | null;
+};
+
+export type DutyId =
+  | "vantage_liveness"
+  | "vantage_backlog"
+  | "foyer_intake"
+  | "foyer_stale_intake"
+  | "signal_site_signals"
+  | "signal_content_brief"
+  | "signal_qualify_leads"
+  | "signal_handoff"
+  | "close_discovery"
+  | "close_quote_followup"
+  | "close_stale_proposal"
+  | "close_win_handoff"
+  | "desk_acknowledge"
+  | "desk_sla_watch"
+  | "desk_chat_reply"
+  | "forge_diagnose"
+  | "forge_knowledge"
+  | "ledger_chase_invoice"
+  | "ledger_payment_notices"
+  | "ledger_payables"
+  | "keep_records"
+  | "seal_chain_verify"
+  | "seal_scope_audit";
+
+export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
+  vantage_liveness: 30,
+  vantage_backlog: 60,
+  foyer_intake: 10,
+  foyer_stale_intake: 60,
+  signal_site_signals: 720,
+  signal_content_brief: 1440,
+  signal_qualify_leads: 180,
+  signal_handoff: 120,
+  close_discovery: 240,
+  close_quote_followup: 720,
+  close_stale_proposal: 1440,
+  close_win_handoff: 60,
+  desk_acknowledge: 30,
+  desk_sla_watch: 120,
+  desk_chat_reply: 15,
+  forge_diagnose: 30,
+  forge_knowledge: 1440,
+  ledger_chase_invoice: 1440,
+  ledger_payment_notices: 120,
+  ledger_payables: 1440,
+  keep_records: 720,
+  seal_chain_verify: 720,
+  seal_scope_audit: 1440,
+};
+
+export const DUTY_OWNER: Record<DutyId, string> = {
+  vantage_liveness: "vantage",
+  vantage_backlog: "vantage",
+  foyer_intake: "foyer",
+  foyer_stale_intake: "foyer",
+  signal_site_signals: "signal",
+  signal_content_brief: "signal",
+  signal_qualify_leads: "signal",
+  signal_handoff: "signal",
+  close_discovery: "close",
+  close_quote_followup: "close",
+  close_stale_proposal: "close",
+  close_win_handoff: "close",
+  desk_acknowledge: "desk",
+  desk_sla_watch: "desk",
+  desk_chat_reply: "desk",
+  forge_diagnose: "forge",
+  forge_knowledge: "forge",
+  ledger_chase_invoice: "ledger",
+  ledger_payment_notices: "ledger",
+  ledger_payables: "ledger",
+  keep_records: "keep",
+  seal_chain_verify: "seal",
+  seal_scope_audit: "seal",
+};
+
+export const DUTY_TITLES: Record<DutyId, string> = {
+  vantage_liveness: "Check the floor is alive",
+  vantage_backlog: "Report a blocked backlog",
+  foyer_intake: "Intake and classify new enquiries",
+  foyer_stale_intake: "Chase enquiries nobody picked up",
+  signal_site_signals: "Read real site signals",
+  signal_content_brief: "Brief the next owned-site piece",
+  signal_qualify_leads: "Score and qualify leads",
+  signal_handoff: "Hand qualified demand to sales",
+  close_discovery: "Advance discovery",
+  close_quote_followup: "Follow up on quotes",
+  close_stale_proposal: "Review cold proposals",
+  close_win_handoff: "Hand won work to delivery",
+  desk_acknowledge: "Acknowledge service requests",
+  desk_sla_watch: "Watch ageing service tickets",
+  desk_chat_reply: "Draft replies to waiting chats",
+  forge_diagnose: "Write a technical procedure",
+  forge_knowledge: "Turn resolved faults into knowledge",
+  ledger_chase_invoice: "Chase overdue invoices",
+  ledger_payment_notices: "Reconcile payment notices",
+  ledger_payables: "Review payables",
+  keep_records: "Check the filing is complete",
+  seal_chain_verify: "Verify the audit chain",
+  seal_scope_audit: "Audit agents against their roles",
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function ageMinutes(iso: string, now: string): number {
+  const then = Date.parse(iso);
+  const current = Date.parse(now);
+  if (!Number.isFinite(then) || !Number.isFinite(current)) return 0;
+  return Math.max(0, Math.round((current - then) / 60_000));
+}
+
+/** Words that signal the sender actually wants to buy something. */
+const DEMAND_SIGNALS = [
+  "quote",
+  "pricing",
+  "price",
+  "cost",
+  "how much",
+  "rate",
+  "rates",
+  "proposal",
+  "interested",
+  "looking for",
+  "need help",
+  "we need",
+  "upgrade",
+  "install",
+  "installation",
+  "setup",
+  "migrate",
+  "migration",
+  "consult",
+  "appointment",
+  "available",
+  "would like",
+  "can you",
+  "help with",
+];
+
+const SUPPORT_SIGNALS = [
+  "not working",
+  "broken",
+  "down",
+  "fault",
+  "issue",
+  "problem",
+  "can't",
+  "cannot",
+  "won't",
+  "outage",
+  "no internet",
+  "no dial",
+  "dropping",
+  "intermittent",
+  "help",
+  "urgent",
+  "asap",
+];
+
+const SPAM_SIGNALS = [
+  "seo services",
+  "backlinks",
+  "guest post",
+  "crypto",
+  "casino",
+  "viagra",
+  "web design",
+  "we can help you get more leads",
+  "dear sir or madam",
+  "unsubscribe",
+];
+
+/** Deterministic, explainable lead scoring. Returns points and the reasons. */
+export function scoreLead(text: string, from: string): { score: number; reasons: string[]; demand: number; support: number; spam: boolean } {
+  const haystack = `${text} ${from}`.toLowerCase();
+  const reasons: string[] = [];
+  let score = 0;
+
+  const spam = SPAM_SIGNALS.filter((needle) => haystack.includes(needle));
+  if (spam.length) {
+    return { score: -100, reasons: [`Reads as unsolicited outreach: ${spam.join(", ")}`], demand: 0, support: 0, spam: true };
+  }
+
+  const demand = DEMAND_SIGNALS.filter((needle) => haystack.includes(needle));
+  const support = SUPPORT_SIGNALS.filter((needle) => haystack.includes(needle));
+  score += Math.min(40, demand.length * 10);
+  score += Math.min(30, support.length * 8);
+  if (demand.length) reasons.push(`Asks about buying: ${demand.slice(0, 4).join(", ")}`);
+  if (support.length) reasons.push(`Reports a fault or need help: ${support.slice(0, 4).join(", ")}`);
+
+  const length = text.trim().length;
+  if (length >= 120) {
+    score += 15;
+    reasons.push("Gave real detail about their situation.");
+  } else if (length < 40) {
+    score -= 10;
+    reasons.push("Very little detail.");
+  }
+
+  if (/\b(urgent|asap|down|outage|can't work|no service)\b/i.test(haystack)) {
+    score += 15;
+    reasons.push("Says the problem is stopping work.");
+  }
+  if (/[\d]{3,}/.test(haystack)) {
+    score += 5;
+    reasons.push("Named a device count, budget, or extension number.");
+  }
+  if (/\b(we|our|company|office|team|staff)\b/i.test(haystack)) {
+    score += 10;
+    reasons.push("Sounds like an organisation rather than a one-off.");
+  }
+
+  return { score: Math.max(0, Math.min(100, score)), reasons, demand: demand.length, support: support.length, spam: false };
+}
+
+// ── Duties ────────────────────────────────────────────────────────────────────
+
+/**
+ * Plan one duty. Returns the work it wants done; an empty array means the office
+ * is in good shape for that responsibility.
+ */
+export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
+  if (view.halted) return [];
+  switch (duty) {
+    case "vantage_liveness":
+      return planLiveness(view);
+    case "vantage_backlog":
+      return planBacklog(view);
+    case "foyer_intake":
+      return planFoyerIntake(view);
+    case "foyer_stale_intake":
+      return planFoyerStaleIntake(view);
+    case "signal_site_signals":
+      return planSiteSignals(view);
+    case "signal_content_brief":
+      return planContentBrief(view);
+    case "signal_qualify_leads":
+      return planQualifyLeads(view);
+    case "signal_handoff":
+      return planHandoff(view);
+    case "close_discovery":
+      return planDiscovery(view);
+    case "close_quote_followup":
+      return planQuoteFollowUp(view);
+    case "close_stale_proposal":
+      return planStaleProposal(view);
+    case "close_win_handoff":
+      return planWinHandoff(view);
+    case "desk_acknowledge":
+      return planAcknowledge(view);
+    case "desk_sla_watch":
+      return planSlaWatch(view);
+    case "desk_chat_reply":
+      return planChatReply(view);
+    case "forge_diagnose":
+      return planDiagnose(view);
+    case "forge_knowledge":
+      return planKnowledge(view);
+    case "ledger_chase_invoice":
+      return planChaseInvoice(view);
+    case "ledger_payment_notices":
+      return planPaymentNotices(view);
+    case "ledger_payables":
+      return planPayables(view);
+    case "keep_records":
+      return planRecords(view);
+    case "seal_chain_verify":
+      return planChainVerify(view);
+    case "seal_scope_audit":
+      return planScopeAudit(view);
+    default:
+      return [];
+  }
+}
+
+/**
+ * The orchestrator's own duty. The single most dangerous failure mode for an
+ * office that runs unattended is a queue that silently stops draining — items
+ * pile up and nothing says so. This surfaces both a stuck backlog and work that
+ * has exhausted its retries.
+ */
+function planBacklog(view: DutyView): PlannedWork[] {
+  const work: PlannedWork[] = [];
+  const open = view.work.filter((item) => item.status === "open");
+  const abandoned = view.work.filter((item) => item.status === "abandoned");
+
+  // Anything overdue by more than twice the busiest cadence is stuck, not busy.
+  const stuck = open.filter((item) => ageMinutes(item.dueAt, view.now) > 240);
+  if (stuck.length >= 3) {
+    work.push({
+      agentId: "vantage",
+      kind: "report_stuck_backlog",
+      reason: `${stuck.length} work items have been waiting more than four hours: ${stuck.slice(0, 5).map((i) => `${i.agentId}/${i.kind}`).join(", ")}.`,
+      priority: 9,
+      payload: { stuck: stuck.slice(0, 20).map((item) => ({ id: item.id, agentId: item.agentId, kind: item.kind, attempts: item.attempts })) },
+      dedupeKey: `stuck-backlog:${Math.floor(view.work.length / 5)}`,
+    });
+  }
+
+  if (abandoned.length) {
+    work.push({
+      agentId: "vantage",
+      kind: "report_abandoned_work",
+      reason: `${abandoned.length} work item(s) exhausted their retries and were abandoned. Last error: ${abandoned[0].lastError ?? "unknown"}.`,
+      priority: 7,
+      payload: { abandoned: abandoned.slice(0, 20).map((item) => ({ id: item.id, agentId: item.agentId, kind: item.kind, attempts: item.attempts, lastError: item.lastError })) },
+      dedupeKey: `abandoned:${new Date(view.now).toISOString().slice(0, 10)}`,
+    });
+  }
+
+  return work;
+}
+
+function planLiveness(view: DutyView): PlannedWork[] {
+  // An agent that has not recorded a heartbeat is only a problem when it HAS
+  // work waiting. An agent with an empty queue and nothing due is idle, which is
+  // the correct state for most of the day — reporting that as "silent" would
+  // bury a real failure under noise the founder learns to ignore.
+  const work: PlannedWork[] = [];
+  const staleMinutes = 120;
+  const outstanding = (agentId: string): number =>
+    view.work.filter((item) => item.agentId === agentId && item.status !== "abandoned").length;
+
+  for (const agent of view.agents) {
+    const beat = agent.lastHeartbeat ? ageMinutes(agent.lastHeartbeat, view.now) : Infinity;
+    if (beat <= staleMinutes) continue;
+
+    const waiting = outstanding(agent.id);
+    // Never heartbeat at all since the office was provisioned: that is a real
+    // fault regardless of queue depth, because it means the agent has never run.
+    const neverRan = agent.lastHeartbeat === null;
+    if (waiting === 0 && !neverRan) continue;
+
+    work.push({
+      agentId: "vantage",
+      kind: "report_silent_agent",
+      reason: neverRan
+        ? `${agent.callsign} has never run. Its first work item is ${waiting ? "still waiting" : "queued for the next tick"}.`
+        : `${agent.callsign} has ${waiting} item(s) waiting and has not recorded work for ${beat} minutes.`,
+      priority: neverRan ? 4 : 6,
+      payload: { silentAgent: agent.id, waiting, minutes: Number.isFinite(beat) ? beat : null },
+      dedupeKey: `liveness:${agent.id}:${Math.floor(beat / 60)}`,
+    });
+  }
+  return work;
+}
+
+function planFoyerIntake(view: DutyView): PlannedWork[] {
+  const handled = new Set<string>();
+  for (const lead of view.leads) if (lead.inboundId) handled.add(lead.inboundId);
+  for (const ticket of view.tickets) if (ticket.relatedId) handled.add(ticket.relatedId);
+  return view.inbound
+    .filter((item) => item.status === "received" && !handled.has(item.id))
+    .map((item) => ({
+      agentId: "foyer",
+      kind: "classify_inbound",
+      reason: `Classify and route: ${item.subject}`,
+      priority: item.intent === "support" ? 20 : 15,
+      payload: {
+        inboundId: item.id,
+        companyName: item.companyName,
+        intent: item.intent,
+        subject: item.subject,
+        summary: item.summary,
+        channel: item.channel,
+      },
+      dedupeKey: `intake:${item.id}`,
+    }));
+}
+
+function planFoyerStaleIntake(view: DutyView): PlannedWork[] {
+  const work: PlannedWork[] = [];
+  for (const item of view.inbound) {
+    if (item.status !== "received") continue;
+    const age = ageMinutes(item.createdAt, view.now);
+    if (age < 4 * HOUR) continue;
+    work.push({
+      agentId: "foyer",
+      kind: "escalate_stale_enquiry",
+      reason: `${item.companyName} wrote ${Math.floor(age / 60)}h ago about "${item.subject}" and nobody has answered.`,
+      priority: 8,
+      payload: { inboundId: item.id, companyName: item.companyName, ageHours: Math.floor(age / 60) },
+      dedupeKey: `stale-intake:${item.id}:${Math.floor(age / (24 * HOUR))}`,
+    });
+  }
+  return work;
+}
+
+function planSiteSignals(view: DutyView): PlannedWork[] {
+  if (!view.siteEvents.length) return [];
+  const byPath = new Map<string, number>();
+  for (const event of view.siteEvents) {
+    byPath.set(event.path, (byPath.get(event.path) ?? 0) + 1);
+  }
+  return [
+    {
+      agentId: "signal",
+      kind: "analyse_site_signals",
+      reason: `${view.siteEvents.length} real visits recorded. ${
+        [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p, n]) => `${p} (${n})`).join(", ")
+      }`,
+      priority: 40,
+      payload: { paths: [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10) },
+      dedupeKey: `site-signals:${view.siteEvents[view.siteEvents.length - 1]?.occurredAt.slice(0, 10) ?? "none"}`,
+    },
+  ];
+}
+
+function planContentBrief(view: DutyView): PlannedWork[] {
+  // One brief per day, but only when there is a real gap to write about.
+  const briefs = view.documents.filter((doc) => doc.kind === "content_brief");
+  const latest = briefs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const hoursSince = latest ? ageMinutes(latest.createdAt, view.now) / 60 : Infinity;
+  if (hoursSince < 20) return [];
+  return [
+    {
+      agentId: "signal",
+      kind: "write_content_brief",
+      reason:
+        hoursSince === Infinity
+          ? `No content brief has ever been written. The site has ${view.publishedPathCount} published pages and ${view.siteEvents.length} recorded visits.`
+          : `Last content brief was ${Math.floor(hoursSince)}h ago.`,
+      priority: 45,
+      payload: { pageCount: view.publishedPathCount, visits: view.siteEvents.length },
+      dedupeKey: `content-brief:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
+}
+
+function planQualifyLeads(view: DutyView): PlannedWork[] {
+  return view.leads
+    .filter((lead) => !lead.stage.endsWith("_qualified") && lead.stage !== "lost" && lead.stage !== "in_sales")
+    .filter((lead) => lead.summary.trim().length > 0)
+    .map((lead) => {
+      const scored = scoreLead(`${lead.summary} ${lead.companyName}`, lead.companyName);
+      return {
+        agentId: "signal",
+        kind: "qualify_lead",
+        reason: `${lead.companyName} (stage ${lead.stage}) scores ${scored.score} from what they actually wrote.`,
+        priority: 30 - Math.min(25, Math.round(scored.score / 4)),
+        payload: { leadId: lead.id, score: scored.score, reasons: scored.reasons, demand: scored.demand, support: scored.support, spam: scored.spam },
+        dedupeKey: `qualify:${lead.id}`,
+      };
+    });
+}
+
+/**
+ * Marketing only files a sales handoff when the enquiry itself reads as buying
+ * intent. Calibrated against `scoreLead`: a single vague message scores near
+ * zero, unsolicited outreach is rejected outright, and a short but explicit
+ * buying enquiry ("could you quote for 20 extensions") clears this bar.
+ */
+export const HANDOFF_THRESHOLD = 30;
+
+function planHandoff(view: DutyView): PlannedWork[] {
+  // Marketing stops at marketing. Anything that reads as genuine buying intent
+  // and is not already in sales becomes a founder-gated handoff proposal.
+  const pendingHandoff = new Set(
+    view.approvalsPending.filter((a) => a.kind === "sales_handoff").map((a) => (a.companyName ?? "").toLowerCase()),
+  );
+  const inSales = new Set(
+    view.leads.filter((lead) => lead.stage === "in_sales" || lead.stage === "ready_for_sales").map((lead) => lead.companyName.toLowerCase()),
+  );
+  const work: PlannedWork[] = [];
+  for (const lead of view.leads) {
+    const key = lead.companyName.toLowerCase();
+    if (lead.stage === "lost" || inSales.has(key) || pendingHandoff.has(key)) continue;
+    const scored = scoreLead(lead.summary, lead.companyName);
+    if (scored.spam || scored.score < HANDOFF_THRESHOLD || scored.demand === 0) continue;
+    work.push({
+      agentId: "signal",
+      kind: "propose_sales_handoff",
+      reason: `${lead.companyName}: ${scored.reasons.slice(0, 2).join("; ") || "reads as buying intent"}.`,
+      priority: 12,
+      payload: { leadId: lead.id, companyName: lead.companyName, score: scored.score, reasons: scored.reasons },
+      dedupeKey: `handoff:${lead.id}`,
+    });
+  }
+  return work;
+}
+
+function planDiscovery(view: DutyView): PlannedWork[] {
+  return view.opportunities
+    .filter((opp) => opp.stage === "discovery")
+    .map((opp) => ({
+      agentId: "close",
+      kind: "advance_discovery",
+      reason: `${opp.companyName} is in discovery${opp.summary ? `: ${opp.summary.slice(0, 120)}` : ""}`,
+      priority: 20,
+      payload: { opportunityId: opp.id, companyName: opp.companyName },
+      dedupeKey: `discovery:${opp.id}`,
+    }));
+}
+
+function planQuoteFollowUp(view: DutyView): PlannedWork[] {
+  const links = new Map(view.quoteLinks.map((link) => [link.documentId, link]));
+  const sentAt = new Map<string, number>();
+  for (const quote of view.quotes) {
+    if (quote.status !== "approved_unsent" || !quote.relatedId) continue;
+    sentAt.set(quote.relatedId, (sentAt.get(quote.relatedId) ?? 0) + 1);
+  }
+  const work: PlannedWork[] = [];
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "proposal") continue;
+    if ((sentAt.get(opp.id) ?? 0) === 0) continue;
+    const quote = view.quotes
+      .filter((q) => q.kind === "quote" && q.relatedId === opp.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    if (!quote) continue;
+    const age = ageMinutes(quote.createdAt, view.now);
+    if (age < 2 * DAY) continue;
+    const link = links.get(quote.id);
+    work.push({
+      agentId: "close",
+      kind: "draft_quote_followup",
+      reason:
+        `${opp.companyName} has had quote ${quote.title} out for ${Math.floor(age / DAY)} day(s)` +
+        (link ? `; link viewed ${link.viewCount} time(s)` : "; no customer link created yet"),
+      priority: 15,
+      payload: {
+        opportunityId: opp.id,
+        companyName: opp.companyName,
+        quoteId: quote.id,
+        valueCents: opp.valueCents,
+        daysWaiting: Math.floor(age / DAY),
+        linkState: link?.state ?? "none",
+        views: link?.viewCount ?? 0,
+      },
+      dedupeKey: `quote-followup:${quote.id}:${Math.floor(age / (3 * DAY))}`,
+    });
+  }
+  return work;
+}
+
+function planStaleProposal(view: DutyView): PlannedWork[] {
+  return view.opportunities
+    .filter((opp) => opp.stage === "proposal")
+    .filter((opp) => ageMinutes(opp.updatedAt, view.now) > 14 * DAY)
+    .map((opp) => ({
+      agentId: "close",
+      kind: "review_cold_proposal",
+      reason: `${opp.companyName} has had no movement for ${Math.floor(ageMinutes(opp.updatedAt, view.now) / DAY)} days on a ${(opp.valueCents / 100).toFixed(2)} ZAR proposal.`,
+      priority: 25,
+      payload: { opportunityId: opp.id, companyName: opp.companyName, valueCents: opp.valueCents },
+      dedupeKey: `cold:${opp.id}:${Math.floor(ageMinutes(opp.updatedAt, view.now) / (14 * DAY))}`,
+    }));
+}
+
+function planWinHandoff(view: DutyView): PlannedWork[] {
+  const delivery = new Set(view.tickets.map((ticket) => ticket.relatedId).filter(Boolean) as string[]);
+  const invoiced = new Set(
+    view.ledger.filter((row) => row.kind === "invoice" && row.relatedId).map((row) => row.relatedId as string),
+  );
+  const work: PlannedWork[] = [];
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "won") continue;
+    if (!delivery.has(opp.id)) continue;
+    if (invoiced.has(opp.id)) continue;
+    work.push({
+      agentId: "close",
+      kind: "nudge_invoice",
+      reason: `${opp.companyName} accepted and delivery is open, but no invoice is on the books.`,
+      priority: 18,
+      payload: { opportunityId: opp.id, companyName: opp.companyName, valueCents: opp.valueCents },
+      dedupeKey: `win-invoice:${opp.id}`,
+    });
+  }
+  return work;
+}
+
+function planAcknowledge(view: DutyView): PlannedWork[] {
+  const acked = new Set(
+    view.documents
+      .filter((doc) => (doc.kind === "service_ack" || doc.kind === "correspondence") && doc.relatedId)
+      .map((doc) => doc.relatedId as string),
+  );
+  return view.tickets
+    .filter((ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved" && !acked.has(ticket.id))
+    .map((ticket) => ({
+      agentId: "desk",
+      kind: "acknowledge_ticket",
+      reason: `${ticket.title} has no acknowledgement on file.`,
+      priority: 22,
+      payload: { ticketId: ticket.id, title: ticket.title, severity: ticket.severity },
+      dedupeKey: `ack:${ticket.id}`,
+    }));
+}
+
+function planSlaWatch(view: DutyView): PlannedWork[] {
+  const limits: Record<string, number> = { p1: 4 * HOUR, p2: 24 * HOUR, p3: 7 * DAY };
+  return view.tickets
+    .filter((ticket) => ticket.status !== "resolved")
+    .filter((ticket) => {
+      const limit = limits[ticket.severity] ?? 7 * DAY;
+      return ageMinutes(ticket.updatedAt, view.now) > limit;
+    })
+    .map((ticket) => ({
+      agentId: "desk",
+      kind: "escalate_ageing_ticket",
+      reason: `${ticket.title} (${ticket.severity}) has had no movement for ${Math.floor(ageMinutes(ticket.updatedAt, view.now) / HOUR)} hours.`,
+      priority: ticket.severity === "p1" ? 1 : 10,
+      payload: { ticketId: ticket.id, title: ticket.title, severity: ticket.severity },
+      dedupeKey: `sla:${ticket.id}:${Math.floor(ageMinutes(ticket.updatedAt, view.now) / limits[ticket.severity])}`,
+    }));
+}
+
+function planChatReply(view: DutyView): PlannedWork[] {
+  return view.chatThreads
+    .filter((thread) => thread.status === "open" && thread.unansweredCount > 0)
+    .filter((thread) => (thread.lastMessageAt ? ageMinutes(thread.lastMessageAt, view.now) : 0) > 20)
+    .map((thread) => ({
+      agentId: "desk",
+      kind: "draft_chat_reply",
+      reason: `${thread.name} has ${thread.unansweredCount} unanswered message(s).`,
+      priority: 24,
+      payload: { threadId: thread.id, name: thread.name },
+      dedupeKey: `chat:${thread.id}`,
+    }));
+}
+
+function planDiagnose(view: DutyView): PlannedWork[] {
+  return view.tickets
+    .filter((ticket) => ticket.ownerAgent === "forge" || ticket.ownerAgent === "keep")
+    .filter((ticket) => ticket.status === "open")
+    .filter((ticket) => !ticket.summary.startsWith("FORGE:"))
+    .map((ticket) => ({
+      agentId: ticket.ownerAgent === "keep" ? "keep" : "forge",
+      kind: "diagnose_ticket",
+      reason: `${ticket.title}: ${ticket.summary.slice(0, 160)}`,
+      priority: ticket.severity === "p1" ? 3 : 28,
+      payload: { ticketId: ticket.id, title: ticket.title, severity: ticket.severity, summary: ticket.summary },
+      dedupeKey: `diagnose:${ticket.id}`,
+    }));
+}
+
+function planKnowledge(view: DutyView): PlannedWork[] {
+  const written = new Set(view.documents.filter((doc) => doc.kind === "knowledge").map((doc) => doc.relatedId));
+  return view.tickets
+    .filter((ticket) => ticket.status === "resolved" && ticket.summary.startsWith("FORGE:"))
+    .filter((ticket) => !written.has(ticket.id))
+    .map((ticket) => ({
+      agentId: "forge",
+      kind: "record_knowledge",
+      reason: `${ticket.title} is resolved and its procedure is not in the knowledge base.`,
+      priority: 60,
+      payload: { ticketId: ticket.id, title: ticket.title },
+      dedupeKey: `knowledge:${ticket.id}`,
+    }));
+}
+
+function planChaseInvoice(view: DutyView): PlannedWork[] {
+  return view.ledger
+    .filter((row) => row.kind === "invoice" && row.status === "issued")
+    .filter((row) => ageMinutes(row.createdAt, view.now) > 7 * DAY)
+    .map((row) => ({
+      agentId: "ledger",
+      kind: "draft_invoice_chase",
+      reason: `Invoice for ${row.counterparty} (${(row.amountCents / 100).toFixed(2)} ZAR) has been issued for ${Math.floor(ageMinutes(row.createdAt, view.now) / DAY)} days with no receipt.`,
+      priority: 26,
+      payload: { invoiceId: row.id, counterparty: row.counterparty, amountCents: row.amountCents },
+      dedupeKey: `chase:${row.id}:${Math.floor(ageMinutes(row.createdAt, view.now) / (7 * DAY))}`,
+    }));
+}
+
+function planPaymentNotices(view: DutyView): PlannedWork[] {
+  return view.inbound
+    .filter((item) => item.intent === "payment_notice" && item.status !== "filed")
+    .map((item) => ({
+      agentId: "ledger",
+      kind: "verify_payment_notice",
+      reason: `${item.companyName} says they paid. Treasury has not moved.`,
+      priority: 14,
+      payload: { inboundId: item.id, companyName: item.companyName, subject: item.subject },
+      dedupeKey: `payment-notice:${item.id}`,
+    }));
+}
+
+function planPayables(view: DutyView): PlannedWork[] {
+  if (view.payableCents <= 0) return [];
+  return [
+    {
+      agentId: "ledger",
+      kind: "report_payables",
+      reason: `There are ${(view.payableCents / 100).toFixed(2)} ZAR of payables on the books and no scheduled payment.`,
+      priority: 35,
+      payload: { payableCents: view.payableCents },
+      dedupeKey: `payables:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
+}
+
+function planRecords(view: DutyView): PlannedWork[] {
+  const work: PlannedWork[] = [];
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "won") continue;
+    const hasDocuments = view.documents.some(
+      (doc) => doc.relatedId === opp.id && (doc.kind === "quote" || doc.kind === "invoice" || doc.kind === "receipt"),
+    );
+    if (hasDocuments) continue;
+    work.push({
+      agentId: "keep",
+      kind: "file_missing_records",
+      reason: `${opp.companyName} is won but no quote, invoice or receipt is filed against it.`,
+      priority: 32,
+      payload: { opportunityId: opp.id, companyName: opp.companyName },
+      dedupeKey: `records:${opp.id}`,
+    });
+  }
+  return work;
+}
+
+function planChainVerify(view: DutyView): PlannedWork[] {
+  if (view.chainIntact) return [];
+  return [
+    {
+      agentId: "seal",
+      kind: "halt_broken_chain",
+      reason: "The audit hash chain does not verify. Autonomous actions are stopped until the founder looks.",
+      priority: 0,
+      maxAttempts: 1,
+      payload: {},
+      dedupeKey: `chain-broken:${view.now.slice(0, 13)}`,
+    },
+  ];
+}
+
+function planScopeAudit(view: DutyView): PlannedWork[] {
+  // SEAL cannot stop an agent retroactively, but it can name the drift so the
+  // founder can fix the agent definition.
+  const rogue = view.approvalsPending.filter((approval) => approval.kind === "constraint_margin");
+  if (!rogue.length) return [];
+  return [
+    {
+      agentId: "seal",
+      kind: "report_scope_drift",
+      reason: `${rogue.length} escalation(s) were filed on confidence rather than a constitutional gate. An agent may be uncertain about its role.`,
+      priority: 33,
+      payload: { approvals: rogue.slice(0, 10).map((a) => ({ id: a.id, title: a.title, agent: a.kind })) },
+      dedupeKey: `scope-drift:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
+}
+
+// ── Published rate integrity ──────────────────────────────────────────────────
+
+/** Machine-readable view of the published rate card, for briefs and audits. */
+export type PriceGuideEntry = {
+  id: string;
+  title: string;
+  scope: string;
+  price: string;
+  basis: string;
+  cents: number;
+  offered: boolean;
+};
+
+function toCents(price: string): number {
+  // "R690 / hour" -> 69000. "R1,207.50 / hour" -> 120750.
+  const match = price.replace(/,/g, "").match(/R\s*([\d.]+)/);
+  if (!match) return 0;
+  return Math.round(Number(match[1]) * 100) || 0;
+}
+
+export const PRICE_GUIDE: PriceGuideEntry[] = PUBLISHED_RATES.map((rate) => ({
+  id: rate.id,
+  title: rate.title,
+  scope: rate.scope,
+  price: rate.price,
+  basis: rate.basis,
+  cents: toCents(rate.price),
+  offered: rate.offered,
+}));
+
+/**
+ * The constitution says customer prices may only be the published rates. This is
+ * the check that keeps that true, and it is also a self-test: if the rate card
+ * and the quote engine ever disagree, the office says so instead of quietly
+ * quoting something else.
+ */
+export function rateCardIntegrity(): { ok: boolean; detail: string } {
+  const hourly = PUBLISHED_RATES.filter((rate) => rate.offered && /per hour|\/ hour/.test(rate.price));
+  if (hourly.length < 2) return { ok: false, detail: "The published rate card no longer exposes hourly labour." };
+  // Only labour lines must carry a single readable figure. Travel and supplier
+  // costs are deliberately quoted per job, so they are not expected to parse.
+  const unparsed = PRICE_GUIDE.filter(
+    (rate) => rate.offered && rate.cents <= 0 && !/supplier|agreed|quoted/i.test(rate.price),
+  );
+  if (unparsed.length) {
+    return {
+      ok: false,
+      detail: `${unparsed.length} published labour rate(s) could not be read as a figure: ${unparsed.map((r) => r.title).join(", ")}.`,
+    };
+  }
+  return {
+    ok: true,
+    detail: `${PUBLISHED_RATES.length} published lines, ${hourly.length} of them hourly labour.`,
+  };
+}
