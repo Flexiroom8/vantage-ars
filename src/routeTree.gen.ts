@@ -10,13 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RatesRouteImport } from './routes/rates'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkRouteImport } from './routes/work'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiSiteSignalRouteImport } from './routes/api/site-signal'
 import { Route as OfficeIndexRouteImport } from './routes/office/index'
 import { Route as OfficeApprovalsRouteImport } from './routes/office/approvals'
 import { Route as OfficeAuditRouteImport } from './routes/office/audit'
@@ -42,6 +46,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -62,6 +71,11 @@ const RatesRoute = RatesRouteImport.update({
   path: '/rates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -75,6 +89,16 @@ const TermsRoute = TermsRouteImport.update({
 const WorkRoute = WorkRouteImport.update({
   id: '/work',
   path: '/work',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSiteSignalRoute = ApiSiteSignalRouteImport.update({
+  id: '/api/site-signal',
+  path: '/api/site-signal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
@@ -175,13 +199,17 @@ const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -204,12 +232,16 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -233,13 +265,17 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
   '/work': typeof WorkRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/site-signal': typeof ApiSiteSignalRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -264,13 +300,17 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/office'
     | '/privacy'
     | '/rates'
+    | '/reset-password'
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -293,12 +333,16 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/privacy'
     | '/rates'
+    | '/reset-password'
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -321,13 +365,17 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/office'
     | '/privacy'
     | '/rates'
+    | '/reset-password'
     | '/support'
     | '/terms'
     | '/work'
+    | '/api/health'
+    | '/api/site-signal'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -351,13 +399,17 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   OfficeRoute: typeof OfficeRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   RatesRoute: typeof RatesRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
   WorkRoute: typeof WorkRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiSiteSignalRoute: typeof ApiSiteSignalRoute
   QTokenRoute: typeof QTokenRoute
   ServicesSlugRoute: typeof ServicesSlugRoute
   ApiAiStatusRoute: typeof ApiAiStatusRoute
@@ -372,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -402,6 +461,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/support': {
       id: '/support'
       path: '/support'
@@ -421,6 +487,20 @@ declare module '@tanstack/react-router' {
       path: '/work'
       fullPath: '/work'
       preLoaderRoute: typeof WorkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/site-signal': {
+      id: '/api/site-signal'
+      path: '/api/site-signal'
+      fullPath: '/api/site-signal'
+      preLoaderRoute: typeof ApiSiteSignalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/office/': {
@@ -598,13 +678,17 @@ const OfficeRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   OfficeRoute: OfficeRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   RatesRoute: RatesRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   WorkRoute: WorkRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiSiteSignalRoute: ApiSiteSignalRoute,
   QTokenRoute: QTokenRoute,
   ServicesSlugRoute: ServicesSlugRoute,
   ApiAiStatusRoute: ApiAiStatusRoute,

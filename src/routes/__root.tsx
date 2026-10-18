@@ -1,4 +1,4 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +6,7 @@ import { PublicChat } from "@/components/chat/live-chat";
 import { PublicFrame } from "@/components/public/site-frame";
 import { Link } from "@tanstack/react-router";
 import { Toaster } from "sonner";
+import { useSiteSignals } from "@/lib/site/signals";
 import appCss from "../styles.css?url";
 
 const APP_NAME = "Vantage-ARS";
@@ -46,6 +47,7 @@ export const Route = createRootRoute({
         <PreviewHostBridge />
         <AuthProvider>
           <TooltipProvider delayDuration={200}>
+            <SiteSignals />
             <Outlet />
             <PublicChat />
           </TooltipProvider>
@@ -56,6 +58,17 @@ export const Route = createRootRoute({
     </html>
   ),
 });
+
+/**
+ * Report the page the visitor is actually reading, so SIGNAL has real traffic
+ * data. Mounted at the root so single-page navigations count too, and it only
+ * fires for public pages — the office never reports itself.
+ */
+function SiteSignals() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useSiteSignals(pathname);
+  return null;
+}
 
 function NotFound() {
   return (

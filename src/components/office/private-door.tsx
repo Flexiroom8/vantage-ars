@@ -9,11 +9,36 @@ import { Link } from "@tanstack/react-router";
 import { authClient, GROK_PROVIDERS, signOut, signIn } from "@/lib/auth/client";
 import { getSignInOptions, type SignInOptions } from "@/lib/auth/sign-in-options";
 import type { AppUser } from "@/lib/auth/use-current-user";
+import { passwordProblem as checkPassword } from "@/lib/auth/founder-password";
 import { COMPANY } from "@/lib/office/company";
 
 type PrivateDoorProps = {
   user?: AppUser | null;
 };
+
+/** Pull a human-readable message out of whatever Better Auth returned. */
+function messageOf(value: unknown, fallback: string): string {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object" && "message" in value) {
+    const message = (value as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message.trim();
+  }
+  return fallback;
+}
+
+/**
+ * Better Auth resolves to `{ data, error }` on the happy path but may reject or
+ * return a bare `APIError` depending on the call. Read the failure out of any of
+ * those shapes rather than trusting one overload's type.
+ */
+function authFailure(result: unknown): unknown {
+  if (result instanceof Error) return result;
+  if (result && typeof result === "object" && "error" in result) {
+    const error = (result as { error: unknown }).error;
+    if (error) return error;
+  }
+  return null;
+}
 
 export function PrivateDoor({ user }: PrivateDoorProps) {
   const [options, setOptions] = useState<SignInOptions | null>(null);
@@ -46,12 +71,6 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
     };
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      window.location.href = "/office";
-    }
-  }, [user]);
-
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -60,17 +79,25 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
     try {
       if (setupMode) {
         if (!founderToken.trim()) throw new Error("Founder setup token is required.");
+        const emailProblem = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+        if (!emailProblem) throw new Error("Enter the founder email address.");
+        const passwordProblem = checkPassword(password);
+        if (passwordProblem) throw new Error(passwordProblem);
         const result = await authClient.signUp.email({
-          email,
+          email: email.trim().toLowerCase(),
           password,
-          name,
+          name: name.trim() || "Founder",
           fetchOptions: { headers: { "x-founder-setup-token": founderToken.trim() } } as any,
         });
-        if (result.error) throw new Error(result.error.message || "Founder account setup failed.");
+        const failure = authFailure(result);
+        if (failure) throw new Error(messageOf(failure, "Founder account setup failed."));
       } else {
-        const result = await authClient.signIn.email({ email, password });
-        if (result.error) throw new Error(result.error.message || "Sign-in failed.");
+        const result = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
+        const failure = authFailure(result);
+        if (failure) throw new Error(messageOf(failure, "Sign-in failed."));
       }
+      // A full navigation re-reads the server session cookie, which is the only
+      // authority on founder access. Client state is a hint, never a grant.
       window.location.href = "/office";
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Authentication failed.");
@@ -114,6 +141,10 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
   }
 
   if (user) {
+    // The server withheld the snapshot, so this browser's session is not the
+    // founder session. Say so plainly and offer the one action that fixes it.
+    // Never auto-navigate: that is what turns this into a reload loop.
+    const devFallback = user.isDevFallback;
     return (
       <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-bg text-fg">
         <LiveField />
@@ -130,12 +161,30 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
               <span className="live-dot" />
             </div>
 
-            <h1 className="font-serif text-3xl tracking-tight">Session already active.</h1>
-            <p className="mt-3 text-sm leading-6 text-muted">The command centre is already authenticated for this session.</p>
+            <h1 className="font-serif text-3xl tracking-tight">
+              {devFallback ? "The office is sealed." : "Session not recognised."}
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              {devFallback
+                ? "Auth is disabled in this environment, so the server never issues a founder session. Sign in needs VITE_AUTH_ENABLED unset (or \"true\") and a configured founder account."
+                : `This browser holds a session for ${user.primaryEmail ?? "an account"}, but the server did not accept it as the founder of ${COMPANY.legalName}. Sign out and sign in again with the founder address.`}
+            </p>
 
             <div className="mt-8 flex gap-3">
-              <Link to="/office" className="cta flex-1 justify-center">Enter office</Link>
-              <Button type="button" variant="outline" disabled={submitting} onClick={handleSignOut}>Sign out</Button>
+              <Link to="/" className="cta-ghost flex-1 justify-center">Public site</Link>
+              {devFallback ? null : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting}
+                  onClick={async () => {
+                    await handleSignOut();
+                    window.location.href = "/office";
+                  }}
+                >
+                  Sign out and retry
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -143,7 +192,10 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
     );
   }
 
-  const providers = GROK_PROVIDERS ?? [];
+  // Gate on what the SERVER says is configured. The provider list is a static
+  // catalogue; rendering it unconditionally showed Google/X buttons that could
+  // only fail, even with GROK_OAUTH=off.
+  const providers = options?.oauth ? (GROK_PROVIDERS ?? []) : [];
 
   return (
     <div className="site relative min-h-dvh overflow-hidden bg-bg text-fg">
@@ -219,7 +271,13 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
 
                   {!setupMode ? (
                     <div className="text-right">
-                      <Link to="/forgot-password" className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent transition-colors hover:text-fg">Forgot password?</Link>
+                      <Link
+                        to="/forgot-password"
+                        search={{ email }}
+                        className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent transition-colors hover:text-fg"
+                      >
+                        Forgot password?
+                      </Link>
                     </div>
                   ) : null}
 
@@ -261,7 +319,7 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
 
         <footer className="border-t border-border/60 bg-bg/60 backdrop-blur-md">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 font-mono text-[10px] uppercase tracking-[0.16em] text-muted lg:px-8">
-            <span>{COMPANY.name}</span>
+            <span>{COMPANY.legalName}</span>
             <span>Private operations desk</span>
           </div>
         </footer>

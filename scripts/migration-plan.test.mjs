@@ -4,7 +4,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";

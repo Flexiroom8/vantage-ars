@@ -1,120 +1,144 @@
 # Vantage-ARS
 
-The public website and founder-controlled, AI-staffed office for Vantage-ARS ([vantage-ars.co.za](https://vantage-ars.co.za)): VoIP, networking and IT infrastructure support, South Africa.
+The public website and founder-controlled, AI-staffed office for Vantage-ARS
+([vantage-ars.co.za](https://vantage-ars.co.za)): VoIP, networking and IT
+infrastructure support, South Africa.
 
 Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
-
-> The live site at vantage-ars.co.za is currently a separate Cloudflare Worker (`vantage-api`). This repository does not deploy to it. Nothing changes there until you point the domain at a deployment of this app.
 
 ## Stack
 - TanStack Start + React 19, Tailwind CSS 4, Vite 8, Nitro 3
 - Postgres: Neon (or any Postgres) when `DATABASE_URL` is set, otherwise embedded PGLite
-- Better Auth (founder email and password), pdf-lib for quotes, SMTP for notices
-- Nine AI staff on Cloudflare Workers AI or xAI
+- Better Auth (founder email and password), pdf-lib for quotes, Gmail SMTP for notices
+- Nine AI staff, each with a fixed role, working a durable queue on their own cadence
 
 ## What is in it
 | Area | Routes |
 | --- | --- |
 | Public site | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/rates`, `/work`, `/support`, `/terms`, `/privacy` |
 | Customer quote link | `/q/<token>`: view, download PDF, accept or decline |
-| Founder office (sign-in) | `/office`: inbox, approvals, sales, ledger, chat, audit and more |
+| Founder office | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more |
+| Operations | `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status` |
+
+## The office runs itself
+
+With `AUTONOMY=on` and a `CRON_SECRET`, nine agents work a durable queue every
+ten minutes. Each has named duties on their own cadence: reception classifies
+enquiries, marketing scores leads on what the buyer actually wrote and files a
+founder-gated handoff, sales drafts real follow-ups on real quotes, the service
+desk drafts acknowledgements, technical writes procedures, finance chases overdue
+invoices, admin checks the filing, and compliance halts the office if the audit
+chain ever fails to verify.
+
+None of them email a customer, spend money, win or lose a customer, or publish
+anything. Those are founder approvals, with the constitutional trace attached.
+
+Full detail, including every duty and every brake: **[docs/autonomy.md](docs/autonomy.md)**.
 
 ## Run locally
+
 Node 22.12 or newer.
 ```sh
 npm ci
 cp .env.example .env      # fill in what you need; everything is optional locally
 npm run dev               # http://localhost:8080
 npm run validate          # typecheck + lint + tests
+npm run verify:office     # boots a real office and proves it runs autonomously
 ```
 
+`npm run verify:office` is the one that matters. It starts a real embedded
+Postgres, files the records the public site would really file, runs the real
+scheduler, and asserts on what the real agents did — 67 checks, no mocks and no
+sample data. If autonomy breaks, this fails.
+
 ## Environment
-All settings are listed in `.env.example`. The important ones:
+
+Everything is in [`.env.example`](.env.example). The ones that matter:
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres (Neon). Migrations run during `npm run build`. Unset means embedded PGLite. |
-| `PGLITE_DATA_DIR` | With PGLite, keep data in this folder. Unset means in-memory, which is lost on restart. |
-| `BETTER_AUTH_URL` | The public URL, e.g. `https://vantage-ars.co.za`. |
+| `PGLITE_DATA_DIR` | With PGLite, keep data here. Unset means in-memory, lost on restart. |
+| `BETTER_AUTH_URL` | The public URL. |
 | `BETTER_AUTH_SECRET` | A long random secret (`openssl rand -base64 32`). Required in production. |
-| `FOUNDER_SETUP_TOKEN` | One-time code for creating the founder account (16+ characters). Remove it afterwards. |
-| `FOUNDER_EMAIL` | The only account allowed into the office. Defaults to the company email. |
-| `GROK_OAUTH` | `off` hides the Grok sign-in button. |
-| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff provider. With neither set, the staff report that they are unavailable. Full walkthrough: `docs/cloudflare-workers-ai.md`. |
-| `WORKERS_AI_MODEL` | Optional Workers AI model override (default `@cf/meta/llama-3.3-70b-instruct-fp8-fast`). |
-| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Founder notices and customer mail. |
+| `FOUNDER_SETUP_TOKEN` | One-time code for creating the founder account. Remove it afterwards. |
+| `FOUNDER_EMAIL` | The only account allowed into the office. |
+| `AUTONOMY` | `on` lets the office act unattended. Anything else and only the button works. |
+| `CRON_SECRET` | Bearer token the scheduler must present. 16+ characters. |
+| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Founder notices. |
 | `PAYMENT_*` | Bank details on the site and quotes. |
-| `AUTO_DRAFTS`, `CRON_SECRET` | Daily draft-only run (see below). |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff reasoning. Every autonomous duty works without it. |
 
 ## Founder setup (once)
 1. Set `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `FOUNDER_SETUP_TOKEN` and, if needed, `FOUNDER_EMAIL`. Deploy.
-2. Open `/office`. The page offers "Set up the founder account".
+2. Open `/office`. The page offers "First-time founder setup".
 3. Enter the founder email, a password of 12+ characters and the setup token.
-4. Remove `FOUNDER_SETUP_TOKEN` and redeploy. Sign-up is closed anyway once a founder exists.
-
-## Customer quote links
-On Sales (`/office/sales`), each quote has a Customer link panel. Create a link and copy it; it is shown only once and only its hash is stored. Send it to the customer yourself. The link expires after 30 days, and you can replace or withdraw it. When the customer accepts, the opportunity closes as won, you get a notice, and the audit trail records the customer as the actor. A declined quote stays open for you to follow up.
+4. Remove `FOUNDER_SETUP_TOKEN` and redeploy. Sign-up is closed once a founder exists.
 
 ## Deploy
+**[docs/deploy-vercel.md](docs/deploy-vercel.md) is the full walkthrough** — the
+variables to set, the founder setup, the domain cutover, and how to verify it.
+
 ### Vercel + Neon (recommended)
-1. Import the GitHub repo in Vercel. The build switches to the Vercel output format by itself.
+1. Import the GitHub repo in Vercel.
 2. Add a Neon database and set `DATABASE_URL`, then the auth settings above.
-3. Deploy. `npm run build` applies migrations, and `vercel.json` adds security headers and the daily cron.
+3. Set `AUTONOMY=on` and a generated `CRON_SECRET`. `vercel.json` runs
+   `/api/cron/floor` every ten minutes; Vercel sends `CRON_SECRET` as the bearer
+   token automatically.
+4. Deploy. `npm run build` applies migrations.
+5. Check `https://www.vantage-ars.co.za/api/health` — `scheduler.overdue` should
+   be `false`.
 
 ### Docker (any server)
 ```sh
-cp .env.example .env      # set BETTER_AUTH_URL, BETTER_AUTH_SECRET, FOUNDER_SETUP_TOKEN...
+cp .env.example .env      # set AUTONOMY=on, CRON_SECRET, auth settings
 docker compose up -d --build
 ```
-The app listens on port 3000. Without `DATABASE_URL`, data lives in PGLite on the `data` volume. With `DATABASE_URL`, migrations run on start-up. Put HTTPS (Caddy, nginx, Cloudflare Tunnel) in front and forward `X-Forwarded-For`.
 
 ### Plain Node
 ```sh
 npm ci && npm run build && npm start      # .output/server/index.mjs, PORT defaults to 3000
 ```
 
+## Operations
+
+**Health.** `GET /api/health` answers "is the business running?" — database,
+audit chain, scheduler freshness, work queue, mail delivery, and the money
+position. It returns 503 when something that matters is wrong, and never exposes
+a secret or a customer. Sign in and it returns the full picture.
+
+**Autonomy UI.** `/office` shows the scheduler state, every duty and when it is
+next due, the live queue, and what each agent did last. The same panel runs the
+office on demand through the identical code path.
+
+**Money.** Amounts are integer cents. A receipt may only retire money actually
+owed — the balance update and the ledger row are one transaction that reads the
+receivable under lock. A quote's figure is generated from the published rate
+card, never from agent prose.
+
+**Audit chain.** Every decision and every event is hash-chained in one
+transaction under an advisory lock, so the chain cannot fork. SEAL verifies the
+whole chain twice a day and halts the office if it fails. `/office/audit` shows
+the result.
+
+**Backup.** `/office/audit` exports every business table as JSON with a SHA-256
+checksum, including live customer quote links. Restore is add-only and
+transactional: it never deletes or overwrites, and a half-restored office is
+impossible.
+
 ## CI
-`.github/workflows/ci.yml` runs typecheck, lint, tests and a production build on every push to `main` and on every pull request.
-
-## Public surface
-Enquiry form, payment notices and live chat. All three are rate limited per caller, both in memory and in the database (`rate_hits`, migration 0008), and the database check fails open.
-
-## Money
-Amounts are integer cents (ZAR). `ledgerVat()` and `vatBreakdown()` in `src/lib/office/invoice.ts` handle none, standard 15%, VAT-included and zero-rated. Customer-facing text never adds VAT unless a treatment says so.
-
-## Scheduled drafts
-`vercel.json` calls `/api/cron/floor` daily at 06:00 UTC (08:00 SAST). It only runs when `AUTO_DRAFTS=on` and the request carries `CRON_SECRET`. It writes follow-up and acknowledgement letters as drafts, starts the free organic campaign and writes technical procedures. It never emails a customer, spends money or quotes. Review and send from the office. Workers AI is not called by this run, so it costs nothing.
-
-## Backup
-Governance & audit page: **Download verified backup** exports every business table as JSON with a SHA-256 checksum. It never includes sign-in credentials. It contains customer data, so store it privately. Restore (same page) checks the checksum, refuses anything that is not an office table or has unknown columns, and only adds missing records; it never deletes or overwrites.
-
-## Rotating the Gmail app password
-Only you can do this, in your Google account: Security, 2-Step Verification, App passwords. Delete the old app password, create a new one, put it in `GMAIL_SMTP_APP_PASSWORD` (with `GMAIL_SMTP_USER`) in your host's environment settings, redeploy, then delete `.grok/gmail-smtp.json`. The file is git-ignored and left out of every zip I make.
+`.github/workflows/ci.yml` runs typecheck, lint, tests, a production build and
+the office verification on every push to `main` and every pull request.
 
 ## Docs
-- `docs/business-scope-and-competitive-pricing.md`: scope, rates and department boundaries.
-- `docs/cloudflare-workers-ai.md`: account id, API token, per-host env, verification.
-- `docs/MERGE.md`: how the earlier projects were combined.
-- `CHANGELOG.md`: what changed and when.
-- The earlier repository layout, including the v3 Cloudflare Worker source, is preserved at git tag `pre-v4-archive`.
+- [docs/autonomy.md](docs/autonomy.md): every duty, every brake, and why.
+- [docs/deploy-vercel.md](docs/deploy-vercel.md): environment, cutover, verification.
+- [docs/business-scope-and-competitive-pricing.md](docs/business-scope-and-competitive-pricing.md): scope, rates and department boundaries.
+- [docs/cloudflare-workers-ai.md](docs/cloudflare-workers-ai.md): account id, API token, per-host env, verification.
+- [docs/MERGE.md](docs/MERGE.md): how the earlier projects were combined.
+- [CHANGELOG.md](CHANGELOG.md): what changed and when.
 
 ## Governance
-Agents act only inside their role. Anything that costs money, risks a customer, or can win one goes to the founder for approval. Every decision is recorded in the audit trail.
-
-<!-- omgithub:readme:start -->
-## 🚀 Build, play, and remix with OMGithub
-
-**Remixed using [OMGithub.com](https://omgithub.com).**
-
-[![OMGithub](https://img.shields.io/badge/OMGithub-Open%20project-orange?style=for-the-badge)](https://omgithub.com/Leonydis138/vantage-ars)
-[![GitHub](https://img.shields.io/badge/GitHub-Source-181717?logo=github&style=for-the-badge)](https://github.com/Leonydis138/vantage-ars)
-
-- 🎮 [Open the project](https://omgithub.com/Leonydis138/vantage-ars).
-- ✨ [Remix this project](https://omgithub.com/?remix=Leonydis138%2Fvantage-ars).
-- 💻 [Explore the source](https://github.com/Leonydis138/vantage-ars).
-- 🛠️ [Check build runs](https://github.com/Leonydis138/vantage-ars/actions).
-- 🐛 [Report an issue](https://github.com/Leonydis138/vantage-ars/issues).
-- 👤 [Explore the creator's projects](https://omgithub.com/Leonydis138).
-- 🌍 [Create with OMGithub](https://omgithub.com).
-- 🧬 [Explore the remix source](https://github.com/leonydis138/vantage-ars/tree/91853668cbc91760ebb2ac0fd0cc2f5e5395d4b6).
-<!-- omgithub:readme:end -->
+Agents act only inside their role. Anything that costs money, risks a customer,
+or can win one goes to the founder for approval. Every decision is recorded in a
+hash-chained audit trail that the office verifies on its own.

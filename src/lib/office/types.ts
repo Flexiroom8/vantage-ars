@@ -288,6 +288,8 @@ export type AutonomyHealth = {
   decisionCount: number;
   pendingApprovals: number;
   hardViolations: number;
+  /** Approvals the founder has already decided, so the gate backlog has a history. */
+  resolvedApprovals: number;
 };
 
 export type MailStatus = {

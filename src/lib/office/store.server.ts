@@ -1,11 +1,12 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { getSql } from "../db";
+import { getSql, type Sql } from "../db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
 import { COMPANY, GENESIS_HASH } from "./company";
 import { authorizeAction } from "./governor";
 import { chainHash, sha256Hex, stableStringify } from "./hash";
 import { PUBLISHED_RATES } from "./catalogue";
+import { buildQuoteDocument } from "./quote";
 import { customerQuoteText, deliveryJob, documentRef, invoiceCopy, ledgerVat, parseVatTreatment, type VatTreatment, expenseVat, paymentInstructionsText, paymentNote, quoteInvoice, receiptCopy, receiptForInvoice } from "./invoice";
 import { parsePaymentNotice } from "./payment-notice";
 import { nextTicketStatus } from "./ticket";
@@ -65,19 +66,43 @@ function parseJson<T>(value: unknown, fallback: T): T {
   }
 }
 
-async function appendAudit(
+/**
+ * The audit hash chain is a single shared pointer in `company_state`. Two
+ * concurrent writers that both read the old head and both write a child fork
+ * the chain permanently, and the existing "head matches newest row" check cannot
+ * see the fork. So every chain write — decisions AND audit events — happens
+ * inside one transaction holding a named advisory lock, and reads the head back
+ * with `for update` so a row lock backs the advisory lock.
+ */
+const CHAIN_LOCK = "vantage-ars:audit-chain";
+
+async function withChain<T>(body: (tx: Sql) => Promise<T>): Promise<T> {
+  const sql = await getSql();
+  return sql.advisory(CHAIN_LOCK, body);
+}
+
+async function readAuditHead(sql: Sql): Promise<string> {
+  const rows = await sql<{ last_audit_hash: string }>`
+    select last_audit_hash from company_state where id = ${COMPANY.id} for update
+  `;
+  const head = rows[0]?.last_audit_hash;
+  if (!head) throw new Error("Office is not provisioned.");
+  return head;
+}
+
+async function appendAuditTx(
+  sql: Sql,
   kind: string,
   title: string,
   body: string,
   actor: string,
 ): Promise<string> {
-  const sql = await getSql();
-  const company = await loadCompany();
+  const previous = await readAuditHead(sql);
   const id = randomUUID();
-  const recordHash = chainHash(company.lastAuditHash, { id, kind, title, body, actor });
+  const recordHash = chainHash(previous, { id, kind, title, body, actor });
   await sql`
     insert into audit_events (id, kind, title, body, actor, previous_hash, record_hash)
-    values (${id}, ${kind}, ${title}, ${body}, ${actor}, ${company.lastAuditHash}, ${recordHash})
+    values (${id}, ${kind}, ${title}, ${body}, ${actor}, ${previous}, ${recordHash})
   `;
   await sql`
     update company_state
@@ -87,8 +112,24 @@ async function appendAudit(
   return recordHash;
 }
 
+/**
+ * Record an event on the audit chain, taking the chain lock. Exported for the
+ * scheduler, which runs outside the action path and must still be chained.
+ */
+export async function appendAudit(
+  kind: string,
+  title: string,
+  body: string,
+  actor: string,
+): Promise<string> {
+  return withChain((tx) => appendAuditTx(tx, kind, title, body, actor));
+}
+
 async function loadCompany(): Promise<CompanySnapshot> {
-  const sql = await getSql();
+  return loadCompanyTx(await getSql());
+}
+
+async function loadCompanyTx(sql: Sql): Promise<CompanySnapshot> {
   const rows = await sql<Record<string, unknown>>`
     select * from company_state where id = ${COMPANY.id} limit 1
   `;
@@ -119,52 +160,145 @@ async function loadCompany(): Promise<CompanySnapshot> {
   };
 }
 
-export async function ensureOffice(): Promise<void> {
+function quoteDocumentBody(quoteId: string, action: ProposedAction): string {
+  const document = buildQuoteDocument({
+    rateId: action.payload.rateId,
+    location: action.payload.location,
+    quantity: action.payload.quantity,
+    amountCents: Math.max(0, Math.round(action.amountCents || 0)),
+    reference: documentRef(quoteId),
+    scope: action.payload.scope,
+  });
+  if (!document.ok) throw new Error(`Quote refused: ${document.error}`);
+  return document.body;
+}
+
+/**
+ * Cash may only retire money owed. Never credit more than the outstanding
+ * receivable, and never credit at all when nothing is outstanding. Returns the
+ * amount actually applied.
+ */
+async function applyReceiptAgainstReceivable(sql: Sql, amount: number): Promise<number> {
+  if (amount <= 0) return 0;
+  const rows = await sql<{ receivable_cents: number }>`
+    select receivable_cents from company_state where id = ${COMPANY.id} for update
+  `;
+  const outstanding = Math.max(0, num(rows[0]?.receivable_cents));
+  const applied = Math.min(amount, outstanding);
+  if (applied <= 0) return 0;
+  await sql`
+    update company_state
+    set treasury_cents = treasury_cents + ${applied},
+        receivable_cents = receivable_cents - ${applied},
+        updated_at = now()
+    where id = ${COMPANY.id}
+  `;
+  return applied;
+}
+
+/**
+ * Provision the office if it is not there yet, and converge the roster.
+ *
+ * Runs at most once per process: `readSnapshot` used to call this on every page
+ * load, which meant nine pointless `UPDATE agents` statements (each taking a row
+ * lock and bloating `xmin`) on every office render and every public quote-link
+ * view. Callers still get a correct roster because convergence is cheap and
+ * idempotent once the flag is set.
+ */
+let provisionPromise: Promise<void> | null = null;
+
+export function ensureOffice(): Promise<void> {
+  provisionPromise ??= provisionOffice().catch((err) => {
+    provisionPromise = null; // let the next caller retry
+    throw err;
+  });
+  return provisionPromise;
+}
+
+async function provisionOffice(): Promise<void> {
   const sql = await getSql();
   const existing = await sql<{ id: string }>`select id from company_state where id = ${COMPANY.id}`;
   if (existing.length) {
-    await syncRoster();
+    await syncRoster(sql);
+    await seedPaymentInstructions(sql);
     return;
   }
 
-  await sql`
-    insert into company_state (
-      id, legal_name, trading_name, domain, jurisdiction, timezone, currency, vat_rate,
-      author_name, author_role, constitution_version, treasury_cents, receivable_cents,
-      payable_cents, autonomy_level, halted, last_audit_hash
-    ) values (
-      ${COMPANY.id}, ${COMPANY.legalName}, ${COMPANY.tradingName}, ${COMPANY.domain},
-      ${COMPANY.jurisdiction}, ${COMPANY.timezone}, ${COMPANY.currency}, ${COMPANY.vatRate},
-      ${COMPANY.authorName}, ${COMPANY.authorRole}, ${COMPANY.constitutionVersion},
-      0, 0, 0, ${COMPANY.autonomyLevel}, false, ${GENESIS_HASH}
-    )
-  `;
+  await sql.transaction(async (tx) => {
+    const raced = await tx<{ id: string }>`select id from company_state where id = ${COMPANY.id} for update`;
+    if (raced.length) return;
 
-  for (const p of CONSTITUTION) {
-    await sql`
-      insert into constitution_provisions (
-        id, article_id, title, priority, body, enforcement, machine_checkable, parameters_json
+    await tx`
+      insert into company_state (
+        id, legal_name, trading_name, domain, jurisdiction, timezone, currency, vat_rate,
+        author_name, author_role, constitution_version, treasury_cents, receivable_cents,
+        payable_cents, autonomy_level, halted, last_audit_hash, payment_instructions
       ) values (
-        ${p.id}, ${p.articleId}, ${p.title}, ${p.priority}, ${p.body}, ${p.enforcement},
-        ${p.machineCheckable}, ${JSON.stringify(p.parameters)}
+        ${COMPANY.id}, ${COMPANY.legalName}, ${COMPANY.tradingName}, ${COMPANY.domain},
+        ${COMPANY.jurisdiction}, ${COMPANY.timezone}, ${COMPANY.currency}, ${COMPANY.vatRate},
+        ${COMPANY.authorName}, ${COMPANY.authorRole}, ${COMPANY.constitutionVersion},
+        0, 0, 0, ${COMPANY.autonomyLevel}, false, ${GENESIS_HASH},
+        ${paymentInstructionsText(process.env)}
       )
     `;
-  }
 
-  for (const a of AGENT_DEFS) {
-    await insertAgent(a);
-  }
+    for (const p of CONSTITUTION) {
+      await tx`
+        insert into constitution_provisions (
+          id, article_id, title, priority, body, enforcement, machine_checkable, parameters_json
+        ) values (
+          ${p.id}, ${p.articleId}, ${p.title}, ${p.priority}, ${p.body}, ${p.enforcement},
+          ${p.machineCheckable}, ${JSON.stringify(p.parameters)}
+        )
+      `;
+    }
 
-  await appendAudit(
-    "office_open",
-    "Office provisioned",
-    "Constitution v1.0.0 ratified by Juan-louw Greyling. Nine non-human identities issued. Treasury R0.00. Autonomy A3 within role; founder gates on cost, customer win, customer loss, and marketing-to-sales handoff.",
-    "constitution",
-  );
+    for (const a of AGENT_DEFS) {
+      await insertAgent(tx, a);
+    }
+
+    // The genesis audit row is written inside the same transaction so a
+    // provisioned office is never missing its founding record.
+    const previous = GENESIS_HASH;
+    const id = randomUUID();
+    const body =
+      "Constitution v1.0.0 ratified by Juan-louw Greyling. Nine non-human identities issued. Treasury R0.00. Autonomy A3 within role; founder gates on cost, customer win, customer loss, and marketing-to-sales handoff.";
+    const recordHash = chainHash(previous, {
+      id,
+      kind: "office_open",
+      title: "Office provisioned",
+      body,
+      actor: "constitution",
+    });
+    await tx`
+      insert into audit_events (id, kind, title, body, actor, previous_hash, record_hash)
+      values (${id}, 'office_open', 'Office provisioned', ${body}, 'constitution', ${previous}, ${recordHash})
+    `;
+    await tx`
+      update company_state set last_audit_hash = ${recordHash}, updated_at = now()
+      where id = ${COMPANY.id}
+    `;
+  });
+
+  await seedPaymentInstructions(sql);
 }
 
-async function insertAgent(a: AgentDef): Promise<void> {
-  const sql = await getSql();
+/**
+ * Fill in the derived bank details exactly once, when the office is created.
+ * Previously this ran on every `readSnapshot` and overwrote any payment note the
+ * founder had typed, because the match test was a `LIKE` on the rendered text.
+ */
+async function seedPaymentInstructions(sql: Sql): Promise<void> {
+  const derived = paymentInstructionsText(process.env);
+  if (!derived) return;
+  await sql`
+    update company_state
+    set payment_instructions = ${derived}
+    where id = ${COMPANY.id} and coalesce(payment_instructions, '') = ''
+  `;
+}
+
+async function insertAgent(sql: Sql, a: AgentDef): Promise<void> {
   await sql`
     insert into agents (
       id, callsign, title, department, spiffe_id, status, autonomy_level, summary,
@@ -174,16 +308,16 @@ async function insertAgent(a: AgentDef): Promise<void> {
       ${a.autonomyLevel}, ${a.summary}, ${JSON.stringify(a.allowedActions)},
       ${JSON.stringify(a.bindings)}, ${JSON.stringify(a.authority)}, null, now()
     )
+    on conflict (id) do nothing
   `;
 }
 
-async function syncRoster(): Promise<void> {
-  const sql = await getSql();
+async function syncRoster(sql: Sql): Promise<void> {
   const rows = await sql<{ id: string }>`select id from agents`;
   const have = new Set(rows.map((row) => String(row.id)));
   for (const agent of AGENT_DEFS) {
     if (have.has(agent.id)) continue;
-    await insertAgent(agent);
+    await insertAgent(sql, agent);
     await appendAudit(
       "identity_issued",
       `${agent.callsign} issued`,
@@ -191,15 +325,20 @@ async function syncRoster(): Promise<void> {
       "constitution",
     );
   }
-  for (const agent of AGENT_DEFS) {
-    await sql`update agents set summary = ${agent.summary} where id = ${agent.id} and summary <> ${agent.summary}`;
+  // One statement instead of nine, and only when something actually drifted.
+  const stale = AGENT_DEFS.filter((agent) => agent.summary.length > 0);
+  for (const agent of stale) {
+    await sql`
+      update agents set summary = ${agent.summary}, authority_json = ${JSON.stringify(agent.authority)}
+      where id = ${agent.id} and (summary <> ${agent.summary} or authority_json <> ${JSON.stringify(agent.authority)})
+    `;
   }
   const role = CONSTITUTION.find((provision) => provision.id === "art-11");
   if (role) {
     await sql`
       update constitution_provisions
       set body = ${role.body}
-      where id = ${"art-11"} and body not like ${"%Customer service%"}
+      where id = ${"art-11"} and body is distinct from ${role.body}
     `;
   }
 }
@@ -280,6 +419,13 @@ function mapDecision(row: Record<string, unknown>): DecisionRow {
   };
 }
 
+/**
+ * The autonomy health the founder sees on /office/metrics.
+ *
+ * Previously `hardViolations` was hardcoded to 0, which made
+ * `constraintAdherence` a constant 1 — a blocked action was invisible in the
+ * headline number. Every term below is now derived from rows that exist.
+ */
 function healthOf(
   company: CompanySnapshot,
   decisions: DecisionRow[],
@@ -290,13 +436,18 @@ function healthOf(
   const escalated = decisions.filter((d) => d.status === "escalated").length;
   const executed = decisions.filter((d) => d.status === "executed" || d.status === "authorized").length;
   const pending = approvals.filter((a) => a.status === "pending").length;
-  const hardViolations = 0;
+  const resolved = approvals.filter((a) => a.status !== "pending").length;
+  // A block is the system refusing to act. That is the constitution working, not
+  // a failure — but a rising count means an agent keeps trying the same thing.
+  const hardViolations = blocked;
   const interventionRate = total === 0 ? 0 : escalated / total;
   const autonomousResolution = total === 0 ? 1 : executed / total;
-  const constraintAdherence = hardViolations === 0 ? 1 : 0;
+  // Hard blocks are expected to be rare. Above ~2% the fleet is pushing.
+  const constraintAdherence = total === 0 ? 1 : Math.max(0, 1 - hardViolations / Math.max(total, 1));
   const decisionQuality = total === 0 ? 1 : Math.max(0, 1 - blocked / Math.max(total, 1));
   const governance = company.halted ? 0.4 : 0.98;
-  const selfHealing = pending > 20 ? 0.7 : 0.94;
+  // Backlog of unresolved founder gates is the one thing that silently rots.
+  const selfHealing = pending > 20 ? 0.7 : pending > 8 ? 0.84 : 0.94;
   const overall =
     constraintAdherence * 0.3 +
     decisionQuality * 0.2 +
@@ -306,7 +457,7 @@ function healthOf(
   return {
     overall: Number(overall.toFixed(3)),
     decisionQuality: Number(decisionQuality.toFixed(3)),
-    constraintAdherence,
+    constraintAdherence: Number(constraintAdherence.toFixed(3)),
     selfHealing,
     governance,
     interventionRate: Number(interventionRate.toFixed(5)),
@@ -314,34 +465,22 @@ function healthOf(
     decisionCount: total,
     pendingApprovals: pending,
     hardViolations,
+    resolvedApprovals: resolved,
   };
 }
 
+/**
+ * Read the whole office.
+ *
+ * This is a pure read. It used to run `CREATE TABLE` / `ALTER TABLE ... ADD
+ * COLUMN` and an unconditional `UPDATE company_state` on every call, which on a
+ * pooled Postgres meant an ACCESS EXCLUSIVE lock convoy on every office page
+ * load and a silent overwrite of any payment note the founder had typed. All of
+ * that now lives in migrations and in `provisionOffice`.
+ */
 export async function readSnapshot(): Promise<OfficeSnapshot> {
   await ensureOffice();
   const sql = await getSql();
-  await sql`
-    create table if not exists founder_notices (
-      id text primary key,
-      kind text not null,
-      subject text not null,
-      status text not null,
-      detail text not null,
-      created_at timestamptz not null default now()
-    )
-  `;
-  await sql`alter table documents add column if not exists related_id text`;
-  await sql`alter table tickets add column if not exists related_id text`;
-  await sql`alter table company_state add column if not exists payment_instructions text not null default ''`;
-  await sql`
-    update company_state
-    set payment_instructions = ${paymentInstructionsText(process.env)}
-    where id = ${COMPANY.id}
-      and (
-        coalesce(payment_instructions, '') = ''
-        or payment_instructions like ${"%beneficiary Vantage-ARS.%"}
-      )
-  `;
   const company = await loadCompany();
 
   const [
@@ -508,46 +647,50 @@ export async function readSnapshot(): Promise<OfficeSnapshot> {
   };
 }
 
-async function hasApprovedHandoff(companyName: string): Promise<boolean> {
-  const sql = await getSql();
+async function hasApprovedHandoff(sql: Sql, companyName: string): Promise<boolean> {
   const rows = await sql<{ id: string }>`
     select id from approvals
     where kind = 'sales_handoff'
       and status = 'approved'
-      and lower(coalesce(company_name, '')) = ${companyName.toLowerCase()}
+      and lower(coalesce(company_name, '')) = ${companyName.trim().toLowerCase()}
     limit 1
   `;
   return rows.length > 0;
 }
 
-async function hasWonOpportunity(companyName: string): Promise<boolean> {
-  const sql = await getSql();
+async function hasWonOpportunity(sql: Sql, companyName: string): Promise<boolean> {
   const rows = await sql<{ id: string }>`
     select id from opportunities
-    where stage = 'won' and lower(company_name) = ${companyName.toLowerCase()}
+    where stage = 'won' and lower(company_name) = ${companyName.trim().toLowerCase()}
     limit 1
   `;
   return rows.length > 0;
 }
 
-async function recordDecision(input: {
-  agentId: string;
-  action: ProposedAction;
-  status: DecisionRow["status"];
-  trace: ProvisionCheck[];
-  reversibility: DecisionRow["reversibility"];
-  observation: Record<string, Json>;
-}): Promise<string> {
-  const sql = await getSql();
-  const company = await loadCompany();
+async function recordDecisionTx(
+  sql: Sql,
+  input: {
+    agentId: string;
+    action: ProposedAction;
+    status: DecisionRow["status"];
+    trace: ProvisionCheck[];
+    reversibility: DecisionRow["reversibility"];
+    observation: Record<string, Json>;
+  },
+): Promise<string> {
+  const previous = await readAuditHead(sql);
   const id = randomUUID();
   const evidenceHash = sha256Hex(stableStringify(input.action));
-  const recordHash = chainHash(company.lastAuditHash, {
+  // The chain covers everything that defines the decision, including the
+  // observation, so a tampered row cannot be re-hashed into something valid.
+  const recordHash = chainHash(previous, {
     id,
     agentId: input.agentId,
     action: input.action,
     status: input.status,
     trace: input.trace,
+    observation: input.observation,
+    evidenceHash,
   });
   await sql`
     insert into decisions (
@@ -559,11 +702,12 @@ async function recordDecision(input: {
       ${input.action.rationale}, ${input.status}, ${input.action.confidence},
       ${input.reversibility}, ${input.action.amountCents}, ${JSON.stringify(input.trace)},
       ${JSON.stringify(input.observation)}, ${JSON.stringify(input.action)},
-      ${evidenceHash}, ${company.lastAuditHash}, ${recordHash}
+      ${evidenceHash}, ${previous}, ${recordHash}
     )
   `;
   await sql`
-    update company_state set last_audit_hash = ${recordHash}, updated_at = now() where id = ${COMPANY.id}
+    update company_state set last_audit_hash = ${recordHash}, updated_at = now()
+    where id = ${COMPANY.id}
   `;
   await sql`
     update agents
@@ -577,8 +721,17 @@ async function recordDecision(input: {
   return id;
 }
 
-async function executeAuthorized(agentId: string, action: ProposedAction, approvalId?: string): Promise<void> {
-  const sql = await getSql();
+/**
+ * Apply one action's side effects. Always called with the transaction/handle the
+ * caller wants the write to land in, so a ledger entry and its balance movement
+ * can never be observed apart.
+ */
+async function executeAuthorized(
+  sql: Sql,
+  agentId: string,
+  action: ProposedAction,
+  approvalId?: string,
+): Promise<void> {
   const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
   const amount = Math.max(0, Math.round(action.amountCents || 0));
 
@@ -597,13 +750,21 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
       const id = randomUUID();
       const body = typeof action.payload.body === "string" ? action.payload.body : action.rationale;
       await sql`
-        insert into documents (id, title, kind, status, summary)
-        values (${id}, ${action.title}, 'correspondence', 'draft', ${body})
+        insert into documents (id, title, kind, status, summary, related_id)
+        values (${id}, ${action.title}, 'correspondence', 'draft', ${body}, ${action.relatedId ?? null})
       `;
       break;
     }
     case "create_lead": {
       const id = randomUUID();
+      // The lead must carry the customer's OWN words, not the agent's summary of
+      // them. Downstream duties (qualifying, scoring, the sales handoff) decide
+      // on this text, and an agent-authored paraphrase would make them score an
+      // agent's optimism rather than what the buyer actually wrote.
+      const evidence =
+        typeof action.payload.evidence === "string" && action.payload.evidence.trim()
+          ? action.payload.evidence.trim().slice(0, 4000)
+          : action.rationale;
       await sql`
         insert into leads (id, company_name, source, stage, score, summary, inbound_id)
         values (
@@ -612,17 +773,15 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
           ${String(action.payload.source ?? "inbound")},
           ${String(action.payload.stage ?? "engaged")},
           ${num(action.payload.score, 40)},
-          ${action.rationale},
+          ${evidence},
           ${action.relatedId ?? null}
         )
       `;
-      if (action.relatedId) {
-        await sql`
-          update inbound_items
-          set status = 'routed', routed_to = ${agentId}
-          where id = ${action.relatedId}
-        `;
-      }
+      await sql`
+        update inbound_items
+        set status = 'routed', routed_to = ${agentId}
+        where id = ${action.relatedId ?? ""}
+      `;
       break;
     }
     case "update_lead": {
@@ -641,8 +800,8 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     case "draft_campaign":
     case "activate_campaign": {
       const budget = amount;
-      const company = await loadCompany();
-      const canPay = action.kind === "activate_campaign" && budget > 0 && company.treasuryCents >= budget;
+      const books = await loadCompanyTx(sql);
+      const canPay = action.kind === "activate_campaign" && budget > 0 && books.treasuryCents >= budget;
       const status =
         action.kind === "activate_campaign"
           ? budget === 0
@@ -702,7 +861,23 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
       break;
     }
     case "open_opportunity": {
-      const leadId = String(action.relatedId ?? randomUUID());
+      // Never point an opportunity at a lead id that does not exist: create the
+      // lead if the handoff did not already have one.
+      let leadId = action.relatedId ? String(action.relatedId) : null;
+      if (leadId) {
+        const found = await sql<{ id: string }>`select id from leads where id = ${leadId} limit 1`;
+        if (!found.length) leadId = null;
+      }
+      if (!leadId) {
+        leadId = randomUUID();
+        await sql`
+          insert into leads (id, company_name, source, stage, score, summary)
+          values (
+            ${leadId}, ${companyName || "Unnamed company"}, 'sales',
+            'in_sales', ${num(action.payload.score, 50)}, ${action.rationale}
+          )
+        `;
+      }
       const id = randomUUID();
       await sql`
         insert into opportunities (id, lead_id, company_name, stage, value_cents, summary, handoff_approval_id)
@@ -725,8 +900,7 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
         `;
       }
       const quoteId = randomUUID();
-      const drafted = typeof action.payload.body === "string" ? action.payload.body : action.rationale;
-      const body = `${drafted} Reference: ${documentRef(quoteId)}.`;
+      const body = quoteDocumentBody(quoteId, action);
       await sql`
         insert into documents (id, title, kind, status, summary, related_id)
         values (${quoteId}, ${action.title}, 'quote', 'approved_unsent', ${body}, ${action.relatedId ?? null})
@@ -787,7 +961,7 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     case "record_expense": {
       const id = randomUUID();
       const vat = expenseVat(action.payload.vatTreatment, amount);
-      const books = await loadCompany();
+      const books = await loadCompanyTx(sql);
       const paid = amount > 0 && books.treasuryCents >= amount;
       await sql`
         insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
@@ -813,16 +987,19 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     }
     case "record_inbound_payment": {
       const id = randomUUID();
+      // Cash may only ever be credited against money that is actually owed. The
+      // old code did `treasury += amount` unconditionally and then floored the
+      // receivable at zero, so a duplicated receipt — or a payment recorded
+      // against nothing — created money from nothing.
+      const applied = await applyReceiptAgainstReceivable(sql, amount);
+      if (applied <= 0) {
+        throw new Error(
+          "No outstanding invoice to apply this receipt against. Record the invoice first, or file the payment as a notice for the founder to confirm.",
+        );
+      }
       await sql`
         insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
-        values (${id}, 'receipt', ${companyName || "Counterparty"}, ${amount}, 0, 'cleared', ${action.rationale}, ${action.relatedId ?? null})
-      `;
-      await sql`
-        update company_state
-        set treasury_cents = treasury_cents + ${amount},
-            receivable_cents = greatest(receivable_cents - ${amount}, 0),
-            updated_at = now()
-        where id = ${COMPANY.id}
+        values (${id}, 'receipt', ${companyName || "Counterparty"}, ${applied}, 0, 'cleared', ${action.rationale}, ${action.relatedId ?? null})
       `;
       break;
     }
@@ -852,21 +1029,22 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     case "draft_document": {
       const id = randomUUID();
       await sql`
-        insert into documents (id, title, kind, status, summary)
-        values (${id}, ${action.title}, ${String(action.payload.kind ?? "internal")}, 'draft', ${action.rationale})
+        insert into documents (id, title, kind, status, summary, related_id)
+        values (${id}, ${action.title}, ${String(action.payload.kind ?? "internal")}, 'draft', ${action.rationale}, ${action.relatedId ?? null})
       `;
       break;
     }
     case "escalate_account_risk": {
       const id = randomUUID();
       await sql`
-        insert into documents (id, title, kind, status, summary)
+        insert into documents (id, title, kind, status, summary, related_id)
         values (
           ${id},
-          ${"Service risk cleared"},
+          ${"Service risk raised for founder decision"},
           'correspondence',
           'held',
-          ${"Founder cleared the desk to continue. No refund, credit, or cancellation is booked by this action."}
+          ${`${action.rationale} Nothing was refunded, credited, cancelled or promised. The founder decides the customer outcome.`},
+          ${action.relatedId ?? null}
         )
       `;
       break;
@@ -874,165 +1052,267 @@ async function executeAuthorized(agentId: string, action: ProposedAction, approv
     case "notify_operator":
       break;
     default:
-      break;
+      throw new Error(`Unknown action kind: ${action.kind}`);
   }
 }
 
+/**
+ * Authorise, execute and record one proposed action.
+ *
+ * Everything that mutates state happens inside a single transaction that holds
+ * the audit-chain lock, so the decision row, the audit row, the chain head, and
+ * the action's own side effects all land together or not at all. Previously the
+ * side effects ran before the decision was recorded, so a throw mid-way left a
+ * ledger entry with no decision and no audit trail.
+ */
 export async function applyProposedAction(
   agentId: string,
   action: ProposedAction,
   observation: { [key: string]: Json },
-): Promise<{ decisionId: string; approvalId?: string; status: DecisionRow["status"] }> {
-  const company = await loadCompany();
-  const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
-  const extras = {
-    approvedHandoff: companyName ? await hasApprovedHandoff(companyName) : false,
-    opportunityWon: companyName ? await hasWonOpportunity(companyName) : false,
-  };
-  const auth = authorizeAction(action, agentId, company, extras);
+): Promise<{ decisionId: string; approvalId?: string; status: DecisionRow["status"]; error?: string }> {
+  return withChain(async (tx) => {
+    const company = await loadCompanyTx(tx);
+    const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
+    const extras = {
+      approvedHandoff: companyName ? await hasApprovedHandoff(tx, companyName) : false,
+      opportunityWon: companyName ? await hasWonOpportunity(tx, companyName) : false,
+    };
+    const auth = authorizeAction(action, agentId, company, extras);
 
-  if (auth.verdict === "deny") {
-    const decisionId = await recordDecision({
-      agentId,
-      action,
-      status: "blocked",
-      trace: auth.trace,
-      reversibility: auth.reversibility,
-      observation: { ...observation, reason: auth.reason },
-    });
-    await appendAudit("decision_blocked", action.title, auth.reason, agentId);
-    return { decisionId, status: "blocked" };
-  }
-
-  if (auth.verdict === "review") {
-    const sql = await getSql();
-    const approvalId = randomUUID();
-    await sql`
-      insert into approvals (
-        id, kind, title, rationale, amount_cents, agent_id, company_name, status,
-        risk_score, constitutional_trace_json, action_json
-      ) values (
-        ${approvalId}, ${auth.approvalKind ?? "constraint_margin"}, ${action.title},
-        ${auth.reason}, ${action.amountCents}, ${agentId}, ${companyName || null},
-        'pending', ${Math.round((1 - action.confidence) * 100)},
-        ${JSON.stringify(auth.trace)}, ${JSON.stringify(action)}
-      )
-    `;
-    const decisionId = await recordDecision({
-      agentId,
-      action,
-      status: "escalated",
-      trace: auth.trace,
-      reversibility: auth.reversibility,
-      observation: { ...observation, reason: auth.reason, approvalId },
-    });
-    await appendAudit(
-      "approval_opened",
-      action.title,
-      `${auth.reason} Gate: ${auth.approvalKind ?? "review"}.`,
-      agentId,
-    );
-    try {
-      const { deliverFounderNotice } = await import("./notify.server");
-      const { founderApprovalNotice } = await import("./notice");
-      await deliverFounderNotice(
-        founderApprovalNotice({
-          gate: auth.approvalKind ?? "review",
-          title: action.title,
-          reason: auth.reason,
-          amountCents: action.amountCents,
-          companyName,
-        }),
-      );
-    } catch {
-      // The approval is already on the desk.
+    if (auth.verdict === "deny") {
+      const decisionId = await recordDecisionTx(tx, {
+        agentId,
+        action,
+        status: "blocked",
+        trace: auth.trace,
+        reversibility: auth.reversibility,
+        observation: { ...observation, reason: auth.reason },
+      });
+      await appendAuditTx(tx, "decision_blocked", action.title, auth.reason, agentId);
+      return { decisionId, status: "blocked" as const };
     }
-    return { decisionId, approvalId, status: "escalated" };
-  }
 
-  await executeAuthorized(agentId, action);
-  const decisionId = await recordDecision({
-    agentId,
-    action,
-    status: "executed",
-    trace: auth.trace,
-    reversibility: auth.reversibility,
-    observation,
+    if (auth.verdict === "review") {
+      const approvalId = randomUUID();
+      await tx`
+        insert into approvals (
+          id, kind, title, rationale, amount_cents, agent_id, company_name, status,
+          risk_score, constitutional_trace_json, action_json
+        ) values (
+          ${approvalId}, ${auth.approvalKind ?? "constraint_margin"}, ${action.title},
+          ${auth.reason}, ${action.amountCents}, ${agentId}, ${companyName || null},
+          'pending', ${Math.round((1 - action.confidence) * 100)},
+          ${JSON.stringify(auth.trace)}, ${JSON.stringify(action)}
+        )
+      `;
+      const decisionId = await recordDecisionTx(tx, {
+        agentId,
+        action,
+        status: "escalated",
+        trace: auth.trace,
+        reversibility: auth.reversibility,
+        observation: { ...observation, reason: auth.reason, approvalId },
+      });
+      await appendAuditTx(
+        tx,
+        "approval_opened",
+        action.title,
+        `${auth.reason} Gate: ${auth.approvalKind ?? "review"}.`,
+        agentId,
+      );
+      // Mail is best-effort and happens after commit: a slow SMTP call must not
+      // hold the audit lock open.
+      void notifyApproval({
+        gate: auth.approvalKind ?? "review",
+        title: action.title,
+        reason: auth.reason,
+        amountCents: action.amountCents,
+        companyName,
+      });
+      return { decisionId, approvalId, status: "escalated" as const };
+    }
+
+    let decisionId: string;
+    try {
+      await executeAuthorized(tx, agentId, action);
+      decisionId = await recordDecisionTx(tx, {
+        agentId,
+        action,
+        status: "executed",
+        trace: auth.trace,
+        reversibility: auth.reversibility,
+        observation,
+      });
+      await appendAuditTx(tx, "decision_executed", action.title, action.rationale, agentId);
+    } catch (error) {
+      // The transaction rolls back, so nothing was executed. Record the refusal
+      // so the failure is visible in the audit trail rather than silent.
+      const reason = error instanceof Error ? error.message : "Execution failed.";
+      const failedId = await recordDecisionTx(tx, {
+        agentId,
+        action,
+        status: "blocked",
+        trace: auth.trace,
+        reversibility: auth.reversibility,
+        observation: { ...observation, reason, executionError: true },
+      });
+      await appendAuditTx(tx, "decision_blocked", action.title, reason, agentId);
+      return { decisionId: failedId, status: "blocked" as const, error: reason };
+    }
+    return { decisionId, status: "executed" as const };
   });
-  await appendAudit("decision_executed", action.title, action.rationale, agentId);
-  return { decisionId, status: "executed" };
 }
 
+async function notifyApproval(input: {
+  gate: string;
+  title: string;
+  reason: string;
+  amountCents: number;
+  companyName: string;
+}): Promise<void> {
+  try {
+    const { deliverFounderNotice } = await import("./notify.server");
+    const { founderApprovalNotice } = await import("./notice");
+    await deliverFounderNotice(founderApprovalNotice(input));
+  } catch {
+    // The approval is already on the desk and in the audit trail.
+  }
+}
+
+/**
+ * Founder decision on an escalated action.
+ *
+ * The approval row is CLAIMED with a conditional update (`where status =
+ * 'pending' returning id`) before anything executes, inside the same
+ * transaction that performs the work. Two clicks, two tabs, or a retry after a
+ * network timeout can therefore never execute the action twice — which is the
+ * difference between one invoice and two.
+ */
 export async function resolveApproval(input: {
   approvalId: string;
   decision: "approved" | "rejected";
   note?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   await ensureOffice();
-  const sql = await getSql();
-  const rows = await sql<Record<string, unknown>>`
-    select * from approvals where id = ${input.approvalId} limit 1
-  `;
-  const row = rows[0];
-  if (!row) return { ok: false, error: "Approval not found." };
-  if (String(row.status) !== "pending") return { ok: false, error: "Approval already resolved." };
-
-  const action = parseJson<ProposedAction>(row.action_json, {
-    kind: "notify_operator",
-    title: String(row.title),
-    rationale: String(row.rationale),
-    confidence: 1,
-    amountCents: num(row.amount_cents),
-    payload: {},
-  });
-  const agentId = String(row.agent_id);
   const note = (input.note ?? "").trim();
 
-  if (input.decision === "rejected") {
-    await sql`
+  return withChain(async (tx) => {
+    const row = await tx<Record<string, unknown>>`
+      select * from approvals where id = ${input.approvalId} for update
+    `.then((rows) => rows[0]);
+    if (!row) return { ok: false, error: "Approval not found." };
+    if (String(row.status) !== "pending") {
+      return { ok: false, error: "That approval has already been resolved." };
+    }
+
+    const action = parseJson<ProposedAction>(row.action_json, {
+      kind: "notify_operator",
+      title: String(row.title),
+      rationale: String(row.rationale),
+      confidence: 1,
+      amountCents: num(row.amount_cents),
+      payload: {},
+    });
+    const agentId = String(row.agent_id);
+
+    if (input.decision === "rejected") {
+      const claimed = await tx<{ id: string }>`
+        update approvals
+        set status = 'rejected',
+            resolution_note = ${note || "Rejected by founder."},
+            resolved_at = now()
+        where id = ${input.approvalId} and status = 'pending'
+        returning id
+      `;
+      if (!claimed.length) return { ok: false, error: "That approval has already been resolved." };
+      // Record the refusal as its own decision so the escalation does not stay
+      // open forever in the autonomy metrics.
+      await recordDecisionTx(tx, {
+        agentId,
+        action,
+        status: "blocked",
+        trace: [],
+        reversibility: "fully_reversible",
+        observation: { gate: "founder", decision: "rejected", approvalId: input.approvalId },
+      });
+      await appendAuditTx(
+        tx,
+        "approval_rejected",
+        String(row.title),
+        note || "Founder rejected the action. It was not executed.",
+        "founder",
+      );
+      return { ok: true };
+    }
+
+    // Approve: honour a halt. The governor refuses all agent action while the
+    // office is halted; founder approval is the only thing that can lift that,
+    // and it is not an implicit one.
+    const company = await loadCompanyTx(tx);
+    if (company.halted) {
+      return {
+        ok: false,
+        error: "The office is halted. Resume it before approving queued work.",
+      };
+    }
+
+    const claimed = await tx<{ id: string }>`
       update approvals
-      set status = 'rejected', resolution_note = ${note || "Rejected by founder."}, resolved_at = now()
-      where id = ${input.approvalId}
+      set status = 'approved',
+          resolution_note = ${note || "Approved by founder."},
+          resolved_at = now()
+      where id = ${input.approvalId} and status = 'pending'
+      returning id
     `;
-    await appendAudit(
-      "approval_rejected",
+    if (!claimed.length) return { ok: false, error: "That approval has already been resolved." };
+
+    if (action.kind === "handoff_to_sales") {
+      const companyName = String(row.company_name ?? action.companyName ?? "Unnamed company");
+      const oppId = randomUUID();
+      let leadId = action.relatedId ? String(action.relatedId) : null;
+      if (leadId) {
+        const found = await tx<{ id: string }>`select id from leads where id = ${leadId} limit 1`;
+        if (!found.length) leadId = null;
+      }
+      if (!leadId) {
+        leadId = randomUUID();
+        await tx`
+          insert into leads (id, company_name, source, stage, score, summary)
+          values (
+            ${leadId}, ${companyName}, 'marketing', 'in_sales',
+            ${num(action.payload.score, 55)}, ${action.rationale}
+          )
+        `;
+      }
+      await tx`
+        insert into opportunities (id, lead_id, company_name, stage, value_cents, summary, handoff_approval_id)
+        values (
+          ${oppId}, ${leadId}, ${companyName}, 'discovery', ${action.amountCents},
+          ${action.rationale}, ${input.approvalId}
+        )
+      `;
+      await tx`update leads set stage = 'in_sales', updated_at = now() where id = ${leadId}`;
+    } else {
+      await executeAuthorized(tx, agentId, action, input.approvalId);
+    }
+
+    await recordDecisionTx(tx, {
+      agentId,
+      action,
+      status: "executed",
+      trace: [],
+      reversibility: "partially_reversible",
+      observation: { gate: "founder", decision: "approved", approvalId: input.approvalId },
+    });
+    await appendAuditTx(
+      tx,
+      "approval_approved",
       String(row.title),
-      note || "Founder rejected the action. It was not executed.",
+      note || "Founder approved. Action executed inside the authorised envelope.",
       "founder",
     );
     return { ok: true };
-  }
-
-  if (action.kind === "handoff_to_sales") {
-    const companyName = String(row.company_name ?? action.companyName ?? "Unnamed company");
-    const oppId = randomUUID();
-    const leadId = String(action.relatedId ?? randomUUID());
-    await sql`
-      insert into opportunities (id, lead_id, company_name, stage, value_cents, summary, handoff_approval_id)
-      values (
-        ${oppId}, ${leadId}, ${companyName}, 'discovery', ${action.amountCents},
-        ${action.rationale}, ${input.approvalId}
-      )
-    `;
-    if (action.relatedId) {
-      await sql`update leads set stage = 'in_sales', updated_at = now() where id = ${action.relatedId}`;
-    }
-  } else {
-    await executeAuthorized(agentId, action, input.approvalId);
-  }
-
-  await sql`
-    update approvals
-    set status = 'approved', resolution_note = ${note || "Approved by founder."}, resolved_at = now()
-    where id = ${input.approvalId}
-  `;
-  await appendAudit(
-    "approval_approved",
-    String(row.title),
-    note || "Founder approved. Action executed inside the authorised envelope.",
-    "founder",
-  );
-  return { ok: true };
+  });
 }
 
 export async function setOfficeHalt(halted: boolean, reason: string): Promise<void> {
@@ -1095,8 +1375,8 @@ export async function filePaymentNotice(input: {
     summary: `Email: ${input.email.trim()}\n${parsed.summary}`,
     intent: "payment_notice",
   });
-  const snapshot = await readSnapshot();
-  if (!snapshot.company.halted) {
+  const company = await loadCompany();
+  if (!company.halted) {
     await applyProposedAction(
       "foyer",
       {
@@ -1118,16 +1398,18 @@ export async function filePaymentNotice(input: {
 export async function dismissPaymentNotice(
   inboundId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const item = snapshot.inbound.find((row) => row.id === inboundId && row.intent === "payment_notice");
-  if (!item) return { ok: false, error: "That payment notice is not on the ledger." };
-  if (item.status === "filed") return { ok: false, error: "This notice is already filed." };
   const sql = await getSql();
-  await sql`update inbound_items set status = 'filed' where id = ${item.id}`;
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+  const item = await sql<Record<string, unknown>>`
+    select * from inbound_items where id = ${inboundId} and intent = 'payment_notice'
+  `.then((rows) => rows[0]);
+  if (!item) return { ok: false, error: "That payment notice is not on the ledger." };
+  if (String(item.status) === "filed") return { ok: false, error: "This notice is already filed." };
+  await sql`update inbound_items set status = 'filed' where id = ${inboundId}`;
   await appendAudit(
     "payment_notice_filed",
-    item.subject,
+    String(item.subject),
     "Founder filed the payment notice. Treasury was not changed.",
     "founder",
   );
@@ -1220,7 +1502,12 @@ export async function founderClose(input: {
  * Close an opportunity on the customer's answer. Shared by the founder's
  * "Customer accepted/declined" buttons and the customer's own quote link, so
  * both follow the same rules: an approved quote must exist, and a win opens
- * one delivery ticket. Nothing is invoiced or emailed here.
+ * exactly one delivery ticket. Nothing is invoiced or emailed here.
+ *
+ * Records are read straight from the database, not from `readSnapshot`. The
+ * snapshot is windowed for display; using it here meant that once the office had
+ * more than 40 documents or 80 tickets, an old quote became invisible and the
+ * guards below silently stopped protecting the books.
  */
 async function closeOpportunity(input: {
   opportunityId: string;
@@ -1229,52 +1516,76 @@ async function closeOpportunity(input: {
   note: string;
   quoteId?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const opportunity = snapshot.opportunities.find((item) => item.id === input.opportunityId);
-  if (!opportunity) return { ok: false, error: "That opportunity is not on the pipeline." };
-  if (opportunity.stage === "won" || opportunity.stage === "lost") {
-    return { ok: false, error: "This opportunity is already closed." };
-  }
-  const quote = snapshot.documents.find(
-    (item) =>
-      item.kind === "quote" &&
-      item.status === "approved_unsent" &&
-      item.relatedId === opportunity.id &&
-      (!input.quoteId || item.id === input.quoteId),
-  );
-  if (!quote) return { ok: false, error: "Approve a quote before recording the customer's answer." };
-  if (input.outcome === "won" && opportunity.valueCents <= 0) {
-    return { ok: false, error: "There is no approved figure to accept." };
-  }
-  const sql = await getSql();
-  const won = input.outcome === "won";
-  const note = input.note;
-  await sql`
-    update opportunities
-    set stage = ${won ? "won" : "lost"},
-        summary = ${`${note} ${opportunity.summary}`},
-        updated_at = now()
-    where id = ${opportunity.id}
-  `;
-  await sql`
-    update documents
-    set status = ${won ? "accepted" : "declined"}
-    where id = ${quote.id}
-  `;
-  if (won) {
-    const existing = snapshot.tickets.some((item) => item.relatedId === opportunity.id);
-    if (!existing) {
-      const job = deliveryJob(opportunity.companyName, quote.summary);
-      const ticketId = randomUUID();
-      await sql`
-        insert into tickets (id, title, severity, status, owner_agent, summary, related_id)
-        values (${ticketId}, ${job.title}, 'p3', 'open', 'forge', ${job.summary}, ${opportunity.id})
-      `;
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+
+  return withChain(async (tx) => {
+    const rows = await tx<Record<string, unknown>>`
+      select * from opportunities where id = ${input.opportunityId} for update
+    `;
+    const record = rows[0];
+    if (!record) return { ok: false, error: "That opportunity is not on the pipeline." };
+    const stage = String(record.stage);
+    if (stage === "won" || stage === "lost") {
+      return { ok: false, error: "This opportunity is already closed." };
     }
-  }
-  await appendAudit(won ? "customer_accepted" : "customer_declined", opportunity.companyName, note, input.actor);
-  return { ok: true };
+    const companyName = String(record.company_name);
+    const valueCents = num(record.value_cents);
+
+    const quotes = await tx<Record<string, unknown>>`
+      select id, summary from documents
+      where kind = 'quote' and status = 'approved_unsent' and related_id = ${input.opportunityId}
+      order by created_at desc
+      limit 5
+    `;
+    const quote = input.quoteId
+      ? quotes.find((row) => String(row.id) === input.quoteId)
+      : quotes[0];
+    if (!quote) {
+      return { ok: false, error: "Approve a quote before recording the customer's answer." };
+    }
+
+    const won = input.outcome === "won";
+    if (won && valueCents <= 0) {
+      return { ok: false, error: "There is no approved figure to accept." };
+    }
+    const note = input.note;
+    await tx`
+      update opportunities
+      set stage = ${won ? "won" : "lost"},
+          summary = ${`${note} ${String(record.summary)}`},
+          updated_at = now()
+      where id = ${input.opportunityId}
+    `;
+    await tx`
+      update documents
+      set status = ${won ? "accepted" : "declined"}
+      where id = ${quote.id}
+    `;
+    if (won) {
+      // `not exists` in the insert makes the delivery ticket idempotent even if
+      // the customer clicks accept twice.
+      const opened = await tx<{ id: string }>`
+        insert into tickets (id, title, severity, status, owner_agent, summary, related_id)
+        select ${randomUUID()}, ${deliveryJob(companyName, String(quote.summary)).title}, 'p3',
+               'open', 'forge', ${deliveryJob(companyName, String(quote.summary)).summary},
+               ${input.opportunityId}
+        where not exists (
+          select 1 from tickets where related_id = ${input.opportunityId}
+        )
+        returning id
+      `;
+      void opened;
+    }
+    await appendAuditTx(
+      tx,
+      won ? "customer_accepted" : "customer_declined",
+      companyName,
+      note,
+      input.actor,
+    );
+    return { ok: true };
+  });
 }
 
 // ── Customer quote links ─────────────────────────────────────────────────────
@@ -1304,33 +1615,45 @@ function tokenHash(token: string): string {
 export async function createQuoteLink(
   documentId: string,
 ): Promise<{ ok: true; token: string; expiresAt: string } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const quote = snapshot.documents.find((item) => item.id === documentId && item.kind === "quote");
-  if (!quote || quote.status !== "approved_unsent" || !quote.relatedId) {
+  const sql = await getSql();
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+
+  const quote = await sql<Record<string, unknown>>`
+    select d.*, o.stage as opportunity_stage, o.company_name as opportunity_company
+    from documents d
+    left join opportunities o on o.id = d.related_id
+    where d.id = ${documentId} and d.kind = 'quote'
+  `.then((rows) => rows[0]);
+  if (!quote || String(quote.status) !== "approved_unsent" || !quote.related_id) {
     return { ok: false, error: "Only an approved quote that is waiting on the customer can get a link." };
   }
-  const opportunity = snapshot.opportunities.find((item) => item.id === quote.relatedId);
-  if (!opportunity || opportunity.stage === "won" || opportunity.stage === "lost") {
+  const stage = String(quote.opportunity_stage ?? "");
+  if (stage === "won" || stage === "lost") {
     return { ok: false, error: "This opportunity is already closed." };
   }
+  const opportunityId = String(quote.related_id);
+  const opportunityCompany = String(quote.opportunity_company ?? "Customer");
+
   const token = randomBytes(32).toString("base64url");
   const expiresAt = linkExpiry().toISOString();
-  const sql = await getSql();
-  await sql`
-    update quote_links set revoked_at = now()
-    where document_id = ${quote.id} and revoked_at is null and answered_at is null
-  `;
-  await sql`
-    insert into quote_links (id, token_hash, document_id, opportunity_id, expires_at)
-    values (${randomUUID()}, ${tokenHash(token)}, ${quote.id}, ${opportunity.id}, ${expiresAt})
-  `;
-  await appendAudit(
-    "quote_link_created",
-    opportunity.companyName,
-    `Customer quote link created, valid until ${expiresAt.slice(0, 10)}. Any earlier link for this quote was revoked. Nothing was emailed.`,
-    "founder",
-  );
+  await withChain(async (tx) => {
+    await tx`
+      update quote_links set revoked_at = now()
+      where document_id = ${String(quote.id)} and revoked_at is null and answered_at is null
+    `;
+    await tx`
+      insert into quote_links (id, token_hash, document_id, opportunity_id, expires_at)
+      values (${randomUUID()}, ${tokenHash(token)}, ${String(quote.id)}, ${opportunityId}, ${expiresAt})
+    `;
+    await appendAuditTx(
+      tx,
+      "quote_link_created",
+      opportunityCompany,
+      `Customer quote link created, valid until ${expiresAt.slice(0, 10)}. Any earlier link for this quote was revoked. Nothing was emailed.`,
+      "founder",
+    );
+  });
   return { ok: true, token, expiresAt };
 }
 
@@ -1343,31 +1666,39 @@ export async function revokeQuoteLinks(documentId: string): Promise<{ ok: true }
     returning id
   `;
   if (rows.length === 0) return { ok: false, error: "There is no open link for this quote." };
-  const snapshot = await readSnapshot();
-  const quote = snapshot.documents.find((item) => item.id === documentId);
-  await appendAudit("quote_link_revoked", quote?.title ?? "Quote", "Customer quote link revoked by the founder.", "founder");
+  const quote = await sql<{ title: string }>`select title from documents where id = ${documentId}`
+    .then((found) => found[0]);
+  await appendAudit(
+    "quote_link_revoked",
+    quote?.title ?? "Quote",
+    "Customer quote link revoked by the founder.",
+    "founder",
+  );
   return { ok: true };
 }
 
 /** Founder: the latest link per quote, for the Sales page. */
 export async function listQuoteLinks(): Promise<QuoteLinkSummary[]> {
   const sql = await getSql();
+  // One row per quote via DISTINCT ON instead of pulling every historical link
+  // into memory and de-duplicating in JS.
   const rows = await sql<Record<string, unknown>>`
-    select l.*, d.status as document_status
+    select distinct on (l.document_id)
+      l.document_id, l.expires_at, l.revoked_at, l.answer, l.answer_name, l.answer_note,
+      l.created_at, l.first_viewed_at, l.last_viewed_at, l.view_count, l.answered_at,
+      d.status as document_status
     from quote_links l
     join documents d on d.id = l.document_id
-    order by l.created_at desc
+    order by l.document_id, l.created_at desc
   `;
-  const latest = new Map<string, QuoteLinkSummary>();
-  for (const row of rows) {
+  return rows.map((row) => {
     const documentId = String(row.document_id);
-    if (latest.has(documentId)) continue;
     const record = {
       expiresAt: iso(row.expires_at),
       revokedAt: row.revoked_at ? iso(row.revoked_at) : null,
       answer: row.answer ? String(row.answer) : null,
     };
-    latest.set(documentId, {
+    return {
       documentId,
       state: linkState(record, String(row.document_status)),
       createdAt: iso(row.created_at),
@@ -1378,9 +1709,8 @@ export async function listQuoteLinks(): Promise<QuoteLinkSummary[]> {
       answeredAt: row.answered_at ? iso(row.answered_at) : null,
       answerName: row.answer_name ? String(row.answer_name) : null,
       answerNote: row.answer_note ? String(row.answer_note) : null,
-    });
-  }
-  return [...latest.values()];
+    };
+  });
 }
 
 async function findLink(token: string): Promise<Record<string, unknown> | null> {
@@ -1392,41 +1722,62 @@ async function findLink(token: string): Promise<Record<string, unknown> | null> 
   return rows[0] ?? null;
 }
 
-/** Public: what the customer sees on their link. Records the view. */
+/**
+ * Public: what the customer sees on their link. Records the view.
+ *
+ * Reads only the three rows it needs. This used to call `readSnapshot`, which
+ * meant an unauthenticated request to `/q/<token>` fired ~30 queries including
+ * every table in the office — a free denial-of-service surface and a slow page.
+ */
 export async function readPublicQuote(token: string, countView = true): Promise<PublicQuote> {
   const link = await findLink(token);
   if (!link) return { ok: false, error: "This quote link is not valid. Ask us for a new one." };
-  const snapshot = await readSnapshot();
-  const quote = snapshot.documents.find((item) => item.id === String(link.document_id));
-  const opportunity = snapshot.opportunities.find((item) => item.id === String(link.opportunity_id));
-  if (!quote || !opportunity) return { ok: false, error: "This quote is no longer on file. Ask us for a new one." };
+  const sql = await getSql();
+
+  const joined = await sql<Record<string, unknown>>`
+    select
+      d.status        as document_status,
+      d.summary       as document_summary,
+      d.created_at    as issued_at,
+      o.company_name  as company_name,
+      o.value_cents   as value_cents
+    from documents d
+    join opportunities o on o.id = d.related_id
+    where d.id = ${String(link.document_id)}
+    limit 1
+  `.then((rows) => rows[0]);
+  if (!joined) return { ok: false, error: "This quote is no longer on file. Ask us for a new one." };
+
   const record = {
     expiresAt: iso(link.expires_at),
     revokedAt: link.revoked_at ? iso(link.revoked_at) : null,
     answer: link.answer ? String(link.answer) : null,
   };
-  const state = linkState(record, quote.status);
-  if (state === "revoked") return { ok: false, error: "This quote link was replaced or withdrawn. Ask us for the current one." };
+  const state = linkState(record, String(joined.document_status));
+  if (state === "revoked") {
+    return { ok: false, error: "This quote link was replaced or withdrawn. Ask us for the current one." };
+  }
   if (countView && state === "open") {
-    const sql = await getSql();
     await sql`
       update quote_links
       set view_count = view_count + 1,
           first_viewed_at = coalesce(first_viewed_at, now()),
           last_viewed_at = now()
-      where id = ${String(link.id)}
+      where id = ${String(link.id)} and answered_at is null
     `;
   }
-  const scope = customerQuoteText(quote.summary);
+
+  const company = await loadCompany();
+  const scope = customerQuoteText(String(joined.document_summary));
   return {
     ok: true,
     state,
-    companyName: opportunity.companyName,
-    amountCents: opportunity.valueCents,
+    companyName: String(joined.company_name),
+    amountCents: num(joined.value_cents),
     scope,
     reference: scope.match(/Reference:\s*(VA-[A-Z0-9]+)/)?.[1] ?? null,
-    paymentNote: paymentNote(snapshot.company.paymentInstructions),
-    issuedAt: quote.createdAt,
+    paymentNote: paymentNote(company.paymentInstructions),
+    issuedAt: iso(joined.issued_at),
     expiresAt: record.expiresAt,
     answeredAt: link.answered_at ? iso(link.answered_at) : null,
     answerName: link.answer_name ? String(link.answer_name) : null,
@@ -1482,108 +1833,116 @@ export async function raiseQuoteInvoice(
   opportunityId: string,
   vatTreatment: VatTreatment = "none",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const opportunity = snapshot.opportunities.find((item) => item.id === opportunityId);
-  if (!opportunity || opportunity.stage !== "won") {
-    return { ok: false, error: "Invoice only after you record that the customer accepted." };
+  const sql = await getSql();
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+  const record = await sql<Record<string, unknown>>`
+    select * from opportunities where id = ${opportunityId}
+  `.then((rows) => rows[0]);
+  if (!record || String(record.stage) !== "won") {
+    return { ok: false, error: "Invoice only after the customer has accepted." };
   }
+  const opportunityCompany = String(record.company_name);
   const treatment = parseVatTreatment(vatTreatment);
-  const figure = quoteInvoice(opportunity.valueCents, treatment);
+  const figure = quoteInvoice(num(record.value_cents), treatment);
   if (!figure.ok) return figure;
-  const already = snapshot.ledger.some((row) => row.kind === "invoice" && row.relatedId === opportunity.id);
-  if (already) return { ok: false, error: "An invoice is already on the books for this job." };
+
+  // Guard against a double submit booking two invoices. This must query the whole
+  // table, not a window of the 80 most recent ledger rows.
+  const existing = await sql<{ id: string }>`
+    select id from ledger_entries where kind = 'invoice' and related_id = ${opportunityId} limit 1
+  `;
+  if (existing.length) return { ok: false, error: "An invoice is already on the books for this job." };
+
   const result = await applyProposedAction(
     "ledger",
     {
       kind: "issue_invoice",
-      title: `Invoice · ${opportunity.companyName}`,
+      title: `Invoice · ${opportunityCompany}`,
       rationale: figure.memo,
       confidence: 0.95,
       amountCents: figure.cents,
-      companyName: opportunity.companyName,
-      relatedId: opportunity.id,
+      companyName: opportunityCompany,
+      relatedId: opportunityId,
       payload: { vatTreatment: treatment, vatCents: figure.vatCents },
     },
     { source: "ledger-desk" },
   );
-  if (result.status !== "executed") return { ok: false, error: "The invoice was not raised." };
+  if (result.status !== "executed") {
+    return { ok: false, error: result.error ?? "The invoice was not raised." };
+  }
+
   const docId = randomUUID();
-  const text = invoiceCopy(opportunity.companyName, figure.cents, documentRef(docId), {
+  const text = invoiceCopy(opportunityCompany, figure.cents, documentRef(docId), {
     treatment,
     netCents: figure.netCents,
     vatCents: figure.vatCents,
   });
-  const existing = snapshot.documents.some(
-    (item) => item.kind === "invoice" && item.relatedId === opportunity.id,
-  );
-  if (!existing) {
-    const sql = await getSql();
-    await sql`
-      insert into documents (id, title, kind, status, summary, related_id)
-      values (
-        ${docId},
-        ${`Invoice · ${opportunity.companyName}`},
-        'invoice',
-        'approved_unsent',
-        ${text},
-        ${opportunity.id}
-      )
-    `;
-  }
+  await sql`
+    insert into documents (id, title, kind, status, summary, related_id)
+    select ${docId}, ${`Invoice · ${opportunityCompany}`}, 'invoice', 'approved_unsent', ${text}, ${opportunityId}
+    where not exists (
+      select 1 from documents where kind = 'invoice' and related_id = ${opportunityId}
+    )
+  `;
   return { ok: true };
 }
 
 export async function recordInvoiceReceipt(
   invoiceId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const invoice = snapshot.ledger.find((row) => row.id === invoiceId && row.kind === "invoice");
-  if (!invoice || invoice.status !== "issued") {
+  const sql = await getSql();
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+  const record = await sql<Record<string, unknown>>`
+    select * from ledger_entries where id = ${invoiceId} and kind = 'invoice'
+  `.then((rows) => rows[0]);
+  if (!record || String(record.status) !== "issued") {
     return { ok: false, error: "That invoice is not awaiting payment." };
   }
-  const figure = receiptForInvoice(invoice.amountCents);
+  const counterparty = String(record.counterparty);
+  const invoiceVat = num(record.vat_cents);
+  const figure = receiptForInvoice(num(record.amount_cents));
   if (!figure.ok) return figure;
-  const already = snapshot.ledger.some((row) => row.kind === "receipt" && row.relatedId === invoice.id);
-  if (already) return { ok: false, error: "A receipt is already recorded for this invoice." };
+
+  // Whole-table guard: crediting treasury twice is how money appears from
+  // nothing, so this must never depend on a windowed read.
+  const already = await sql<{ id: string }>`
+    select id from ledger_entries where kind = 'receipt' and related_id = ${invoiceId} limit 1
+  `;
+  if (already.length) return { ok: false, error: "A receipt is already recorded for this invoice." };
+
   const result = await applyProposedAction(
     "ledger",
     {
       kind: "record_inbound_payment",
-      title: `Receipt · ${invoice.counterparty}`,
+      title: `Receipt · ${counterparty}`,
       rationale: figure.memo,
       confidence: 0.95,
       amountCents: figure.cents,
-      companyName: invoice.counterparty,
-      relatedId: invoice.id,
+      companyName: counterparty,
+      relatedId: invoiceId,
       payload: {},
     },
     { source: "ledger-desk" },
   );
-  if (result.status !== "executed") return { ok: false, error: "The receipt was not recorded." };
-  const sql = await getSql();
-  await sql`update ledger_entries set status = 'paid' where id = ${invoice.id} and kind = 'invoice'`;
-  const text = receiptCopy(invoice.counterparty, figure.cents, {
-    treatment: invoice.vatCents > 0 ? "included" : "none",
-    netCents: figure.cents - invoice.vatCents,
-    vatCents: invoice.vatCents,
-  });
-  const haveReceipt = snapshot.documents.some((item) => item.kind === "receipt" && item.relatedId === invoice.id);
-  if (!haveReceipt) {
-    await sql`
-      insert into documents (id, title, kind, status, summary, related_id)
-      values (
-        ${randomUUID()},
-        ${`Receipt · ${invoice.counterparty}`},
-        'receipt',
-        'recorded',
-        ${text},
-        ${invoice.id}
-      )
-    `;
+  if (result.status !== "executed") {
+    return { ok: false, error: result.error ?? "The receipt was not recorded." };
   }
-  await appendAudit("payment_received", invoice.counterparty, figure.memo, "founder");
+  await sql`update ledger_entries set status = 'paid' where id = ${invoiceId} and kind = 'invoice'`;
+  const text = receiptCopy(counterparty, figure.cents, {
+    treatment: invoiceVat > 0 ? "included" : "none",
+    netCents: figure.cents - invoiceVat,
+    vatCents: invoiceVat,
+  });
+  await sql`
+    insert into documents (id, title, kind, status, summary, related_id)
+    select ${randomUUID()}, ${`Receipt · ${counterparty}`}, 'receipt', 'recorded', ${text}, ${invoiceId}
+    where not exists (
+      select 1 from documents where kind = 'receipt' and related_id = ${invoiceId}
+    )
+  `;
+  await appendAudit("payment_received", counterparty, figure.memo, "founder");
   return { ok: true };
 }
 
@@ -1591,20 +1950,22 @@ export async function setTicketStatus(
   ticketId: string,
   status: "in_progress" | "resolved",
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const snapshot = await readSnapshot();
-  if (snapshot.company.halted) return { ok: false, error: "Office is halted." };
-  const ticket = snapshot.tickets.find((item) => item.id === ticketId);
-  if (!ticket) return { ok: false, error: "That ticket is not on the floor." };
-  const next = status === "resolved" ? "resolved" : "in_progress";
-  const allowed = nextTicketStatus(ticket.status, next);
-  if (!allowed.ok) return allowed;
   const sql = await getSql();
-  await sql`update tickets set status = ${next}, updated_at = now() where id = ${ticket.id}`;
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+  const record = await sql<Record<string, unknown>>`
+    select * from tickets where id = ${ticketId}
+  `.then((rows) => rows[0]);
+  if (!record) return { ok: false, error: "That ticket is not on the floor." };
+  const next = status === "resolved" ? "resolved" : "in_progress";
+  const allowed = nextTicketStatus(String(record.status), next);
+  if (!allowed.ok) return allowed;
+  await sql`update tickets set status = ${next}, updated_at = now() where id = ${ticketId}`;
   const note =
     next === "resolved"
       ? "Founder marked the work resolved. The customer was not emailed."
       : "Founder started the work. The customer was not emailed.";
-  await appendAudit(next === "resolved" ? "ticket_resolved" : "ticket_started", ticket.title, note, "founder");
+  await appendAudit(next === "resolved" ? "ticket_resolved" : "ticket_started", String(record.title), note, "founder");
   return { ok: true };
 }
 
@@ -1635,19 +1996,30 @@ export async function exportBackupJson(): Promise<string> {
   const { BACKUP_TABLES, buildBackup } = await import("./backup");
   const sql = await getSql();
   const tables: Record<string, Record<string, unknown>[]> = {};
-  for (const name of BACKUP_TABLES) {
-    // Names come from a fixed list in backup.ts, never from user input.
-    tables[name] = await sql.query<Record<string, unknown>>(`select * from ${name}`);
-  }
+  await Promise.all(
+    BACKUP_TABLES.map(async (name) => {
+      // Names come from a fixed list in backup.ts, never from user input.
+      tables[name] = await sql.query<Record<string, unknown>>(`select * from ${name}`);
+    }),
+  );
   return JSON.stringify(buildBackup(tables));
 }
 
 export async function restoreBackupJson(
   json: string,
 ): Promise<{ ok: true; added: Record<string, number> } | { ok: false; error: string }> {
-  const { MAX_RESTORE_BYTES, planRestore } = await import("./backup");
-  if (typeof json !== "string" || json.length === 0 || json.length > MAX_RESTORE_BYTES) {
-    return { ok: false, error: "The backup file is empty or larger than 4 MB." };
+  const { BACKUP_RESTORE_ORDER, MAX_RESTORE_BYTES, planRestore } = await import("./backup");
+  if (typeof json !== "string" || json.length === 0) {
+    return { ok: false, error: "The backup file is empty." };
+  }
+  // Measure BYTES, not UTF-16 code units: `json.length` under-counts non-ASCII by
+  // up to 3x, so the old guard could admit a 12 MB body.
+  const bytes = Buffer.byteLength(json, "utf8");
+  if (bytes > MAX_RESTORE_BYTES) {
+    return {
+      ok: false,
+      error: `The backup file is ${(bytes / 1_000_000).toFixed(1)} MB. The limit is ${(MAX_RESTORE_BYTES / 1_000_000).toFixed(0)} MB.`,
+    };
   }
   let parsed: unknown;
   try {
@@ -1659,29 +2031,48 @@ export async function restoreBackupJson(
   const names = Object.keys((parsed as { tables?: Record<string, unknown> } | null)?.tables ?? {}).filter((n) =>
     /^[a-z_]+$/.test(n),
   );
-  const columnsByTable: Record<string, string[]> = {};
-  for (const name of names) {
-    const rows = await sql<{ column_name: string }>`
-      select column_name from information_schema.columns
-      where table_schema = current_schema() and table_name = ${name}
-    `;
-    columnsByTable[name] = rows.map((row) => row.column_name);
-  }
-  const plan = planRestore(parsed, columnsByTable);
+  const columnsByTable = await Promise.all(
+    names.map(async (name) => {
+      const rows = await sql<{ column_name: string }>`
+        select column_name from information_schema.columns
+        where table_schema = current_schema() and table_name = ${name}
+      `;
+      return [name, rows.map((row) => row.column_name)] as const;
+    }),
+  );
+  const plan = planRestore(parsed, Object.fromEntries(columnsByTable));
   if (!plan.ok) return plan;
+
   const added: Record<string, number> = {};
-  for (const table of plan.tables) {
-    // table.name passed the fixed allow-list in planRestore; it is never raw user input.
-    const result = await sql.query<{ n: number }>(
-      `with ins as (
-         insert into ${table.name}
-         select * from jsonb_populate_recordset(null::${table.name}, $1::jsonb)
-         on conflict do nothing
-         returning 1
-       ) select count(*)::int as n from ins`,
-      [JSON.stringify(table.rows)],
+  const ordered = [...plan.tables].sort(
+    (a, b) => BACKUP_RESTORE_ORDER.indexOf(a.name) - BACKUP_RESTORE_ORDER.indexOf(b.name),
+  );
+  // One transaction for the whole restore: a half-restored office is worse than
+  // one that refused the file.
+  await withChain(async (tx) => {
+    for (const table of ordered) {
+      // table.name passed the fixed allow-list in planRestore; it is never raw user input.
+      const result = await tx.query<{ n: number }>(
+        `with ins as (
+           insert into ${table.name}
+           select * from jsonb_populate_recordset(null::${table.name}, $1::jsonb)
+           on conflict do nothing
+           returning 1
+         ) select count(*)::int as n from ins`,
+        [JSON.stringify(table.rows)],
+      );
+      added[table.name] = Number(result[0]?.n ?? 0);
+    }
+    await appendAuditTx(
+      tx,
+      "backup_restored",
+      "Backup restored",
+      `Add-only restore applied. Tables and rows added: ${Object.entries(added)
+        .filter(([, n]) => n > 0)
+        .map(([name, n]) => `${name} ${n}`)
+        .join(", ") || "nothing (everything already existed)"}. Nothing was deleted or overwritten.`,
+      "founder",
     );
-    added[table.name] = Number(result[0]?.n ?? 0);
-  }
+  });
   return { ok: true, added };
 }

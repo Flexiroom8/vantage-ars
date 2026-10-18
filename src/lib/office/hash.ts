@@ -15,3 +15,6 @@ export function stableStringify(value: unknown): string {
 export function chainHash(previousHash: string, payload: unknown): string {
   return sha256Hex(`${previousHash}:${stableStringify(payload)}`);
 }
+
+/** The chain's first parent: 64 zeros. Mirrors `GENESIS_HASH` in company.ts. */
+export const GENESIS_HASH_PLACEHOLDER = "0".repeat(64);
