@@ -54,6 +54,15 @@ sample data. It runs in CI.
 
 ### Fixed
 
+**The autonomy chain could not write on real Postgres.** `advisoryKey` masked
+its FNV-1a hash over the full unsigned 64-bit range, but Postgres advisory
+locks take a signed bigint. The chain lock (`vantage-ars:audit-chain`) hashed
+to 16358042832438545941 — past 2^63 — so every production chain write failed
+with "value is out of range for type bigint" and the scheduler circuit-broke on
+its first true tick. PGLite stubs `advisory()` as a pass-through, which is why
+tests never caught it. The key is now interpreted as signed 64-bit, with a
+regression test pinning the exact case.
+
 **Money could be created from nothing.** `record_inbound_payment` credited
 treasury unconditionally and then floored the receivable at zero, so a duplicate
 receipt created cash. It now applies only against the outstanding receivable,
