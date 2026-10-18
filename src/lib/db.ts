@@ -60,7 +60,7 @@ export interface Sql {
   advisory<T>(key: string, body: (tx: Sql) => Promise<T>): Promise<T>;
 }
 
-/** 64-bit advisory-lock key derived from a stable string (Postgres bigint). */
+/** 64-bit advisory-lock key derived from a stable string (signed Postgres bigint). */
 export function advisoryKey(name: string): bigint {
   // FNV-1a 64-bit. Deterministic across processes and restarts.
   let hash = 0xcbf29ce484222325n;
@@ -69,8 +69,9 @@ export function advisoryKey(name: string): bigint {
   for (const byte of Buffer.from(name, "utf8")) {
     hash = ((hash ^ BigInt(byte)) * prime) & mask;
   }
-  // Keep it positive; 0 is a legal but confusing lock id.
-  return hash === 0n ? 1n : hash;
+  // Postgres bigint is signed: interpret the 64-bit hash as signed
+  // (`vantage-ars:audit-chain` hashes above 2^63 and would otherwise overflow).
+  return hash === 0n ? 1n : BigInt.asIntN(64, hash);
 }
 
 /**
