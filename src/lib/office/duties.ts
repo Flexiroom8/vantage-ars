@@ -96,6 +96,17 @@ export type DocumentView = {
   createdAt: string;
 };
 
+export type CampaignView = {
+  id: string;
+  name: string;
+  channel: string;
+  status: string;
+  budgetCents: number;
+  spendCents: number;
+  summary: string;
+  createdAt: string;
+};
+
 export type AgentView = {
   id: string;
   callsign: string;
@@ -132,6 +143,7 @@ export type DutyView = {
   tickets: TicketView[];
   ledger: LedgerView[];
   documents: DocumentView[];
+  campaigns: CampaignView[];
   approvalsPending: { id: string; kind: string; title: string; companyName: string | null; createdAt: string }[];
   agents: AgentView[];
   siteEvents: SiteEventView[];
@@ -164,6 +176,8 @@ export type DutyId =
   | "foyer_stale_intake"
   | "signal_site_signals"
   | "signal_content_brief"
+  | "signal_draft_campaign"
+  | "signal_prospect"
   | "signal_qualify_leads"
   | "signal_handoff"
   | "close_discovery"
@@ -189,6 +203,8 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   foyer_stale_intake: 60,
   signal_site_signals: 720,
   signal_content_brief: 1440,
+  signal_draft_campaign: 10080,
+  signal_prospect: 1440,
   signal_qualify_leads: 180,
   signal_handoff: 120,
   close_discovery: 240,
@@ -215,6 +231,8 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   foyer_stale_intake: "foyer",
   signal_site_signals: "signal",
   signal_content_brief: "signal",
+  signal_draft_campaign: "signal",
+  signal_prospect: "signal",
   signal_qualify_leads: "signal",
   signal_handoff: "signal",
   close_discovery: "close",
@@ -241,6 +259,8 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   foyer_stale_intake: "Chase enquiries nobody picked up",
   signal_site_signals: "Read real site signals",
   signal_content_brief: "Brief the next owned-site piece",
+  signal_draft_campaign: "Draft this week's campaign",
+  signal_prospect: "Prospect from site signals",
   signal_qualify_leads: "Score and qualify leads",
   signal_handoff: "Hand qualified demand to sales",
   close_discovery: "Advance discovery",
@@ -394,6 +414,10 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planSiteSignals(view);
     case "signal_content_brief":
       return planContentBrief(view);
+    case "signal_draft_campaign":
+      return planDraftCampaign(view);
+    case "signal_prospect":
+      return planProspect(view);
     case "signal_qualify_leads":
       return planQualifyLeads(view);
     case "signal_handoff":
@@ -583,6 +607,85 @@ function planContentBrief(view: DutyView): PlannedWork[] {
       priority: 45,
       payload: { pageCount: view.publishedPathCount, visits: view.siteEvents.length },
       dedupeKey: `content-brief:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
+}
+
+/** Paths whose repeated, anonymous visits are real buying interest, not crawling. */
+const BUYING_PATHS = ["/rates", "/quote"];
+const SERVICE_PATHS = ["/services/voip", "/services/networking", "/services/it-infrastructure", "/work"];
+
+function isBuyingPath(path: string): boolean {
+  return BUYING_PATHS.includes(path) || SERVICE_PATHS.includes(path) || path.startsWith("/services/");
+}
+
+function planProspect(view: DutyView): PlannedWork[] {
+  // Marketing's job is to notice demand the site already receives. Anonymous page
+  // views are real records; turning repeat interest into a flagged lead is derived
+  // work, not an invented customer. No contact is known, so nothing here reaches
+  // the founder — qualification and the handoff gate do that.
+  const work: PlannedWork[] = [];
+  const counts = new Map<string, number>();
+  for (const event of view.siteEvents) {
+    if (!isBuyingPath(event.path)) continue;
+    counts.set(event.path, (counts.get(event.path) ?? 0) + 1);
+  }
+  const today = new Date(view.now).toISOString().slice(0, 10);
+  const already = new Set(view.leads.map((lead) => lead.companyName));
+  for (const [path, count] of counts) {
+    const highIntent = BUYING_PATHS.includes(path);
+    if ((highIntent ? count >= 1 : count >= 2) === false) continue;
+    const name = `Prospect · ${path}`;
+    if (already.has(name)) continue;
+    const scored = scoreLead(`${count} recorded visit(s) to ${path} with no enquiry filed yet.`, name);
+    work.push({
+      agentId: "signal",
+      kind: "create_lead",
+      reason: `${path} was visited ${count} time(s) today with no enquiry filed — flagged interest, not a confirmed buyer.`,
+      priority: highIntent ? 22 : 16,
+      payload: {
+        source: "site_signal",
+        stage: "engaged",
+        score: scored.score,
+        evidence: `${count} recorded visit(s) to ${path}; no enquiry follows them yet.`,
+      },
+      dedupeKey: `prospect:${path}:${today}`,
+    });
+  }
+  return work;
+}
+
+/** One owned-channel campaign per week for nurtured demand that is not yet in sales. */
+function planDraftCampaign(view: DutyView): PlannedWork[] {
+  const weekStart = new Date(view.now).toISOString().slice(0, 10);
+  const dedupeKey = `campaign:${weekStart}`;
+  if (view.campaigns.some((campaign) => campaign.createdAt.slice(0, 10) === weekStart)) return [];
+  const nurtured = view.leads.filter((lead) => {
+    const isOpenDemand = lead.stage === "nurture" || lead.stage === "qualified";
+    const alreadyInPipeline = lead.stage === "in_sales" || lead.stage === "lost";
+    const hasPendingHandoff = view.approvalsPending.some(
+      (approval) => approval.kind === "sales_handoff" && (approval.companyName ?? "").toLowerCase() === lead.companyName.toLowerCase(),
+    );
+    return isOpenDemand && !alreadyInPipeline && !hasPendingHandoff;
+  });
+  if (nurtured.length === 0) return [];
+  return [
+    {
+      agentId: "signal",
+      kind: "draft_campaign",
+      reason: `Draft this week's owned-channel campaign for ${nurtured.length} nurtured lead(s) who are not yet in sales.`,
+      priority: 40,
+      payload: {
+        channel: "owned",
+        budgetCents: 0,
+        leads: nurtured.map((lead) => ({
+          id: lead.id,
+          companyName: lead.companyName,
+          stage: lead.stage,
+          score: lead.score,
+        })),
+      },
+      dedupeKey,
     },
   ];
 }

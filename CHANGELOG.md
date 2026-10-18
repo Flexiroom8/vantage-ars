@@ -2,6 +2,17 @@
 
 All notable changes to Vantage-ARS.
 
+## 4.3.0 — Unreleased
+
+### Added
+
+**Marketing now generates demand instead of waiting for it.** Two new SIGNAL duties turn the site's own traffic into pipeline, and every step stops at the founder:
+
+- `signal_prospect` (daily): repeat, anonymous visits to a buying page (`/rates`, `/quote`, a service page) are flagged as a `Prospect ·` lead. No contact is invented, no customer is created, and nothing reaches the founder until qualification scores it as real demand.
+- `signal_draft_campaign` (weekly): one owned-channel campaign draft per week for nurtured or qualified leads not yet in sales. Drafting runs autonomously at R0; activation and any spend are a founder approval.
+
+**Queue hygiene.** The scheduler prunes finished work items each tick so the work table stays a queue, and reports pruning in its detail.
+
 ## 4.2.0 — 2026-10-18
 
 ### Added

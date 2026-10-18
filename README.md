@@ -24,11 +24,12 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 With `AUTONOMY=on` and a `CRON_SECRET`, nine agents work a durable queue every
 ten minutes. Each has named duties on their own cadence: reception classifies
-enquiries, marketing scores leads on what the buyer actually wrote and files a
-founder-gated handoff, sales drafts real follow-ups on real quotes, the service
-desk drafts acknowledgements, technical writes procedures, finance chases overdue
-invoices, admin checks the filing, and compliance halts the office if the audit
-chain ever fails to verify.
+enquiries, marketing scores leads on what the buyer actually wrote, flags repeat
+site interest as prospects, and drafts weekly owned-channel campaigns, then files
+a founder-gated handoff when demand is real; sales drafts real follow-ups on real
+quotes, the service desk drafts acknowledgements, technical writes procedures,
+finance chases overdue invoices, admin checks the filing, and compliance halts
+the office if the audit chain ever fails to verify.
 
 None of them email a customer, spend money, win or lose a customer, or publish
 anything. Those are founder approvals, with the constitutional trace attached.

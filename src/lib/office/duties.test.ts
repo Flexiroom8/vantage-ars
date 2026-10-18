@@ -33,6 +33,7 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     tickets: [],
     ledger: [],
     documents: [],
+    campaigns: [],
     approvalsPending: [],
     agents: [],
     siteEvents: [],
@@ -708,5 +709,116 @@ describe("rate card integrity", () => {
     // The entry-price assessment must not undercut the hourly rate.
     const assessment = PRICE_GUIDE.find((r) => r.id === "assessment");
     assert.equal(assessment?.cents, 69000);
+  });
+});
+
+describe("prospect duty", () => {
+  it("plans nothing on an empty office", () => {
+    assert.deepEqual(planDuty("signal_prospect", view()), []);
+  });
+
+  it("flags repeat visits to a buying path as a lead, not a customer", () => {
+    const work = planDuty("signal_prospect", view({
+      siteEvents: [
+        { kind: "page_view", path: "/rates", occurredAt: hoursAgo(1) },
+        { kind: "page_view", path: "/rates", occurredAt: hoursAgo(5) },
+        { kind: "page_view", path: "/quote", occurredAt: hoursAgo(2) },
+      ],
+    }));
+    assert.equal(work.length, 2);
+    for (const item of work) {
+      assert.equal(item.agentId, "signal");
+      assert.equal(item.kind, "create_lead");
+      assert.ok(item.dedupeKey.startsWith("prospect:"), item.dedupeKey);
+      assert.ok(item.reason.includes("flagged interest, not a confirmed buyer"), item.reason);
+      assert.equal(item.payload?.source, "site_signal");
+    }
+    const evidence = work.map((item) => String(item.payload?.evidence ?? ""));
+    assert.ok(evidence.some((text) => text.includes("/rates")), JSON.stringify(evidence));
+    assert.ok(evidence.some((text) => text.includes("/quote")), JSON.stringify(evidence));
+  });
+
+  it("ignores pages that are not buying signals", () => {
+    const work = planDuty("signal_prospect", view({
+      siteEvents: [
+        { kind: "page_view", path: "/", occurredAt: hoursAgo(1) },
+        { kind: "page_view", path: "/", occurredAt: hoursAgo(2) },
+        { kind: "page_view", path: "/privacy", occurredAt: hoursAgo(3) },
+        { kind: "page_view", path: "/terms", occurredAt: hoursAgo(4) },
+      ],
+    }));
+    assert.deepEqual(work, []);
+  });
+
+  it("needs repeat visits to a service page before flagging it", () => {
+    const once = planDuty("signal_prospect", view({
+      siteEvents: [{ kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) }],
+    }));
+    assert.deepEqual(once, []);
+    const twice = planDuty("signal_prospect", view({
+      siteEvents: [
+        { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) },
+        { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(10) },
+      ],
+    }));
+    assert.equal(twice.length, 1);
+    assert.ok(String(twice[0].payload?.evidence ?? "").includes("/services/voip"));
+  });
+});
+
+describe("draft campaign duty", () => {
+  it("plans nothing on an empty office", () => {
+    assert.deepEqual(planDuty("signal_draft_campaign", view()), []);
+  });
+
+  it("plans nothing when there is no nurtured demand", () => {
+    const work = planDuty("signal_draft_campaign", view({
+      leads: [
+        { id: "ld1", companyName: "Acme", stage: "engaged", score: 40, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+        { id: "ld2", companyName: "Lost Co", stage: "lost", score: 90, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+        { id: "ld3", companyName: "In Sales", stage: "in_sales", score: 80, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+      ],
+    }));
+    assert.deepEqual(work, []);
+  });
+
+  it("drafts one campaign for nurtured leads not yet in sales", () => {
+    const work = planDuty("signal_draft_campaign", view({
+      leads: [
+        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+        { id: "ld2", companyName: "Beta", stage: "qualified", score: 70, summary: "x", inboundId: null, updatedAt: hoursAgo(2) },
+      ],
+    }));
+    assert.equal(work.length, 1);
+    assert.equal(work[0].agentId, "signal");
+    assert.equal(work[0].kind, "draft_campaign");
+    assert.ok(work[0].dedupeKey.startsWith("campaign:"), work[0].dedupeKey);
+    assert.equal(work[0].payload?.budgetCents, 0);
+    assert.equal(work[0].payload?.channel, "owned");
+    const leads = work[0].payload?.leads as { companyName: string }[] | undefined;
+    assert.deepEqual(leads?.map((lead) => lead.companyName), ["Acme", "Beta"]);
+  });
+
+  it("does not draft for a lead that already has a pending sales handoff", () => {
+    const work = planDuty("signal_draft_campaign", view({
+      leads: [
+        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+      ],
+      approvalsPending: [
+        { id: "ap1", kind: "sales_handoff", title: "Handoff", companyName: "Acme", createdAt: hoursAgo(1) },
+      ],
+    }));
+    assert.deepEqual(work, []);
+  });
+
+  it("does not re-draft within the same week", () => {
+    const weekStart = NOW.slice(0, 10);
+    const work = planDuty("signal_draft_campaign", view({
+      campaigns: [{ id: "c1", name: "Weekly", channel: "owned", status: "draft", budgetCents: 0, spendCents: 0, summary: "draft", createdAt: weekStart }],
+      leads: [
+        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
+      ],
+    }));
+    assert.deepEqual(work, []);
   });
 });

@@ -22,6 +22,7 @@ import { PRICE_GUIDE, rateCardIntegrity } from "./duties";
 import { COMPANY } from "./company";
 import type { WorkItem } from "./work-queue.server";
 import type { DutyView, PlannedWork } from "./duties";
+import { scoreLead } from "./duties";
 
 export type DutyResult = {
   outcome: string;
@@ -297,6 +298,36 @@ const analyseSiteSignals: Runner = async (item, view) => {
   });
   void id;
   return noop(`Recorded a site-signal note from ${total} real events.`);
+}
+
+const prospectFromSiteSignals: Runner = async (item, _view) => {
+  const path = str(item.payload.path);
+  const count = intOf(item.payload.visitCount, 1);
+  const scored = scoreLead(`${count} recorded visit(s) to ${path} with no enquiry filed yet.`, `Prospect · ${path}`);
+  const result = await applyProposedAction(
+    "signal",
+    {
+      kind: "create_lead",
+      title: `Prospect · ${path}`,
+      rationale: `Repeat interest from the site: ${count} recorded visit(s) to ${path} with no enquiry filed. This is a flagged interest, not a confirmed buyer, and no customer contact is known.`,
+      confidence: 0.75,
+      amountCents: 0,
+      companyName: `Prospect · ${path}`,
+      payload: {
+        source: "site_signal",
+        stage: "engaged",
+        score: scored.score,
+        evidence: `${count} recorded visit(s) to ${path}; no enquiry follows them yet.`,
+      },
+    },
+    { source: "scheduler", workItem: item.id },
+  );
+  return {
+    outcome: `Prospected ${path}: ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
 };
 
 const writeContentBrief: Runner = async (item, view) => {
@@ -371,8 +402,35 @@ const proposeSalesHandoff: Runner = async (item) => {
     },
     { source: "scheduler", workItem: item.id },
   );
+    return {
+      outcome: `Handoff proposed for ${companyName}: ${result.status}`,
+      executed: result.status === "executed" ? 1 : 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+}
+
+const draftCampaign: Runner = async (item) => {
+  const channel = str(item.payload.channel, "owned");
+  const leads = Array.isArray(item.payload.leads) ? (item.payload.leads as { id: string; companyName: string; stage: string; score: number }[]) : [];
+  const result = await applyProposedAction(
+    "signal",
+    {
+      kind: "draft_campaign",
+      title: `Owned-channel campaign · ${new Date().toISOString().slice(0, 10)}`,
+      rationale: [
+        `Draft campaign for ${leads.length} nurtured lead(s) who are not yet in sales.`,
+        ...leads.map((lead) => `- ${lead.companyName} (${lead.stage}, score ${lead.score})`),
+        "This is organic, owned-channel work. No media is bought and no budget is committed. Activation and any spend wait on your approval.",
+      ].join("\n"),
+      confidence: 0.8,
+      amountCents: 0,
+      payload: { channel, budgetCents: 0, leads },
+    },
+    { source: "scheduler", workItem: item.id },
+  );
   return {
-    outcome: `Handoff proposed for ${companyName}: ${result.status}`,
+    outcome: `Campaign drafted: ${result.status}`,
     executed: result.status === "executed" ? 1 : 0,
     escalated: result.status === "escalated" ? 1 : 0,
     blocked: result.status === "blocked" ? 1 : 0,
@@ -804,6 +862,8 @@ export const RUNNERS: Record<string, Runner> = {
   write_content_brief: writeContentBrief,
   qualify_lead: qualifyLead,
   propose_sales_handoff: proposeSalesHandoff,
+  prospect_from_site_signals: prospectFromSiteSignals,
+  draft_campaign: draftCampaign,
   advance_discovery: advanceDiscovery,
   draft_quote_followup: draftQuoteFollowUp,
   review_cold_proposal: reviewColdProposal,

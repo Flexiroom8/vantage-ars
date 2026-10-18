@@ -32,6 +32,7 @@ import {
   completeWork,
   enqueueWork,
   failWork,
+  pruneWork,
   releaseStaleWork,
   workCounts,
   type WorkItem,
@@ -226,6 +227,10 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
     }
   }
 
+  // Keep finished work from piling up forever: agent_runs is the durable history,
+  // the work table is a queue.
+  const pruned = await pruneWork();
+
   await writeDutyState(dutyState, failed > 0 ? consecutiveFailures + 1 : 0);
 
   const counts = await workCounts();
@@ -235,6 +240,7 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
     counts.open ? `${counts.open} item(s) still queued.` : "Queue is clear.",
     counts.abandoned ? `${counts.abandoned} item(s) abandoned after repeated failure — the founder should look.` : "",
     reclaimed ? `Reclaimed ${reclaimed} item(s) left by an interrupted run.` : "",
+    pruned ? `Pruned ${pruned} finished item(s) from the queue.` : "",
   ]
     .filter(Boolean)
     .join(" ");

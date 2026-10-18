@@ -59,6 +59,7 @@ const [
     documents,
     approvals,
     agents,
+    campaigns,
     siteEvents,
     chatThreads,
     chainRows,
@@ -72,6 +73,7 @@ const [
     sql<Record<string, unknown>>`select id, title, kind, status, related_id, created_at from documents order by created_at desc limit ${LIST_LIMIT}`,
     sql<Record<string, unknown>>`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
     sql<Record<string, unknown>>`select id, callsign, status, last_heartbeat from agents order by callsign`,
+    sql<Record<string, unknown>>`select * from campaigns order by created_at desc limit ${LIST_LIMIT}`,
     sql<Record<string, unknown>>`select kind, path, occurred_at from site_events where occurred_at > now() - interval '30 days' order by occurred_at desc limit 2000`,
     sql<Record<string, unknown>>`
       select t.id, t.name, t.status, t.updated_at,
@@ -187,6 +189,16 @@ const [
       kind: text(row.kind),
       status: text(row.status),
       relatedId: row.related_id ? text(row.related_id) : null,
+      createdAt: iso(row.created_at),
+    })),
+    campaigns: campaigns.map((row) => ({
+      id: text(row.id),
+      name: text(row.name),
+      channel: text(row.channel),
+      status: text(row.status),
+      budgetCents: int(row.budget_cents),
+      spendCents: int(row.spend_cents),
+      summary: text(row.summary),
       createdAt: iso(row.created_at),
     })),
     approvalsPending: approvals.map((row) => ({
