@@ -146,10 +146,10 @@ AUTONOMY=on CRON_SECRET=$(openssl rand -hex 32)   # in the host environment
 
 Then either press **Run the floor** on `/office` — the same code path — or wait
 for the schedule. The schedule alone is not enough: GitHub throttles frequent
-cron on quiet repositories, so a hit on `/api/health` or the page-view beacon
-also starts a catch-up tick when the last one is over ten minutes old. A
-monitor polling health therefore doubles as the heartbeat. `/api/health` reports
-whether it is actually running:
+cron on quiet repositories, so a hit on `/api/health`, the page-view beacon, or
+the founder loading the floor also starts a catch-up tick when the last one is
+over ten minutes old. A monitor polling health therefore doubles as the
+heartbeat. `/api/health` reports whether it is actually running:
 
 ```sh
 curl -s https://www.vantage-ars.co.za/api/health | jq '.scheduler, .problems'

@@ -90,10 +90,49 @@ function emptyFail(error: string): DispatchResult {
   };
 }
 
+/**
+ * Opportunistic scheduler nudge for surfaces that already prove the office is
+ * alive (`/api/health`, the site-view beacon, the founder opening the floor).
+ *
+ * Free scheduling tiers throttle frequent cron runs, so a hit on one of those
+ * surfaces may start a catch-up tick when the last one is old. Bounded by
+ * `waitMs`: the caller stops waiting, the tick keeps running, and the next hit
+ * retries. Guarded in `kick.server.ts` — autonomy gate, circuit breaker,
+ * in-flight throttle — so this can never double-plan work.
+ */
+export const nudgeScheduler = createServerFn({ method: "POST" })
+  .validator((input: { waitMs?: number }) => ({
+    waitMs: Math.max(0, Math.min(Number(input?.waitMs ?? 2_500), 10_000)),
+  }))
+  .handler(async ({ data }): Promise<{ kicked: boolean; reason: string }> => {
+    const { kickFloorIfStale } = await import("./kick.server");
+    const attempt = kickFloorIfStale()
+      .then((outcome: { kicked: boolean; detail?: string; reason?: string }) =>
+        outcome.kicked ? { kicked: true, reason: outcome.detail ?? "" } : { kicked: false, reason: outcome.reason ?? "" },
+      )
+      .catch((error: unknown) => ({
+        kicked: false,
+        reason: error instanceof Error ? error.message : "The nudge failed.",
+      }));
+    if (!data.waitMs) return { kicked: false, reason: "not waited for" };
+    return Promise.race([
+      attempt,
+      new Promise<{ kicked: boolean; reason: string }>((resolve) => {
+        // Ref'd on purpose: this timer is the hard bound on how long the
+        // surface can wait, even if the database hangs underneath the tick.
+        setTimeout(() => resolve({ kicked: false, reason: `still running after ${data.waitMs}ms` }), data.waitMs);
+      }),
+    ]);
+  });
+
 export const getOfficeSnapshot = createServerFn({ method: "GET" })
   .middleware([officeAccessMiddleware])
   .handler(async ({ context }): Promise<{ locked: true } | { locked: false; snapshot: OfficeSnapshot }> => {
     if (!context.founder) return { locked: true };
+    // The founder opening the floor is the best possible moment to catch up,
+    // so a stale scheduler is nudged before the snapshot is read. Founder-only
+    // on purpose: anonymous visits must never start work.
+    await nudgeScheduler({ data: { waitMs: 2_000 } }).catch(() => undefined);
     return { locked: false, snapshot: await readSnapshot() };
   });
 
@@ -633,41 +672,6 @@ export const runOfficeCron = createServerFn({ method: "POST" })
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : "The run failed." };
     }
-  });
-
-/**
- * Opportunistic scheduler nudge for public surfaces (`/api/health`, the
- * site-view beacon).
- *
- * Free scheduling tiers throttle frequent cron runs, so a hit on a surface
- * that already touches the office may start a catch-up tick when the last one
- * is old. Bounded by `waitMs`: the caller stops waiting, the tick keeps running,
- * and the next hit retries. Guarded in `kick.server.ts` — autonomy gate,
- * circuit breaker, in-flight throttle — so this can never double-plan work.
- */
-export const nudgeScheduler = createServerFn({ method: "POST" })
-  .validator((input: { waitMs?: number }) => ({
-    waitMs: Math.max(0, Math.min(Number(input?.waitMs ?? 2_500), 10_000)),
-  }))
-  .handler(async ({ data }): Promise<{ kicked: boolean; reason: string }> => {
-    const { kickFloorIfStale } = await import("./kick.server");
-    const attempt = kickFloorIfStale()
-      .then((outcome: { kicked: boolean; detail?: string; reason?: string }) =>
-        outcome.kicked ? { kicked: true, reason: outcome.detail ?? "" } : { kicked: false, reason: outcome.reason ?? "" },
-      )
-      .catch((error: unknown) => ({
-        kicked: false,
-        reason: error instanceof Error ? error.message : "The nudge failed.",
-      }));
-    if (!data.waitMs) return { kicked: false, reason: "not waited for" };
-    return Promise.race([
-      attempt,
-      new Promise<{ kicked: boolean; reason: string }>((resolve) => {
-        // Ref'd on purpose: this timer is the hard bound on how long the
-        // surface can wait, even if the database hangs underneath the tick.
-        setTimeout(() => resolve({ kicked: false, reason: `still running after ${data.waitMs}ms` }), data.waitMs);
-      }),
-    ]);
   });
 
 /** Constant-time string compare without node:crypto (safe anywhere). */
