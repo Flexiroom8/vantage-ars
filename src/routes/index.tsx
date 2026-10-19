@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
 import { FormConfirmation } from "@/components/public/form-confirmation";
+import { EnquiryForm } from "@/components/public/enquiry-form";
 import {
   InfraIcon,
   LiveNode,
@@ -18,13 +19,13 @@ import { Reveal } from "@/components/public/reveal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { submitPublicEnquiry, submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
+import { submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
 import type { PaymentMethod } from "@/lib/office/invoice";
 import { allMethodsAwaitBankDetails } from "@/lib/office/invoice";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { SERVICE_LINES, publicRateRows } from "@/lib/office/catalogue";
 import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
+import { COMPANY } from "@/lib/office/company";
 
 const LINE_ICONS = [VoipIcon, NetworkIcon, InfraIcon] as const;
 
@@ -78,6 +79,7 @@ export const Route = createFileRoute("/")({
       description:
         "Worldwide remote VoIP, networking and IT infrastructure support from Vantage-ARS, with clear ZAR pricing and a written quote before work starts.",
       path: "/",
+      authorName: COMPANY.authorName,
     });
 
     return {
@@ -377,7 +379,11 @@ function HomePage() {
             </p>
 
             <div className="mt-8">
-              <EnquiryForm />
+              <EnquiryForm
+                nameMaxLength={120}
+                messagePlaceholder="What stopped working, or what you want set up."
+                submitLabel="Request a quote"
+              />
             </div>
           </div>
 
@@ -413,143 +419,6 @@ function HomePage() {
         </dl>
       </section>
     </PublicFrame>
-  );
-}
-
-function EnquiryForm() {
-  const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    message: "",
-    website: "",
-  });
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-
-    try {
-      const result = await submitPublicEnquiry({
-        data: form,
-      });
-
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-
-      setDone(true);
-    } catch {
-      setError("The enquiry could not be sent. Try again in a moment.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  if (done) {
-    return (
-      <FormConfirmation>
-        <p className="text-3xl text-ok">Received.</p>
-
-        <p className="mt-3 text-sm text-muted">
-          Your enquiry is recorded. You will get a written quote before any work is agreed.
-        </p>
-      </FormConfirmation>
-    );
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
-      <div>
-        <Label htmlFor="enquiry-name">Your name</Label>
-
-        <Input
-          id="enquiry-name"
-          className="mt-2"
-          autoComplete="name"
-          required
-          maxLength={120}
-          value={form.name}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              name: event.target.value,
-            })
-          }
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="enquiry-email">Email</Label>
-
-        <Input
-          id="enquiry-email"
-          type="email"
-          className="mt-2"
-          autoComplete="email"
-          required
-          maxLength={254}
-          value={form.email}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              email: event.target.value,
-            })
-          }
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="enquiry-message">What do you need?</Label>
-
-        <Textarea
-          id="enquiry-message"
-          className="mt-2"
-          required
-          minLength={5}
-          maxLength={3000}
-          rows={5}
-          placeholder="What stopped working, or what you want set up."
-          value={form.message}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              message: event.target.value,
-            })
-          }
-        />
-      </div>
-
-      <div className="h-0 overflow-hidden" aria-hidden="true">
-        Leave this field empty
-        <input
-          tabIndex={-1}
-          autoComplete="off"
-          value={form.website}
-          onChange={(event) =>
-            setForm({
-              ...form,
-              website: event.target.value,
-            })
-          }
-        />
-      </div>
-
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : null}
-
-      <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
-        {pending ? "Sending…" : "Request a quote"}
-      </Button>
-    </form>
   );
 }
 

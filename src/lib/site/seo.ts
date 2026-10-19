@@ -79,15 +79,12 @@ export function businessJsonLd() {
     contactPoint: [
       {
         "@type": "ContactPoint",
-        telephone: "",
         contactType: "customer support",
         areaServed: "ZA",
         availableLanguage: ["English"],
       },
     ],
-    sameAs: [
-      // Add social/profile links here when available
-    ],
+    sameAs: [SITE_URL, `${SITE_URL}/support`, `${SITE_URL}/rates`],
   });
 }
 

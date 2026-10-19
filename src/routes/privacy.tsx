@@ -1,16 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { pageHead } from "@/lib/site/seo";
+import { pageHead, businessJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { COMPANY } from "@/lib/office/company";
 
 export const Route = createFileRoute("/privacy")({
-  head: () =>
-    pageHead({
+  head: () => {
+    const head = pageHead({
       title: "Privacy · Vantage-ARS",
       description:
         "How Vantage-ARS handles enquiries, service-desk messages and quotes. Contact details are used to respond, never sold.",
       path: "/privacy",
-    }),
+    });
+
+    return {
+      ...head,
+      scripts: [businessJsonLd()],
+    };
+  },
   component: PrivacyPage,
 });
 

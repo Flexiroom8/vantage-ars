@@ -1,6 +1,7 @@
 import {
   createRootRoute,
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   useRouterState,
@@ -10,11 +11,17 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { PublicChat } from "@/components/chat/live-chat";
 import { PublicFrame } from "@/components/public/site-frame";
-import { Link } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/react";
 import { useSiteSignals } from "@/lib/site/signals";
 import appCss from "../styles.css?url";
+import { validateEnv } from "@/lib/env";
+
+// Validate critical environment variables once when the server module loads.
+// Guarded so it never runs in the browser.
+if (typeof window === "undefined") {
+  validateEnv();
+}
 
 const APP_NAME = "Vantage-ARS";
 

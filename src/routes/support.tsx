@@ -1,30 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { pageHead } from "@/lib/site/seo";
-import { useState, type FormEvent } from "react";
+import { pageHead, businessJsonLd, faqJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
-import { FormConfirmation } from "@/components/public/form-confirmation";
 import { LiveNode } from "@/components/public/motion-icons";
+import { EnquiryForm } from "@/components/public/enquiry-form";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { submitPublicEnquiry } from "@/lib/office/api";
-
 export const Route = createFileRoute("/support")({
-  head: () =>
-    pageHead({
+  head: () => {
+    const head = pageHead({
       title: "Customer service · Vantage-ARS",
       description:
         "Log a fault, a question about work in progress, or a complaint with Vantage-ARS. A short acknowledgement is sent when the matter is received.",
       path: "/support",
-    }),
+    });
+
+    return {
+      ...head,
+      scripts: [businessJsonLd(), faqJsonLd(FAQS)],
+    };
+  },
   component: SupportDesk,
 });
 
@@ -47,7 +45,7 @@ const FAQS = [
     q: "Do I need to include passwords or access keys?",
     a: "No. Please do not include credentials, card numbers, or private credentials in any message.",
   },
-] as const;
+];
 
 function SupportDesk() {
   return (
@@ -128,7 +126,18 @@ function SupportDesk() {
       </section>
 
       <section className="grid gap-10 py-16 lg:grid-cols-[1fr_0.9fr]">
-        <DeskForm />
+        <EnquiryForm
+          desk
+          initialMatter="fault"
+          matters={MATTERS}
+          submitLabel="Send to the desk"
+          doneTitle="Recorded."
+          doneBody="Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been refunded, cancelled, or quoted."
+          nameMinLength={2}
+          nameMaxLength={160}
+          errorMessage="The desk could not record this. Try again in a moment."
+          messageRows={6}
+        />
         <div className="panel rounded-2xl p-6">
           <p className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-accent">
             <LiveNode className="size-4" aria-hidden="true" />
@@ -163,127 +172,5 @@ function SupportDesk() {
         </Accordion>
       </section>
     </PublicFrame>
-  );
-}
-
-function DeskForm() {
-  const [pending, setPending] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    message: "",
-    website: "",
-    matter: "fault",
-  });
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    setError(null);
-    try {
-      const result = await submitPublicEnquiry({
-        data: { ...form, desk: true },
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setDone(true);
-    } catch {
-      setError("The desk could not record this. Try again in a moment.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <section>
-      {done ? (
-        <FormConfirmation>
-          <p className="font-serif text-3xl text-ok">Recorded.</p>
-          <p className="mt-3 text-sm text-muted">
-            Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been
-            refunded, cancelled, or quoted.
-          </p>
-        </FormConfirmation>
-      ) : (
-        <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
-          <div>
-            <Label htmlFor="desk-name">Your name</Label>
-            <Input
-              id="desk-name"
-              className="mt-2"
-              autoComplete="name"
-              required
-              minLength={2}
-              maxLength={160}
-              value={form.name}
-              onChange={(event) => setForm({ ...form, name: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="desk-email">Email address</Label>
-            <Input
-              id="desk-email"
-              type="email"
-              className="mt-2"
-              autoComplete="email"
-              required
-              maxLength={254}
-              value={form.email}
-              onChange={(event) => setForm({ ...form, email: event.target.value })}
-            />
-          </div>
-          <div>
-            <Label htmlFor="desk-matter">What is this about?</Label>
-            <Select
-              id="desk-matter"
-              className="mt-2"
-              value={form.matter}
-              onChange={(event) => setForm({ ...form, matter: event.target.value })}
-            >
-              {MATTERS.map((matter) => (
-                <option key={matter.value} value={matter.value}>
-                  {matter.label}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="desk-message">What should we know?</Label>
-            <Textarea
-              id="desk-message"
-              className="mt-2"
-              required
-              minLength={5}
-              maxLength={3000}
-              rows={6}
-              placeholder="What stopped working, or what you need an update on."
-              value={form.message}
-              onChange={(event) => setForm({ ...form, message: event.target.value })}
-            />
-          </div>
-          <div className="h-0 overflow-hidden" aria-hidden="true">
-            Leave this field empty
-            <input
-              tabIndex={-1}
-              autoComplete="off"
-              value={form.website}
-              onChange={(event) => setForm({ ...form, website: event.target.value })}
-            />
-          </div>
-          {error ? (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
-            {pending ? "Sending…" : "Send to the desk"}
-          </Button>
-        </form>
-      )}
-    </section>
   );
 }

@@ -28,16 +28,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: v1-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            v1-node-modules-${{ runner.os }}-
+
+      - name: Save node_modules cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: node_modules
+          key: v1-node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Typecheck
         run: npm run typecheck
 
       - name: Lint
         run: npm run lint
+
+      - name: Check formatting (Prettier)
+        run: npx prettier --check "src/**/*.{ts,tsx}" "scripts/**/*.mjs" vercel.json wrangler.jsonc .prettierrc
 
       - name: Test
         run: npm test

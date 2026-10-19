@@ -1,0 +1,48 @@
+name: Deploy vantage-ars Worker
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "workers/vantage-ars/**"
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy Worker to Cloudflare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install wrangler
+        run: npm install --no-save wrangler@4
+
+      - name: Authenticate with Cloudflare
+        run: npx wrangler auth login --api-token "${{ secrets.CLOUDFLARE_API_TOKEN }}"
+
+      - name: Apply D1 schema
+        run: npx wrangler@4 d1 execute vantage-data --remote --file=workers/vantage-ars/schema.sql --yes
+        working-directory: ./
+
+      - name: Seed D1 data
+        run: npx wrangler@4 d1 execute vantage-data --remote --file=workers/vantage-ars/seed.sql --yes
+        working-directory: ./
+
+      - name: Deploy Worker
+        run: npx wrangler@4 deploy --minify
+        working-directory: workers/vantage-ars
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

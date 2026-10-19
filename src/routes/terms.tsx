@@ -1,16 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { pageHead } from "@/lib/site/seo";
+import { pageHead, businessJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { QuoteIcon } from "@/components/public/motion-icons";
 
 export const Route = createFileRoute("/terms")({
-  head: () =>
-    pageHead({
+  head: () => {
+    const head = pageHead({
       title: "How work is agreed · Vantage-ARS",
       description:
         "A Vantage-ARS enquiry or chat is not a contract. Work starts from a written quote. Card payment is not available.",
       path: "/terms",
-    }),
+    });
+
+    return {
+      ...head,
+      scripts: [businessJsonLd()],
+    };
+  },
   component: TermsPage,
 });
 

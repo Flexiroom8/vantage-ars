@@ -5,6 +5,7 @@ import { InfraIcon, NetworkIcon, NoTiesIcon, QuoteIcon, SignalBars, VoipIcon } f
 import { ratesByIds } from "@/lib/office/catalogue";
 import { SERVICE_PAGES, servicePage, type ServicePage } from "@/lib/site/services";
 import { businessJsonLd, faqJsonLd, jsonLd, pageHead, SITE_URL } from "@/lib/site/seo";
+import { COMPANY } from "@/lib/office/company";
 
 const SLUG_ICONS = {
   voip: VoipIcon,
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/services/$slug")({
   },
   head: ({ loaderData }: { loaderData?: ServicePage }) => {
     if (!loaderData) return {};
-    const head = pageHead({ title: loaderData.metaTitle, description: loaderData.description, path: `/services/${loaderData.slug}` });
+    const head = pageHead({ title: loaderData.metaTitle, description: loaderData.description, path: `/services/${loaderData.slug}`, authorName: COMPANY.authorName });
     return {
       ...head,
       scripts: [

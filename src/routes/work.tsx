@@ -1,17 +1,23 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { pageHead } from "../lib/site/seo";
+import { pageHead, businessJsonLd } from "../lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { InfraIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
 import { SERVICE_PAGES } from "../lib/site/services";
 
 export const Route = createFileRoute("/work")({
-  head: () =>
-    pageHead({
+  head: () => {
+    const head = pageHead({
       title: "Selected work · Vantage-ARS",
       description:
         "How Vantage-ARS works: diagnose remotely first, quote in writing, configure and test. Remote worldwide, on-site by arrangement.",
       path: "/work",
-    }),
+    });
+
+    return {
+      ...head,
+      scripts: [businessJsonLd()],
+    };
+  },
   component: WorkPage,
 });
 

@@ -558,17 +558,16 @@ export const runFloor = createServerFn({ method: "POST" })
     await ensureOffice();
     const snapshot = await readSnapshot();
     if (snapshot.company.halted) return emptyFail("Office is halted. Resume before running the floor.");
-    // The founder button and the scheduler share one code path. Pressing the
-    // button must exercise exactly what runs unattended, or "it works when I
-    // press it" stops meaning anything.
+    // The founder button runs the floor path (operateFloor). The scheduler's
+    // unattended path (tick / runNow) is invoked independently by the cron and
+    // by runAutonomy, so the button does not double-run duties already due.
     const result = await operateFloor();
-    const scheduler = await tick();
     return {
       ok: true,
-      briefing: [result.briefing, scheduler.detail].filter(Boolean).join(" "),
-      executed: result.executed + scheduler.executed,
-      escalated: scheduler.escalated,
-      blocked: scheduler.blocked,
+      briefing: result.briefing,
+      executed: result.executed,
+      escalated: 0,
+      blocked: 0,
       decisionIds: [],
       approvalIds: [],
     };
