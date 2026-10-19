@@ -3,6 +3,12 @@ import { PrivateDoor } from "@/components/office/private-door";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Command centre access · Vantage-ARS" },
+      { name: "robots", content: "noindex, nofollow, noarchive" },
+    ],
+  }),
   component: LoginPage,
 });
 

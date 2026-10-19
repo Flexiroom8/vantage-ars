@@ -253,21 +253,22 @@ function AnswerForm({
           placeholder="Preferred dates, site access, or why it doesn't suit."
         />
       </div>
-      <label className="flex items-start gap-3 text-sm">
-        <input
-          type="checkbox"
-          className="mt-1 size-4 accent-[var(--color-accent)]"
-          checked={agree}
-          onChange={(event) => setAgree(event.target.checked)}
-        />
-        <span>
-          I accept this quote and the{" "}
-          <Link to="/terms" className="underline underline-offset-4">
-            terms of work
-          </Link>
-          .
-        </span>
-      </label>
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                id="quote-agree"
+                type="checkbox"
+                className="mt-1 size-4 accent-[var(--color-accent)]"
+                checked={agree}
+                onChange={(event) => setAgree(event.target.checked)}
+              />
+              <span id="quote-agree-label">
+                I accept this quote and the{" "}
+                <Link to="/terms" className="underline underline-offset-4">
+                  terms of work
+                </Link>
+                .
+              </span>
+            </label>
       {error ? (
         <p role="alert" className="text-sm text-danger">
           {error}
