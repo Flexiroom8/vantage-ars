@@ -1,4 +1,10 @@
-import { createRootRoute, HeadContent, Outlet, Scripts, useRouterState } from "@tanstack/react-router";
+import {
+  createRootRoute,
+  HeadContent,
+  Outlet,
+  Scripts,
+  useRouterState,
+} from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,7 +37,9 @@ export const Route = createRootRoute({
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/icon-180.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com" },
+      // Fonts are fetched in CORS mode; without this the preconnected socket is
+      // not reused for the actual font request.
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@500;600;700&display=swap",
@@ -77,7 +85,9 @@ function NotFound() {
     <PublicFrame>
       <section className="py-24">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">Missing page</p>
-        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em]">That page is not on this site.</h1>
+        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em]">
+          That page is not on this site.
+        </h1>
         <p className="mt-4 max-w-md text-sm text-muted">
           The services, the service desk, and the published rates are still here.
         </p>

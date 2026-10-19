@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
+import { FormConfirmation } from "@/components/public/form-confirmation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,9 +23,12 @@ export const Route = createFileRoute("/q/$token")({
 });
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Johannesburg" }).format(
-    new Date(value),
-  );
+  return new Intl.DateTimeFormat("en-ZA", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Africa/Johannesburg",
+  }).format(new Date(value));
 }
 
 const STATE_COPY = {
@@ -47,13 +51,21 @@ function CustomerQuotePage() {
       <PublicFrame>
         <section className="mx-auto max-w-2xl py-20">
           <p className="text-sm text-accent">Quote link</p>
-          <h1 className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">We can't open this quote.</h1>
+          <h1 className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+            We can't open this quote.
+          </h1>
           <p className="mt-4 text-muted">{quote.error}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/support" className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold">
+            <Link
+              to="/support"
+              className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
+            >
               Contact the service desk
             </Link>
-            <Link to="/" className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold">
+            <Link
+              to="/"
+              className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
+            >
               Back to the site
             </Link>
           </div>
@@ -62,14 +74,19 @@ function CustomerQuotePage() {
     );
   }
 
-  const state = (answered ?? (quote as { state: keyof typeof STATE_COPY }).state) as keyof typeof STATE_COPY;
+  const state = (answered ??
+    (quote as { state: keyof typeof STATE_COPY }).state) as keyof typeof STATE_COPY;
   const copy = STATE_COPY[state] ?? STATE_COPY.open;
 
   async function downloadPdf() {
     if (!quote.ok) return;
     setPdfError(null);
     try {
-      const { buildQuotePdf, downloadPdf: save, quotePdfName } = await import("@/lib/office/quote-pdf");
+      const {
+        buildQuotePdf,
+        downloadPdf: save,
+        quotePdfName,
+      } = await import("@/lib/office/quote-pdf");
       const bytes = await buildQuotePdf({
         companyName: quote.companyName,
         amount: formatZar(quote.amountCents),
@@ -86,10 +103,14 @@ function CustomerQuotePage() {
     <PublicFrame>
       <section className="mx-auto max-w-3xl py-12 sm:py-16">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-sm text-accent">Written quote{quote.reference ? ` · ${quote.reference}` : ""}</p>
+          <p className="text-sm text-accent">
+            Written quote{quote.reference ? ` · ${quote.reference}` : ""}
+          </p>
           <Badge variant={copy.variant}>{copy.label}</Badge>
         </div>
-        <h1 className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Quote for {quote.companyName}</h1>
+        <h1 className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+          Quote for {quote.companyName}
+        </h1>
         <p className="mt-3 text-sm text-muted">
           Issued {formatDate(quote.issuedAt)}
           {state === "open" ? ` · valid until ${formatDate(quote.expiresAt)}` : ""}
@@ -98,9 +119,15 @@ function CustomerQuotePage() {
         <div className="panel mt-10 rounded-2xl p-6 sm:p-8">
           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-6">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">Quoted total</p>
-              <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-accent">{formatZar(quote.amountCents)}</p>
-              <p className="mt-1 text-xs text-subtle">South African rand. VAT only applies if the scope below says so.</p>
+              <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+                Quoted total
+              </p>
+              <p className="mt-2 font-mono text-4xl font-semibold tabular-nums text-accent">
+                {formatZar(quote.amountCents)}
+              </p>
+              <p className="mt-1 text-xs text-subtle">
+                South African rand. VAT only applies if the scope below says so.
+              </p>
             </div>
             <Button type="button" variant="secondary" onClick={() => void downloadPdf()}>
               Download PDF
@@ -117,9 +144,13 @@ function CustomerQuotePage() {
           </div>
           {quote.paymentNote ? (
             <div className="mt-6 border-t border-border pt-6">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">How to pay</p>
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted">
+                How to pay
+              </p>
               <p className="mt-3 text-sm text-muted">{quote.paymentNote}</p>
-              <p className="mt-2 text-xs text-subtle">Pay only after we confirm the job and send the invoice.</p>
+              <p className="mt-2 text-xs text-subtle">
+                Pay only after we confirm the job and send the invoice.
+              </p>
             </div>
           ) : null}
         </div>
@@ -127,7 +158,9 @@ function CustomerQuotePage() {
         {state === "open" ? (
           <AnswerForm token={token} onDone={setAnswered} />
         ) : (
-          <div className="panel mt-8 rounded-2xl p-6">
+          // Only steal focus when the visitor just answered — a link that was
+          // already answered must not yank focus on load.
+          <FormConfirmation className="panel mt-8 rounded-2xl p-6" autoFocus={Boolean(answered)}>
             {state === "accepted" ? (
               <>
                 <h2 className="text-2xl text-ok">Thank you. The quote is accepted.</h2>
@@ -139,22 +172,32 @@ function CustomerQuotePage() {
             ) : state === "declined" ? (
               <>
                 <h2 className="font-serif text-2xl">The quote was declined.</h2>
-                <p className="mt-2 text-sm text-muted">Nothing is owed. If something changes, ask us for a new quote any time.</p>
+                <p className="mt-2 text-sm text-muted">
+                  Nothing is owed. If something changes, ask us for a new quote any time.
+                </p>
               </>
             ) : (
               <>
                 <h2 className="font-serif text-2xl">This quote can no longer be answered here.</h2>
-                <p className="mt-2 text-sm text-muted">Ask us for a fresh quote and we'll send a new link.</p>
+                <p className="mt-2 text-sm text-muted">
+                  Ask us for a fresh quote and we'll send a new link.
+                </p>
               </>
             )}
-          </div>
+          </FormConfirmation>
         )}
       </section>
     </PublicFrame>
   );
 }
 
-function AnswerForm({ token, onDone }: { token: string; onDone: (outcome: "accepted" | "declined") => void }) {
+function AnswerForm({
+  token,
+  onDone,
+}: {
+  token: string;
+  onDone: (outcome: "accepted" | "declined") => void;
+}) {
   const [name, setName] = useState("");
   const [note, setNote] = useState("");
   const [agree, setAgree] = useState(false);
@@ -180,14 +223,25 @@ function AnswerForm({ token, onDone }: { token: string; onDone: (outcome: "accep
   }
 
   return (
-    <form className="panel mt-8 grid gap-5 rounded-2xl p-6 sm:p-8" onSubmit={(event) => void send("accepted", event)}>
+    <form
+      className="panel mt-8 grid gap-5 rounded-2xl p-6 sm:p-8"
+      onSubmit={(event) => void send("accepted", event)}
+    >
       <div>
         <h2 className="font-serif text-2xl">Your answer</h2>
-        <p className="mt-1 text-sm text-muted">Accepting asks us to schedule the work at this price. Nothing is charged here.</p>
+        <p className="mt-1 text-sm text-muted">
+          Accepting asks us to schedule the work at this price. Nothing is charged here.
+        </p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="quote-name">Your full name</Label>
-        <Input id="quote-name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
+        <Input
+          id="quote-name"
+          autoComplete="name"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          required
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="quote-note">Note (optional)</Label>
@@ -200,7 +254,12 @@ function AnswerForm({ token, onDone }: { token: string; onDone: (outcome: "accep
         />
       </div>
       <label className="flex items-start gap-3 text-sm">
-        <input type="checkbox" className="mt-1 size-4 accent-[var(--color-accent)]" checked={agree} onChange={(event) => setAgree(event.target.checked)} />
+        <input
+          type="checkbox"
+          className="mt-1 size-4 accent-[var(--color-accent)]"
+          checked={agree}
+          onChange={(event) => setAgree(event.target.checked)}
+        />
         <span>
           I accept this quote and the{" "}
           <Link to="/terms" className="underline underline-offset-4">
@@ -218,7 +277,12 @@ function AnswerForm({ token, onDone }: { token: string; onDone: (outcome: "accep
         <Button type="submit" disabled={pending !== null || !agree || name.trim().length < 2}>
           {pending === "accepted" ? "Sending…" : "Accept quote"}
         </Button>
-        <Button type="button" variant="secondary" disabled={pending !== null || name.trim().length < 2} onClick={() => void send("declined")}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={pending !== null || name.trim().length < 2}
+          onClick={() => void send("declined")}
+        >
           {pending === "declined" ? "Sending…" : "Decline"}
         </Button>
       </div>

@@ -22,18 +22,30 @@ const trustPills = [
 
 export function PublicFrame({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [clock, setClock] = useState(formatNowClock);
+  // The server cannot know the visitor's current minute, and rendering one
+  // during SSR guaranteed a hydration mismatch whenever the two renders straddled
+  // a minute boundary. Start empty and fill in after mount instead.
+  const [clock, setClock] = useState<{ date: string; time: string } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const id = window.setInterval(() => setClock(formatNowClock()), 30_000);
+    const tick = () => setClock(formatNowClock());
+    tick();
+    const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
     if (!menuOpen) return;
+    // Escape closes the menu and hands focus back to the button that opened it —
+    // without that, focus drops to <body> and a keyboard user loses their place.
+    // An outside click is not restored: focus should follow what was clicked.
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
     }
     function onPointer(event: PointerEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) setMenuOpen(false);
@@ -64,7 +76,10 @@ export function PublicFrame({ children }: { children: ReactNode }) {
           </span>
           <span className="hidden h-3 w-px bg-border sm:block" aria-hidden="true" />
           {trustPills.map(({ label, Icon }) => (
-            <span key={label} className="flex items-center gap-1.5 text-[11px] tracking-[0.14em] text-subtle uppercase">
+            <span
+              key={label}
+              className="flex items-center gap-1.5 text-[11px] tracking-[0.14em] text-subtle uppercase"
+            >
               <Icon className="size-3.5 text-accent" aria-hidden="true" />
               {label}
             </span>
@@ -115,6 +130,7 @@ export function PublicFrame({ children }: { children: ReactNode }) {
 
             <div ref={menuRef} className="relative md:hidden">
               <button
+                ref={menuButtonRef}
                 type="button"
                 aria-expanded={menuOpen}
                 aria-controls="mobile-nav"
@@ -123,41 +139,49 @@ export function PublicFrame({ children }: { children: ReactNode }) {
               >
                 Menu
               </button>
-              {menuOpen ? (
-                <nav
-                  id="mobile-nav"
-                  aria-label="Mobile navigation"
-                  className="glass absolute right-0 z-40 mt-2 w-56 rounded-xl p-2 text-fg shadow-[var(--shadow-panel)]"
-                >
-                  {nav.map((item) => (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      hash={item.hash}
-                      onClick={() => setMenuOpen(false)}
-                      className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                  <button
-                    type="button"
-                    className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      window.dispatchEvent(new Event("vantage-open-chat"));
-                    }}
+              {/* Always rendered so `aria-controls` resolves even when closed;
+                  `hidden` keeps it out of the accessibility tree and layout. */}
+              <nav
+                id="mobile-nav"
+                aria-label="Mobile navigation"
+                hidden={!menuOpen}
+                className="glass absolute right-0 z-40 mt-2 w-56 rounded-xl p-2 text-fg shadow-[var(--shadow-panel)]"
+              >
+                {nav.map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    hash={item.hash}
+                    onClick={() => setMenuOpen(false)}
+                    className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
                   >
-                    Chat
-                  </button>
-                </nav>
-              ) : null}
+                    {item.label}
+                  </Link>
+                ))}
+                <button
+                  type="button"
+                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new Event("vantage-open-chat"));
+                  }}
+                >
+                  Chat
+                </button>
+              </nav>
             </div>
           </div>
         </div>
       </header>
 
-      <main id="main-content" className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8">{children}</main>
+      {/* tabIndex=-1 so the skip link moves focus here (not just scroll). */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8"
+      >
+        {children}
+      </main>
 
       <footer className="relative z-10 border-t border-border bg-surface/60 backdrop-blur-sm">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-4">
@@ -166,7 +190,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
               <WatchtowerMark className="size-5 text-accent" />
               <p className="font-mono text-xs tracking-[0.22em]">VANTAGE-ARS</p>
             </div>
-            <p className="mt-3 text-sm text-muted">VoIP, networking and IT infrastructure support.</p>
+            <p className="mt-3 text-sm text-muted">
+              VoIP, networking and IT infrastructure support.
+            </p>
             <p className="mt-4 flex items-center gap-2 text-xs text-subtle">
               <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
               Desk open · Remote worldwide
@@ -174,9 +200,16 @@ export function PublicFrame({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex flex-col gap-2 text-sm">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-subtle">Services</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-subtle">
+              Services
+            </p>
             {SERVICE_PAGES.map((page) => (
-              <Link key={page.slug} to="/services/$slug" params={{ slug: page.slug }} className="text-muted transition-colors hover:text-fg">
+              <Link
+                key={page.slug}
+                to="/services/$slug"
+                params={{ slug: page.slug }}
+                className="text-muted transition-colors hover:text-fg"
+              >
                 {page.title}
               </Link>
             ))}
@@ -203,11 +236,17 @@ export function PublicFrame({ children }: { children: ReactNode }) {
 
           <div className="text-sm text-muted">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-subtle">Contact</p>
-            <a className="mt-2 block transition-colors hover:text-fg" href={`mailto:${COMPANY.email}`}>
+            <a
+              className="mt-2 block transition-colors hover:text-fg"
+              href={`mailto:${COMPANY.email}`}
+            >
               {COMPANY.email}
             </a>
             <p className="mt-3">South African rand. A written quote before any work.</p>
-            <Link to="/office" className="mt-4 inline-block text-xs text-subtle transition-colors hover:text-fg">
+            <Link
+              to="/office"
+              className="mt-4 inline-block text-xs text-subtle transition-colors hover:text-fg"
+            >
               Sign in
             </Link>
           </div>
@@ -220,14 +259,22 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             VANTAGE-ARS
           </p>
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[11px] text-subtle sm:px-6">
-            <p>© {new Date().getFullYear()} Vantage-ARS. Quoted work only — no retainer, no SLA.</p>
+            {/* The year only ever differs across a New Year boundary; suppress
+                rather than blank it for a year to avoid a visible gap. */}
+            <p suppressHydrationWarning>
+              © {new Date().getFullYear()} Vantage-ARS. Quoted work only — no retainer, no SLA.
+            </p>
             <p className="flex items-center gap-3 font-mono">
               <span>R690/hr remote · R805/hr on-site · VAT only where quoted</span>
-              <span className="hidden h-3 w-px bg-border sm:block" aria-hidden="true" />
-              <span className="hidden items-center gap-1.5 sm:flex">
-                <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
-                {clock.time} SAST
-              </span>
+              {clock ? (
+                <>
+                  <span className="hidden h-3 w-px bg-border sm:block" aria-hidden="true" />
+                  <span className="hidden items-center gap-1.5 sm:flex">
+                    <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
+                    {clock.time} SAST
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
         </div>

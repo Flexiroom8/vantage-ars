@@ -9,6 +9,7 @@ import { TraceList } from "@/components/office/trace-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { decideApproval } from "@/lib/office/api";
 import { AGENT_BY_ID } from "@/lib/office/agents";
@@ -18,7 +19,6 @@ import type { ApprovalRow } from "@/lib/office/types";
 export const Route = createFileRoute("/office/approvals")({
   component: ApprovalsPage,
 });
-
 
 function ApprovalsPage() {
   const snapshot = useOfficeSnapshot();
@@ -84,6 +84,11 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
       }
       toast.success(decision === "approved" ? "Executed." : "Held.");
       await router.invalidate();
+    } catch {
+      // This is the path that executes a cost, a customer win/loss or a spend.
+      // If it fails mid-flight the founder must know, or they will click again
+      // unsure whether the action already ran.
+      toast.error("The decision could not be recorded — check the audit ledger before retrying.");
     } finally {
       setPending(false);
     }
@@ -98,7 +103,11 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
           </p>
           <h2 className="mt-1 font-serif text-2xl">{item.title}</h2>
         </div>
-        <Badge variant={item.kind === "cost" ? "warn" : item.kind.startsWith("customer") ? "danger" : "default"}>
+        <Badge
+          variant={
+            item.kind === "cost" ? "warn" : item.kind.startsWith("customer") ? "danger" : "default"
+          }
+        >
           {item.kind.replaceAll("_", " ")}
         </Badge>
       </div>
@@ -121,7 +130,11 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
         <p className="mb-2 text-xs uppercase tracking-[0.14em] text-muted">Constitutional trace</p>
         <TraceList trace={item.constitutionalTrace} />
       </div>
+      <Label htmlFor="approval-note" className="sr-only">
+        Note for the audit ledger (optional)
+      </Label>
       <Textarea
+        id="approval-note"
         className="mt-5"
         placeholder="Note for the audit ledger (optional)"
         value={note}

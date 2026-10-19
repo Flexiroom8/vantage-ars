@@ -15,7 +15,14 @@ export function customerQuoteText(summary: string): string {
 }
 
 export type InvoiceFigure =
-  | { ok: true; cents: number; netCents: number; vatCents: number; treatment: VatTreatment; memo: string }
+  | {
+      ok: true;
+      cents: number;
+      netCents: number;
+      vatCents: number;
+      treatment: VatTreatment;
+      memo: string;
+    }
   | { ok: false; error: string };
 
 /**
@@ -35,12 +42,19 @@ export function quoteInvoice(valueCents: number, treatment: VatTreatment = "none
     treatment === "none"
       ? "Labour from the approved quote. VAT was not stated, so none is added. The invoice has not been emailed."
       : `Labour from the approved quote. ${VAT_TREATMENT_LABELS[treatment]}. The invoice has not been emailed.`;
-  return { ok: true, cents: split.grossCents, netCents: split.netCents, vatCents: split.vatCents, treatment, memo };
+  return {
+    ok: true,
+    cents: split.grossCents,
+    netCents: split.netCents,
+    vatCents: split.vatCents,
+    treatment,
+    memo,
+  };
 }
 
-export function receiptForInvoice(amountCents: number):
-  | { ok: true; cents: number; memo: string }
-  | { ok: false; error: string } {
+export function receiptForInvoice(
+  amountCents: number,
+): { ok: true; cents: number; memo: string } | { ok: false; error: string } {
   if (!Number.isInteger(amountCents) || amountCents <= 0) {
     return { ok: false, error: "There is no invoice figure to receive." };
   }
@@ -78,9 +92,20 @@ export function documentRef(id: string): string {
 }
 
 export type PaymentEnv = Record<string, string | undefined>;
-export type PaymentMethod = { id: "eft" | "wire" | "card"; title: string; available: boolean; detail: string };
+export type PaymentMethod = {
+  id: "eft" | "wire" | "card";
+  title: string;
+  available: boolean;
+  detail: string;
+};
 
-type BankDetails = { bank: string; account: string; branch: string; beneficiary: string; swift: string };
+type BankDetails = {
+  bank: string;
+  account: string;
+  branch: string;
+  beneficiary: string;
+  swift: string;
+};
 
 /** Bank details come from the server environment, never from source code. Null when incomplete. */
 export function bankDetails(env: PaymentEnv): BankDetails | null {
@@ -125,6 +150,20 @@ export function paymentMethods(env: PaymentEnv): PaymentMethod[] {
   return methods;
 }
 
+/**
+ * True while every available method is still pointing the payer at the
+ * "details are sent with your quote" sentinel — i.e. no bank details are
+ * configured yet, so the payment form should say so up front.
+ *
+ * Only *available* methods count. The unavailable card method never carries
+ * bank details, so including it made this permanently false and the notice
+ * never rendered even with no bank details configured.
+ */
+export function allMethodsAwaitBankDetails(methods: PaymentMethod[]): boolean {
+  const available = methods.filter((method) => method.available);
+  return available.length > 0 && available.every((method) => method.detail === NO_BANK_DETAIL);
+}
+
 export function paymentInstructionsText(env: PaymentEnv): string {
   const bank = bankDetails(env);
   if (!bank) {
@@ -148,11 +187,17 @@ export type VatSummary = { treatment: VatTreatment; netCents: number; vatCents: 
 
 function vatLines(vat: VatSummary | undefined): string[] {
   if (!vat || vat.treatment === "none") return ["VAT was not stated, so none is added."];
-  if (vat.treatment === "zero_rated") return [`Excluding VAT: ${formatZar(vat.netCents)}.`, "VAT at 0% (zero-rated)."];
+  if (vat.treatment === "zero_rated")
+    return [`Excluding VAT: ${formatZar(vat.netCents)}.`, "VAT at 0% (zero-rated)."];
   return [`Excluding VAT: ${formatZar(vat.netCents)}.`, `VAT at 15%: ${formatZar(vat.vatCents)}.`];
 }
 
-export function invoiceCopy(companyName: string, cents: number, reference?: string, vat?: VatSummary): string {
+export function invoiceCopy(
+  companyName: string,
+  cents: number,
+  reference?: string,
+  vat?: VatSummary,
+): string {
   const name = companyName.trim() || "Customer";
   return [
     `Invoice for ${name}.`,
@@ -185,7 +230,10 @@ export function withPaymentNote(body: string, note: string): string {
   return `${body} Pay: ${extra}`;
 }
 
-export function deliveryJob(companyName: string, quoteSummary: string): { title: string; summary: string } {
+export function deliveryJob(
+  companyName: string,
+  quoteSummary: string,
+): { title: string; summary: string } {
   const name = companyName.trim() || "Customer";
   const scope = customerQuoteText(quoteSummary);
   return {
@@ -209,8 +257,11 @@ export const VAT_RATE_BPS = 1500; // South Africa standard rate, 15.00%
 export function vatBreakdown(
   cents: number,
   treatment: VatTreatment,
-): { ok: true; netCents: number; vatCents: number; grossCents: number } | { ok: false; error: string } {
-  if (!Number.isInteger(cents) || cents <= 0) return { ok: false, error: "There is no figure to apply VAT to." };
+):
+  | { ok: true; netCents: number; vatCents: number; grossCents: number }
+  | { ok: false; error: string } {
+  if (!Number.isInteger(cents) || cents <= 0)
+    return { ok: false, error: "There is no figure to apply VAT to." };
   switch (treatment) {
     case "none":
     case "zero_rated":
@@ -233,7 +284,10 @@ export function vatBreakdown(
  * Missing treatment keeps the previous behaviour (15% on top). "unstated" and
  * "none" add nothing. An unrecognised value adds nothing rather than inventing VAT.
  */
-export function ledgerVat(treatment: unknown, cents: number): { treatment: VatTreatment; vatCents: number; netCents: number } {
+export function ledgerVat(
+  treatment: unknown,
+  cents: number,
+): { treatment: VatTreatment; vatCents: number; netCents: number } {
   const known: VatTreatment[] = ["none", "standard", "included", "zero_rated"];
   const t: VatTreatment =
     treatment === undefined || treatment === null
@@ -244,7 +298,12 @@ export function ledgerVat(treatment: unknown, cents: number): { treatment: VatTr
           ? (treatment as VatTreatment)
           : "none";
   const r = vatBreakdown(cents, t);
-  if (!r.ok) return { treatment: "none", vatCents: 0, netCents: Math.max(0, Number.isInteger(cents) ? cents : 0) };
+  if (!r.ok)
+    return {
+      treatment: "none",
+      vatCents: 0,
+      netCents: Math.max(0, Number.isInteger(cents) ? cents : 0),
+    };
   return { treatment: t, vatCents: r.vatCents, netCents: r.netCents };
 }
 

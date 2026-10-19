@@ -2,8 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { pageHead } from "@/lib/site/seo";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
+import { FormConfirmation } from "@/components/public/form-confirmation";
 import { LiveNode } from "@/components/public/motion-icons";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,9 +35,18 @@ const MATTERS = [
 ] as const;
 
 const FAQS = [
-  { q: "Does this form create a new quote or refund?", a: "No. It records a matter for review. No refund, cancellation, or price change is created here." },
-  { q: "Can I use this for a new job?", a: "Use the enquiry form from the homepage if you need a written quote for new work." },
-  { q: "Do I need to include passwords or access keys?", a: "No. Please do not include credentials, card numbers, or private credentials in any message." },
+  {
+    q: "Does this form create a new quote or refund?",
+    a: "No. It records a matter for review. No refund, cancellation, or price change is created here.",
+  },
+  {
+    q: "Can I use this for a new job?",
+    a: "Use the enquiry form from the homepage if you need a written quote for new work.",
+  },
+  {
+    q: "Do I need to include passwords or access keys?",
+    a: "No. Please do not include credentials, card numbers, or private credentials in any message.",
+  },
 ] as const;
 
 function SupportDesk() {
@@ -39,7 +54,9 @@ function SupportDesk() {
     <PublicFrame>
       <section className="enter-up grid gap-10 border-b border-border py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-24">
         <div>
-          <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Customer service</p>
+          <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">
+            Customer service
+          </p>
           <h1 className="mt-4 max-w-xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
             Already a customer? This is the right place.
           </h1>
@@ -51,17 +68,29 @@ function SupportDesk() {
 
         <dl className="panel self-end space-y-4 rounded-2xl p-6 text-sm">
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">What this desk does</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">
+              What this desk does
+            </dt>
             <dd className="mt-1 text-muted">Records the matter for a person to review.</dd>
           </div>
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">What it does not do</dt>
-            <dd className="mt-1 text-muted">No refund, no new price, and no contract from this form.</dd>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">
+              What it does not do
+            </dt>
+            <dd className="mt-1 text-muted">
+              No refund, no new price, and no contract from this form.
+            </dd>
           </div>
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">New work</dt>
+            <dt className="font-mono text-[10px] uppercase tracking-[0.22em] text-subtle">
+              New work
+            </dt>
             <dd className="mt-1 text-muted">
-              <Link to="/" hash="enquiry" className="text-accent underline-offset-4 hover:underline">
+              <Link
+                to="/"
+                hash="enquiry"
+                className="text-accent underline-offset-4 hover:underline"
+              >
                 Use the enquiry form
               </Link>{" "}
               if you need a quote.
@@ -72,9 +101,21 @@ function SupportDesk() {
 
       <section className="grid gap-4 border-b border-border py-10 md:grid-cols-3">
         {[
-          { n: "01", title: "A fault", body: "Something stopped. Say what it was doing, and what it does now." },
-          { n: "02", title: "Work in progress", body: "Ask where an agreed job stands. This does not change the quote." },
-          { n: "03", title: "A complaint", body: "Say what went wrong. A refund or a credit is not decided on this form." },
+          {
+            n: "01",
+            title: "A fault",
+            body: "Something stopped. Say what it was doing, and what it does now.",
+          },
+          {
+            n: "02",
+            title: "Work in progress",
+            body: "Ask where an agreed job stands. This does not change the quote.",
+          },
+          {
+            n: "03",
+            title: "A complaint",
+            body: "Say what went wrong. A refund or a credit is not decided on this form.",
+          },
         ].map((item) => (
           <div key={item.title} className="panel panel-hover rounded-2xl p-5">
             <div className="flex items-center justify-between">
@@ -95,9 +136,15 @@ function SupportDesk() {
           </p>
           <h2 className="mt-3 font-serif text-3xl">Before you send the desk a note</h2>
           <ul className="mt-6 space-y-4 text-sm text-muted">
-            <li className="border-b border-border pb-3">Include what stopped working, when it started, and what you have already tried.</li>
-            <li className="border-b border-border pb-3">Add the customer or site name so the team can trace the work quickly.</li>
-            <li>Keep the message factual. Avoid passwords, remote access keys, or payment details.</li>
+            <li className="border-b border-border pb-3">
+              Include what stopped working, when it started, and what you have already tried.
+            </li>
+            <li className="border-b border-border pb-3">
+              Add the customer or site name so the team can trace the work quickly.
+            </li>
+            <li>
+              Keep the message factual. Avoid passwords, remote access keys, or payment details.
+            </li>
           </ul>
         </div>
       </section>
@@ -154,12 +201,13 @@ function DeskForm() {
   return (
     <section>
       {done ? (
-        <div className="panel rounded-2xl p-6">
+        <FormConfirmation>
           <p className="font-serif text-3xl text-ok">Recorded.</p>
           <p className="mt-3 text-sm text-muted">
-            Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been refunded, cancelled, or quoted.
+            Recorded. If mail is connected, a short acknowledgement is sent. Nothing has been
+            refunded, cancelled, or quoted.
           </p>
-        </div>
+        </FormConfirmation>
       ) : (
         <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
           <div>

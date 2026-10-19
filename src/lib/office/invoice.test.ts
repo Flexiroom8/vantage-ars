@@ -1,6 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { customerQuoteText, deliveryJob, documentRef, invoiceCopy, ledgerVat, expenseVat, paymentMethods, bankDetails, parseVatTreatment, paymentInstructionsText, paymentNote, quoteInvoice, receiptCopy, receiptForInvoice, vatBreakdown, withPaymentNote } from "./invoice.ts";
+import {
+  allMethodsAwaitBankDetails,
+  customerQuoteText,
+  deliveryJob,
+  documentRef,
+  invoiceCopy,
+  ledgerVat,
+  expenseVat,
+  paymentMethods,
+  bankDetails,
+  parseVatTreatment,
+  paymentInstructionsText,
+  paymentNote,
+  quoteInvoice,
+  receiptCopy,
+  receiptForInvoice,
+  vatBreakdown,
+  withPaymentNote,
+} from "./invoice.ts";
 
 const TEST_BANK = {
   PAYMENT_BANK_NAME: "Test Bank",
@@ -68,8 +86,14 @@ describe("quote to invoice", () => {
     assert.equal(withPaymentNote(body, "FNB 123").includes("Pay: FNB 123"), true);
     assert.equal(paymentNote("x".repeat(500)).length, 400);
     assert.equal(paymentInstructionsText(TEST_BANK).includes("0000000001"), true);
-    assert.equal(paymentNote(paymentInstructionsText(TEST_BANK)), paymentInstructionsText(TEST_BANK));
-    assert.equal(paymentInstructionsText(TEST_BANK).toLowerCase().includes("card payment is not available"), true);
+    assert.equal(
+      paymentNote(paymentInstructionsText(TEST_BANK)),
+      paymentInstructionsText(TEST_BANK),
+    );
+    assert.equal(
+      paymentInstructionsText(TEST_BANK).toLowerCase().includes("card payment is not available"),
+      true,
+    );
   });
 });
 
@@ -111,7 +135,9 @@ describe("document references", () => {
 describe("quote to invoice", () => {
   it("puts the payment details on the quote the founder sends", () => {
     const sent = withPaymentNote(
-      customerQuoteText("INTERNAL QUOTE DRAFT. This has not been sent. Remote support. Reference: VA-ABC12345."),
+      customerQuoteText(
+        "INTERNAL QUOTE DRAFT. This has not been sent. Remote support. Reference: VA-ABC12345.",
+      ),
       paymentInstructionsText(TEST_BANK),
     );
     assert.equal(sent.includes("INTERNAL"), false);
@@ -123,7 +149,12 @@ describe("quote to invoice", () => {
 
 describe("VAT breakdown", () => {
   it("adds 15% to a net figure", () => {
-    assert.deepEqual(vatBreakdown(69000, "standard"), { ok: true, netCents: 69000, vatCents: 10350, grossCents: 79350 });
+    assert.deepEqual(vatBreakdown(69000, "standard"), {
+      ok: true,
+      netCents: 69000,
+      vatCents: 10350,
+      grossCents: 79350,
+    });
   });
 
   it("extracts VAT from a VAT-inclusive figure and always reconciles", () => {
@@ -136,7 +167,11 @@ describe("VAT breakdown", () => {
   });
 
   it("adds nothing for none or zero-rated and refuses bad figures", () => {
-    assert.equal(vatBreakdown(80500, "none").ok && (vatBreakdown(80500, "none") as { vatCents: number }).vatCents, 0);
+    assert.equal(
+      vatBreakdown(80500, "none").ok &&
+        (vatBreakdown(80500, "none") as { vatCents: number }).vatCents,
+      0,
+    );
     assert.equal((vatBreakdown(80500, "zero_rated") as { grossCents: number }).grossCents, 80500);
     assert.equal(vatBreakdown(0, "standard").ok, false);
     assert.equal(vatBreakdown(10.5, "standard").ok, false);
@@ -185,7 +220,11 @@ describe("invoice with VAT treatment", () => {
     }
   });
   it("writes VAT lines into the customer copy", () => {
-    const text = invoiceCopy("Harbour & Co", 79350, "VA-1", { treatment: "standard", netCents: 69000, vatCents: 10350 });
+    const text = invoiceCopy("Harbour & Co", 79350, "VA-1", {
+      treatment: "standard",
+      netCents: 69000,
+      vatCents: 10350,
+    });
     assert.equal(text.includes("VAT at 15%"), true);
     assert.equal(text.toLowerCase().includes("vat was not stated"), false);
     assert.equal(text.includes("793"), true);
@@ -209,7 +248,25 @@ describe("bank details from the environment", () => {
     const text = paymentInstructionsText({});
     assert.equal(/\d{6,}/.test(text), false);
     assert.equal(text.includes("sent with the quote or invoice"), true);
-    assert.equal(paymentMethods({}).every((m) => !/\d{6,}/.test(m.detail)), true);
+    assert.equal(
+      paymentMethods({}).every((m) => !/\d{6,}/.test(m.detail)),
+      true,
+    );
+  });
+  it("says details are pending only while no bank details are configured", () => {
+    // Regression: the notice used to consider every method, including the
+    // permanently-unavailable card entry, so it never rendered at all.
+    assert.equal(allMethodsAwaitBankDetails(paymentMethods({})), true);
+    assert.equal(allMethodsAwaitBankDetails(paymentMethods(TEST_BANK)), false);
+    // A bank with no SWIFT still publishes EFT details, so nothing is "pending".
+    const noSwift = paymentMethods({
+      PAYMENT_BANK_NAME: "Test Bank",
+      PAYMENT_ACCOUNT_NUMBER: "0000000001",
+      PAYMENT_BRANCH_CODE: "000001",
+      PAYMENT_BENEFICIARY: "Test Beneficiary",
+    });
+    assert.equal(allMethodsAwaitBankDetails(noSwift), false);
+    assert.equal(allMethodsAwaitBankDetails([]), false);
   });
   it("omits the wire line without a SWIFT code", () => {
     const { PAYMENT_SWIFT: _unused, ...noSwift } = TEST_BANK;
@@ -220,7 +277,8 @@ describe("bank details from the environment", () => {
 describe("expense VAT", () => {
   it("claims input VAT only when the amount is stated to include it", () => {
     assert.equal(expenseVat("included", 11500), 1500);
-    for (const t of [undefined, "none", "standard", "bogus", 1]) assert.equal(expenseVat(t, 11500), 0);
+    for (const t of [undefined, "none", "standard", "bogus", 1])
+      assert.equal(expenseVat(t, 11500), 0);
   });
   it("is safe on bad amounts", () => {
     assert.equal(expenseVat("included", 0), 0);

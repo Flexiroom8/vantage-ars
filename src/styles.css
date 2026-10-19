@@ -45,8 +45,7 @@
   #app {
     min-height: 100%;
     background:
-      radial-gradient(circle at top, rgba(12, 92, 171, 0.06), transparent 30%),
-      var(--color-bg);
+      radial-gradient(circle at top, rgba(12, 92, 171, 0.06), transparent 30%), var(--color-bg);
     color: var(--color-fg);
   }
 
@@ -113,8 +112,7 @@
 
   --shadow-border: 0 0 0 1px rgb(255 255 255 / 0.09);
   --shadow-border-hover: 0 0 0 1px rgb(92 200 255 / 0.45);
-  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.05) inset,
-    0 24px 48px -24px rgb(0 0 0 / 0.85);
+  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 24px 48px -24px rgb(0 0 0 / 0.85);
   --glow-accent: 0 0 20px rgb(92 200 255 / 0.3);
 
   /* shared surface colors used by the live background canvas */
@@ -138,8 +136,16 @@
 html:has(.site),
 html:has(.site) body {
   background:
-    radial-gradient(1200px 600px at 85% -10%, var(--aurora-a, rgba(38, 110, 255, 0.13)), transparent 60%),
-    radial-gradient(900px 500px at -10% 30%, var(--aurora-b, rgba(0, 214, 200, 0.08)), transparent 55%),
+    radial-gradient(
+      1200px 600px at 85% -10%,
+      var(--aurora-a, rgba(38, 110, 255, 0.13)),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at -10% 30%,
+      var(--aurora-b, rgba(0, 214, 200, 0.08)),
+      transparent 55%
+    ),
     #02060e;
 }
 
@@ -260,7 +266,11 @@ html:has(.site) body {
 .site .cta {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 88%, white), var(--color-accent));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-accent) 88%, white),
+    var(--color-accent)
+  );
   color: var(--color-accent-fg);
   box-shadow: var(--glow-accent);
   transition:
@@ -277,7 +287,12 @@ html:has(.site) body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  background: linear-gradient(
+    110deg,
+    transparent 30%,
+    rgb(255 255 255 / 0.35) 50%,
+    transparent 70%
+  );
   transform: translateX(-120%);
   transition: transform 0.6s ease;
 }
@@ -325,12 +340,12 @@ html:has(.site) body {
 }
 
 .site .nav-link:hover,
-.site .nav-link[data-active="true"] {
+.site .nav-link[data-status="active"] {
   color: var(--color-fg);
 }
 
 .site .nav-link:hover::after,
-.site .nav-link[data-active="true"]::after {
+.site .nav-link[data-status="active"]::after {
   transform: scaleX(1);
 }
 

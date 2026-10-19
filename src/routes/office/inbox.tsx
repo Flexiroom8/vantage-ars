@@ -19,9 +19,15 @@ export const Route = createFileRoute("/office/inbox")({
   component: InboxPage,
 });
 
-
 const CHANNELS = ["email", "phone", "web", "walk-in", "referral", "direct"] as const;
-const INTENTS = ["enquiry", "sales_interest", "support", "billing", "partnership", "other"] as const;
+const INTENTS = [
+  "enquiry",
+  "sales_interest",
+  "support",
+  "billing",
+  "partnership",
+  "other",
+] as const;
 
 function InboxPage() {
   const snapshot = useOfficeSnapshot();
@@ -54,6 +60,10 @@ function InboxPage() {
       }
       setForm({ ...form, companyName: "", subject: "", summary: "" });
       await router.invalidate();
+    } catch {
+      // Without this a dropped request or a 5xx re-enabled the form silently,
+      // so the founder could not tell the inbound was never filed.
+      toast.error("The inbound could not be filed. Try again.");
     } finally {
       setPending(false);
     }
@@ -149,7 +159,10 @@ function InboxPage() {
                 {snapshot.documents
                   .filter((doc) => doc.kind === "correspondence")
                   .map((doc) => (
-                    <li key={doc.id} className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                    <li
+                      key={doc.id}
+                      className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]"
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm">{doc.title}</p>
                         <Badge variant="warn">{doc.status}</Badge>
@@ -168,15 +181,21 @@ function InboxPage() {
           ) : (
             <ul className="space-y-2">
               {snapshot.inbound.map((item) => (
-                <li key={item.id} className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+                <li
+                  key={item.id}
+                  className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm text-fg">{item.subject}</p>
                       <p className="text-xs text-muted">
-                        {item.companyName} · {item.channel} · {item.intent} · {formatDateTime(item.createdAt)}
+                        {item.companyName} · {item.channel} · {item.intent} ·{" "}
+                        {formatDateTime(item.createdAt)}
                       </p>
                     </div>
-                    <Badge variant={item.status === "routed" ? "ok" : "default"}>{item.status}</Badge>
+                    <Badge variant={item.status === "routed" ? "ok" : "default"}>
+                      {item.status}
+                    </Badge>
                   </div>
                   <p className="mt-2 text-sm text-muted">{item.summary}</p>
                 </li>

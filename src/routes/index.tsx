@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
+import { FormConfirmation } from "@/components/public/form-confirmation";
 import {
   InfraIcon,
   LiveNode,
@@ -18,20 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  submitPublicEnquiry,
-  submitPaymentNotice,
-  getPaymentMethods,
-} from "@/lib/office/api";
+import { submitPublicEnquiry, submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
+import type { PaymentMethod } from "@/lib/office/invoice";
+import { allMethodsAwaitBankDetails } from "@/lib/office/invoice";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { SERVICE_LINES, publicRateRows } from "@/lib/office/catalogue";
-import {
-  businessJsonLd,
-  faqJsonLd,
-  pageHead,
-  SITE_URL,
-  jsonLd,
-} from "@/lib/site/seo";
+import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 
 const LINE_ICONS = [VoipIcon, NetworkIcon, InfraIcon] as const;
 
@@ -114,15 +107,9 @@ function HomePage() {
           const el = event.currentTarget;
           const rect = el.getBoundingClientRect();
 
-          el.style.setProperty(
-            "--mx",
-            `${event.clientX - rect.left}px`,
-          );
+          el.style.setProperty("--mx", `${event.clientX - rect.left}px`);
 
-          el.style.setProperty(
-            "--my",
-            `${event.clientY - rect.top}px`,
-          );
+          el.style.setProperty("--my", `${event.clientY - rect.top}px`);
         }}
       >
         <div
@@ -133,10 +120,7 @@ function HomePage() {
         <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="relative">
             <p className="enter-up flex items-center gap-2.5 font-mono text-xs tracking-[0.22em] text-accent uppercase">
-              <span
-                className="live-dot size-1.5 rounded-full bg-ok"
-                aria-hidden="true"
-              />
+              <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
               <DecodeText text="VoIP · Networking · IT infrastructure" />
             </p>
 
@@ -149,9 +133,8 @@ function HomePage() {
             </h1>
 
             <p className="enter-up d-2 mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-              Worldwide remote support from R690 an hour, on-site by
-              arrangement from R805 an hour. You see the scope, timing and
-              total in writing before anyone starts.
+              Worldwide remote support from R690 an hour, on-site by arrangement from R805 an hour.
+              You see the scope, timing and total in writing before anyone starts.
             </p>
 
             <div className="enter-up d-3 mt-8 flex flex-wrap gap-3">
@@ -179,9 +162,7 @@ function HomePage() {
                 Departments
               </p>
 
-              <p className="font-mono text-[11px] tracking-[0.16em] text-ok uppercase">
-                Desk open
-              </p>
+              <p className="font-mono text-[11px] tracking-[0.16em] text-ok uppercase">Desk open</p>
             </div>
 
             <ul className="divide-y divide-border">
@@ -197,10 +178,7 @@ function HomePage() {
                       className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-raised/60"
                     >
                       <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-raised">
-                        <Icon
-                          className="size-5 text-accent"
-                          aria-hidden="true"
-                        />
+                        <Icon className="size-5 text-accent" aria-hidden="true" />
                       </span>
 
                       <span className="min-w-0 flex-1">
@@ -208,15 +186,10 @@ function HomePage() {
                           {line.title}
                         </span>
 
-                        <span className="mt-0.5 block text-sm text-muted">
-                          {line.price}
-                        </span>
+                        <span className="mt-0.5 block text-sm text-muted">{line.price}</span>
                       </span>
 
-                      <SignalBars
-                        className="size-4 shrink-0 text-ok"
-                        aria-hidden="true"
-                      />
+                      <SignalBars className="size-4 shrink-0 text-ok" aria-hidden="true" />
                     </Link>
                   </li>
                 );
@@ -230,10 +203,7 @@ function HomePage() {
                 className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-accent uppercase hover:underline"
               >
                 Open a department
-                <QuoteIcon
-                  className="size-3.5"
-                  aria-hidden="true"
-                />
+                <QuoteIcon className="size-3.5" aria-hidden="true" />
               </Link>
             </div>
           </div>
@@ -247,13 +217,13 @@ function HomePage() {
           {STATS.map((stat, index) => (
             <Reveal
               key={stat.label}
-              delay={
-                index === 0
-                  ? undefined
-                  : (index as 1 | 2 | 3)
-              }
-              className="p-6 sm:p-8"
+              delay={index === 0 ? undefined : (index as 1 | 2 | 3)}
+              // dt must precede dd in the DOM (a screen reader announces in
+              // document order); flex-col-reverse keeps the number visually on
+              // top without breaking that order.
+              className="flex flex-col-reverse p-6 sm:p-8"
             >
+              <dt className="mt-2 text-sm text-muted">{stat.label}</dt>
               <dd className="font-mono text-3xl font-semibold tabular-nums text-fg sm:text-4xl">
                 <CountUp
                   value={stat.value}
@@ -261,24 +231,14 @@ function HomePage() {
                   suffix={"suffix" in stat ? stat.suffix : ""}
                 />
               </dd>
-
-              <dt className="mt-2 text-sm text-muted">
-                {stat.label}
-              </dt>
             </Reveal>
           ))}
         </dl>
       </section>
 
-      <section
-        id="services"
-        className="border-b border-border py-16"
-        aria-label="Departments"
-      >
+      <section id="services" className="border-b border-border py-16" aria-label="Departments">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">
-            Three departments, one desk
-          </h2>
+          <h2 className="text-4xl sm:text-5xl">Three departments, one desk</h2>
 
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
             Pick what stopped
@@ -297,17 +257,12 @@ function HomePage() {
                 className="group grid gap-3 border-b border-border px-2 py-6 transition-colors hover:bg-raised/50 sm:grid-cols-[3rem_1fr_10rem_2rem] sm:items-center sm:gap-6 sm:px-4"
               >
                 <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
-                  <Icon
-                    className="size-6 text-accent"
-                    aria-hidden="true"
-                  />
+                  <Icon className="size-6 text-accent" aria-hidden="true" />
                 </span>
 
                 <span>
                   <span className="flex items-baseline gap-3">
-                    <span className="font-mono text-xs text-subtle">
-                      {page.number}
-                    </span>
+                    <span className="font-mono text-xs text-subtle">{page.number}</span>
 
                     <span className="text-2xl group-hover:text-accent sm:text-3xl">
                       {page.title}
@@ -337,14 +292,9 @@ function HomePage() {
 
       <SignalPath />
 
-      <section
-        className="border-t border-border py-16"
-        aria-label="How a job runs"
-      >
+      <section className="border-t border-border py-16" aria-label="How a job runs">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">
-            How a job runs
-          </h2>
+          <h2 className="text-4xl sm:text-5xl">How a job runs</h2>
 
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
             Same path every time
@@ -356,45 +306,26 @@ function HomePage() {
             <li
               key={step.n}
               className={`panel rounded-2xl p-6 ${
-                index === 1
-                  ? "enter-up d-1"
-                  : index === 2
-                    ? "enter-up d-2"
-                    : "enter-up"
+                index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"
               }`}
             >
               <div className="flex items-center justify-between">
-                <p className="font-mono text-sm text-accent">
-                  {step.n}
-                </p>
+                <p className="font-mono text-sm text-accent">{step.n}</p>
 
-                <QuoteIcon
-                  className="size-5 text-subtle"
-                  aria-hidden="true"
-                />
+                <QuoteIcon className="size-5 text-subtle" aria-hidden="true" />
               </div>
 
-              <h3 className="mt-4 text-2xl">
-                {step.title}
-              </h3>
+              <h3 className="mt-4 text-2xl">{step.title}</h3>
 
-              <p className="mt-2 text-sm leading-relaxed text-muted">
-                {step.body}
-              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
             </li>
           ))}
         </ol>
       </section>
 
-      <section
-        id="prices"
-        className="border-t border-border py-16"
-        aria-label="Prices"
-      >
+      <section id="prices" className="border-t border-border py-16" aria-label="Prices">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">
-            Published rates
-          </h2>
+          <h2 className="text-4xl sm:text-5xl">Published rates</h2>
 
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
             South African rand
@@ -403,10 +334,7 @@ function HomePage() {
 
         <p className="mt-3 max-w-xl text-base text-muted">
           VAT is added only when the written quote says so.{" "}
-          <Link
-            to="/rates"
-            className="text-accent underline-offset-4 hover:underline"
-          >
+          <Link to="/rates" className="text-accent underline-offset-4 hover:underline">
             Full rate sheet
           </Link>
           .
@@ -419,13 +347,9 @@ function HomePage() {
               className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_10rem] sm:gap-8"
             >
               <div>
-                <h3 className="text-base font-semibold text-fg">
-                  {rate.title}
-                </h3>
+                <h3 className="text-base font-semibold text-fg">{rate.title}</h3>
 
-                <p className="mt-1 text-sm text-muted">
-                  {rate.scope}
-                </p>
+                <p className="mt-1 text-sm text-muted">{rate.scope}</p>
               </div>
 
               <p className="font-mono text-sm font-medium text-accent sm:text-right">
@@ -436,27 +360,15 @@ function HomePage() {
         </ul>
       </section>
 
-      <section
-        className="border-t border-border py-16"
-        aria-label="Forms"
-      >
+      <section className="border-t border-border py-16" aria-label="Forms">
         <div className="grid gap-8 lg:grid-cols-2">
-          <div
-            id="enquiry"
-            className="scroll-mt-24"
-            aria-label="Enquiry"
-          >
-            <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">
-              01 · Enquiry
-            </p>
+          <div id="enquiry" className="scroll-mt-24" aria-label="Enquiry">
+            <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">01 · Enquiry</p>
 
-            <h2 className="mt-4 text-4xl sm:text-5xl">
-              Ask for a quote
-            </h2>
+            <h2 className="mt-4 text-4xl sm:text-5xl">Ask for a quote</h2>
 
             <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
-              A few sentences are enough. This is not a contract — you
-              get a written quote first.
+              A few sentences are enough. This is not a contract — you get a written quote first.
             </p>
 
             <div className="mt-8">
@@ -464,22 +376,16 @@ function HomePage() {
             </div>
           </div>
 
-          <div
-            id="payment"
-            className="scroll-mt-24"
-            aria-label="Payment"
-          >
+          <div id="payment" className="scroll-mt-24" aria-label="Payment">
             <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">
               02 · Payment notice
             </p>
 
-            <h2 className="mt-4 text-4xl sm:text-5xl">
-              Paid already? Tell us.
-            </h2>
+            <h2 className="mt-4 text-4xl sm:text-5xl">Paid already? Tell us.</h2>
 
             <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">
-              Send the reference from your quote or invoice. This records
-              your notice — it is not an automatic receipt.
+              Send the reference from your quote or invoice. This records your notice — it is not an
+              automatic receipt.
             </p>
 
             <div className="mt-8">
@@ -521,9 +427,7 @@ function EnquiryForm() {
 
       setDone(true);
     } catch {
-      setError(
-        "The enquiry could not be sent. Try again in a moment.",
-      );
+      setError("The enquiry could not be sent. Try again in a moment.");
     } finally {
       setPending(false);
     }
@@ -531,28 +435,20 @@ function EnquiryForm() {
 
   if (done) {
     return (
-      <div className="panel rounded-2xl p-6">
-        <p className="text-3xl text-ok">
-          Received.
-        </p>
+      <FormConfirmation>
+        <p className="text-3xl text-ok">Received.</p>
 
         <p className="mt-3 text-sm text-muted">
-          Your enquiry is recorded. You will get a written quote before
-          any work is agreed.
+          Your enquiry is recorded. You will get a written quote before any work is agreed.
         </p>
-      </div>
+      </FormConfirmation>
     );
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="glass space-y-4 rounded-2xl p-5"
-    >
+    <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
       <div>
-        <Label htmlFor="enquiry-name">
-          Your name
-        </Label>
+        <Label htmlFor="enquiry-name">Your name</Label>
 
         <Input
           id="enquiry-name"
@@ -571,9 +467,7 @@ function EnquiryForm() {
       </div>
 
       <div>
-        <Label htmlFor="enquiry-email">
-          Email
-        </Label>
+        <Label htmlFor="enquiry-email">Email</Label>
 
         <Input
           id="enquiry-email"
@@ -593,9 +487,7 @@ function EnquiryForm() {
       </div>
 
       <div>
-        <Label htmlFor="enquiry-message">
-          What do you need?
-        </Label>
+        <Label htmlFor="enquiry-message">What do you need?</Label>
 
         <Textarea
           id="enquiry-message"
@@ -615,12 +507,8 @@ function EnquiryForm() {
         />
       </div>
 
-      <div
-        className="h-0 overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="h-0 overflow-hidden" aria-hidden="true">
         Leave this field empty
-
         <input
           tabIndex={-1}
           autoComplete="off"
@@ -635,32 +523,19 @@ function EnquiryForm() {
       </div>
 
       {error ? (
-        <p
-          role="alert"
-          className="text-sm text-danger"
-        >
+        <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       ) : null}
 
-      <Button
-        type="submit"
-        disabled={pending}
-        className="cta w-full border-0 sm:w-auto"
-      >
-        {pending
-          ? "Sending…"
-          : "Request a quote"}
+      <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
+        {pending ? "Sending…" : "Request a quote"}
       </Button>
     </form>
   );
 }
 
-function PaymentForm({
-  payment,
-}: {
-  payment: unknown;
-}) {
+function PaymentForm({ payment }: { payment: unknown }) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -690,9 +565,7 @@ function PaymentForm({
 
       setDone(true);
     } catch {
-      setError(
-        "The notice could not be recorded. Try again in a moment.",
-      );
+      setError("The notice could not be recorded. Try again in a moment.");
     } finally {
       setPending(false);
     }
@@ -700,33 +573,23 @@ function PaymentForm({
 
   if (done) {
     return (
-      <div className="panel rounded-2xl p-6">
-        <p className="text-3xl text-ok">
-          Noted.
-        </p>
+      <FormConfirmation>
+        <p className="text-3xl text-ok">Noted.</p>
 
         <p className="mt-3 text-sm text-muted">
-          Your payment notice is recorded. A receipt follows after it is
-          checked.
+          Your payment notice is recorded. A receipt follows after it is checked.
         </p>
-      </div>
+      </FormConfirmation>
     );
   }
 
-  const methods = Array.isArray(payment)
-    ? (payment as { detail: string }[])
-    : [];
+  const methods = Array.isArray(payment) ? (payment as PaymentMethod[]) : [];
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="glass space-y-4 rounded-2xl p-5"
-    >
+    <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="pay-name">
-            Name on payment
-          </Label>
+          <Label htmlFor="pay-name">Name on payment</Label>
 
           <Input
             id="pay-name"
@@ -743,9 +606,7 @@ function PaymentForm({
         </div>
 
         <div>
-          <Label htmlFor="pay-email">
-            Email
-          </Label>
+          <Label htmlFor="pay-email">Email</Label>
 
           <Input
             id="pay-email"
@@ -765,9 +626,7 @@ function PaymentForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <Label htmlFor="pay-ref">
-            Reference (VA-…)
-          </Label>
+          <Label htmlFor="pay-ref">Reference (VA-…)</Label>
 
           <Input
             id="pay-ref"
@@ -785,9 +644,7 @@ function PaymentForm({
         </div>
 
         <div>
-          <Label htmlFor="pay-amount">
-            Amount (R)
-          </Label>
+          <Label htmlFor="pay-amount">Amount (R)</Label>
 
           <Input
             id="pay-amount"
@@ -808,12 +665,8 @@ function PaymentForm({
         </div>
       </div>
 
-      <div
-        className="h-0 overflow-hidden"
-        aria-hidden="true"
-      >
+      <div className="h-0 overflow-hidden" aria-hidden="true">
         Leave this field empty
-
         <input
           tabIndex={-1}
           autoComplete="off"
@@ -827,30 +680,15 @@ function PaymentForm({
         />
       </div>
 
-      {error ? (
-        <p className="text-sm text-danger">
-          {error}
-        </p>
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+
+      {allMethodsAwaitBankDetails(methods) ? (
+        <p className="text-xs text-subtle">Bank details are sent with your quote or invoice.</p>
       ) : null}
 
-      {methods.length > 0 &&
-      methods.every((m) =>
-        m.detail.includes("sent with"),
-      ) ? (
-        <p className="text-xs text-subtle">
-          Bank details are sent with your quote or invoice.
-        </p>
-      ) : null}
-
-      <Button
-        type="submit"
-        disabled={pending}
-        className="cta w-full border-0 sm:w-auto"
-      >
-        {pending
-          ? "Sending…"
-          : "Notify payment"}
+      <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
+        {pending ? "Sending…" : "Notify payment"}
       </Button>
     </form>
   );
-  }
+}

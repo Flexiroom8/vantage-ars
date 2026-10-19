@@ -16,13 +16,14 @@ export function DecodeText({
   className?: string;
   speed?: number;
 }) {
-  const reduced =
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  const [shown, setShown] = useState(reduced ? text : "");
+  // Read prefers-reduced-motion inside the effect, never during render: the
+  // server cannot answer the query, so computing it at render time made the
+  // client disagree with the server (and mismatch) for reduced-motion visitors.
+  const [shown, setShown] = useState("");
   const frame = useRef(0);
 
   useEffect(() => {
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
       setShown(text);
       return;
@@ -50,7 +51,7 @@ export function DecodeText({
       alive = false;
       window.clearTimeout(frame.current);
     };
-  }, [text, speed, reduced]);
+  }, [text, speed]);
 
   return (
     <span className={className} aria-label={text}>

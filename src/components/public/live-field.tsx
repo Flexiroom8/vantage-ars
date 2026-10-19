@@ -179,7 +179,10 @@ export function LiveField() {
 }
 
 const STOPS = [
-  { title: "The phone", detail: "No dial tone, one-way audio, or a handset that will not register." },
+  {
+    title: "The phone",
+    detail: "No dial tone, one-way audio, or a handset that will not register.",
+  },
   { title: "The network", detail: "Wi-Fi, switches, and the route between the two ends." },
   { title: "The system", detail: "The phone system or server the call depends on." },
 ] as const;
@@ -187,10 +190,25 @@ const STOPS = [
 export function PathExhibit() {
   return (
     <div className="mt-14 border-t border-border pt-8">
-      <p className="text-sm text-accent">Most faults sit in one of three places</p>
+      {/* Heading, not a paragraph: without an h2 here the stop titles below
+          render as h3s before the page's first h2 (invalid outline order). */}
+      <h2 className="text-sm font-normal text-accent">Most faults sit in one of three places</h2>
       <div className="mt-6 overflow-hidden">
-        <svg viewBox="0 0 720 72" className="hidden h-16 w-full text-accent sm:block" role="img" aria-label="A signal moving from the handset, across the network, to the system.">
-          <line x1="16" y1="28" x2="704" y2="28" stroke="currentColor" strokeOpacity="0.25" strokeWidth="1.5" />
+        <svg
+          viewBox="0 0 720 72"
+          className="hidden h-16 w-full text-accent sm:block"
+          role="img"
+          aria-label="A signal moving from the handset, across the network, to the system."
+        >
+          <line
+            x1="16"
+            y1="28"
+            x2="704"
+            y2="28"
+            stroke="currentColor"
+            strokeOpacity="0.25"
+            strokeWidth="1.5"
+          />
           {[16, 360, 704].map((x) => (
             <g key={x}>
               <circle cx={x} cy={28} r="7" fill="none" stroke="currentColor" strokeOpacity="0.5" />
