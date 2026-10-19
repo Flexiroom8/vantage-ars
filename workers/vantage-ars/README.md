@@ -3,7 +3,10 @@
 Cloudflare Worker serving **vantage-ars.co.za** — a content site with a
 Workers AI writer and a human-in-the-loop admin queue.
 
-- `src/worker.js` — the Worker (routes, AI calls, admin, rendering)
+- `src/worker.production.js` — the deployed Worker (routes, AI calls, admin,
+  rendering, plus the `AgentTaskWorkflow` class); this is `main` in `wrangler.toml`
+- `src/worker.js` — the `AgentTaskWorkflow` class alone; a partial source stub
+  kept for reference (it has no fetch handler, so it is not deployable)
 - `wrangler.toml` — bindings: D1 `vantage-data`, Workers AI, cron `0 7 * * 1`,
   custom domains `vantage-ars.co.za` + `www.vantage-ars.co.za`
 - `schema.sql` / `seed.sql` — idempotent D1 schema + starter backlog
@@ -12,8 +15,9 @@ Workers AI writer and a human-in-the-loop admin queue.
 
 Automatic: pushing changes under `workers/vantage-ars/**` to `main` runs
 `.github/workflows/deploy-vantage-ars.yml`, which applies the schema/seed to
-the remote D1 and deploys the Worker. Requires repo secrets
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+the remote D1 and deploys the Worker. Requires repo secret
+`CLOUDFLARE_API_TOKEN` (scoped to Workers Scripts Edit + D1 Edit). The account
+ID lives in `wrangler.toml`.
 
 Manual:
 

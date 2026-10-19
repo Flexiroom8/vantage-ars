@@ -1,6 +1,7 @@
 name = "vantage-ars"
-main = "src/worker.js"
+main = "src/worker.production.js"
 compatibility_date = "2026-09-28"
+account_id = "8501d3eeac693b7ada630058ee5e081a"
 
 workers_dev = true
 preview_urls = true
