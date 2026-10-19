@@ -53,6 +53,24 @@ const STATS = [
   { value: 0, label: "Retainers and SLA promises" },
 ] as const;
 
+// One source of truth for the FAQ: rendered on the page (search engines only
+// surface FAQ rich results for content that is visible to users) and emitted
+// as FAQPage JSON-LD from Route.head below.
+const FAQS = [
+  {
+    q: "How do I get a quote?",
+    a: "Send the enquiry form. You get a written quote with scope and total before anyone starts.",
+  },
+  {
+    q: "Do you charge VAT?",
+    a: "VAT is added only when the written quote says so.",
+  },
+  {
+    q: "Do you offer managed support?",
+    a: "No. There is no retainer or SLA — you pay for agreed work.",
+  },
+];
+
 export const Route = createFileRoute("/")({
   head: () => {
     const head = pageHead({
@@ -66,20 +84,7 @@ export const Route = createFileRoute("/")({
       ...head,
       scripts: [
         businessJsonLd(),
-        faqJsonLd([
-          {
-            q: "How do I get a quote?",
-            a: "Send the enquiry form. You get a written quote with scope and total before anyone starts.",
-          },
-          {
-            q: "Do you charge VAT?",
-            a: "VAT is added only when the written quote says so.",
-          },
-          {
-            q: "Do you offer managed support?",
-            a: "No. There is no retainer or SLA — you pay for agreed work.",
-          },
-        ]),
+        faqJsonLd(FAQS),
         jsonLd({
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -393,6 +398,19 @@ function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="border-t border-border py-16" aria-label="Common questions">
+        <h2 className="text-4xl sm:text-5xl">Common questions</h2>
+
+        <dl className="mt-8 max-w-3xl divide-y divide-border border-y border-border">
+          {FAQS.map((faq) => (
+            <div key={faq.q} className="py-6">
+              <dt className="font-serif text-2xl">{faq.q}</dt>
+              <dd className="mt-2 text-sm leading-relaxed text-muted">{faq.a}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
     </PublicFrame>
   );

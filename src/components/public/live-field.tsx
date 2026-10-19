@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { FAULT_STOPS } from "@/lib/site/fault-path";
 
 type Node = { x: number; y: number; vx: number; vy: number };
 type Edge = [number, number];
@@ -178,14 +179,10 @@ export function LiveField() {
   return <canvas ref={ref} aria-hidden="true" className="pointer-events-none fixed inset-0 z-0" />;
 }
 
-const STOPS = [
-  {
-    title: "The phone",
-    detail: "No dial tone, one-way audio, or a handset that will not register.",
-  },
-  { title: "The network", detail: "Wi-Fi, switches, and the route between the two ends." },
-  { title: "The system", detail: "The phone system or server the call depends on." },
-] as const;
+// Titles come from the shared fault path so the hero teaser and the full
+// interactive finder below can never drift. Only the titles are repeated here —
+// the detail lines live in SignalPath, which is the authoritative breakdown.
+const STOPS = FAULT_STOPS;
 
 export function PathExhibit() {
   return (
@@ -221,7 +218,6 @@ export function PathExhibit() {
           {STOPS.map((stop) => (
             <li key={stop.title}>
               <h3 className="font-serif text-3xl">{stop.title}</h3>
-              <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">{stop.detail}</p>
             </li>
           ))}
         </ol>
