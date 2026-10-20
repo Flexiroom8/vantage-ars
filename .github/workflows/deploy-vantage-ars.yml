@@ -7,6 +7,11 @@ on:
       - master
     paths:
       - "workers/vantage-ars/**"
+      # A change to this workflow is itself a reason to redeploy, so a fixed
+      # workflow applies its fix to the Worker instead of waiting for the next
+      # workers/** commit.
+      - ".github/workflows/deploy-vantage-ars.yml"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-worker-${{ github.ref }}
@@ -33,11 +38,13 @@ jobs:
       - name: Install wrangler
         run: npm install --no-save wrangler@4
 
+      # wrangler resolves --file against the working directory, not the config
+      # file, so both SQL paths must be repository-relative.
       - name: Apply D1 schema
-        run: npx wrangler@4 d1 execute vantage-data --config workers/vantage-ars/wrangler.toml --remote --file=schema.sql --yes
+        run: npx wrangler@4 d1 execute vantage-data --config workers/vantage-ars/wrangler.toml --remote --file=workers/vantage-ars/schema.sql --yes
 
       - name: Seed D1 data
-        run: npx wrangler@4 d1 execute vantage-data --config workers/vantage-ars/wrangler.toml --remote --file=seed.sql --yes
+        run: npx wrangler@4 d1 execute vantage-data --config workers/vantage-ars/wrangler.toml --remote --file=workers/vantage-ars/seed.sql --yes
 
       - name: Deploy Worker
         run: npx wrangler@4 deploy --config workers/vantage-ars/wrangler.toml --minify
