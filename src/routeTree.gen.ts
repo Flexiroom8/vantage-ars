@@ -8,652 +8,692 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as OfficeRouteImport } from './routes/office'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as RatesRouteImport } from './routes/rates'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as SupportRouteImport } from './routes/support'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as WorkRouteImport } from './routes/work'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as ApiSiteSignalRouteImport } from './routes/api/site-signal'
-import { Route as OfficeIndexRouteImport } from './routes/office/index'
-import { Route as OfficeApprovalsRouteImport } from './routes/office/approvals'
-import { Route as OfficeAuditRouteImport } from './routes/office/audit'
-import { Route as OfficeCatalogueRouteImport } from './routes/office/catalogue'
-import { Route as OfficeChatRouteImport } from './routes/office/chat'
-import { Route as OfficeConstitutionRouteImport } from './routes/office/constitution'
-import { Route as OfficeFloorRouteImport } from './routes/office/floor'
-import { Route as OfficeInboxRouteImport } from './routes/office/inbox'
-import { Route as OfficeLedgerRouteImport } from './routes/office/ledger'
-import { Route as OfficeMarketingRouteImport } from './routes/office/marketing'
-import { Route as OfficeMetricsRouteImport } from './routes/office/metrics'
-import { Route as OfficeSalesRouteImport } from './routes/office/sales'
-import { Route as OfficeServiceRouteImport } from './routes/office/service'
-import { Route as OfficeTechnicalRouteImport } from './routes/office/technical'
-import { Route as QTokenRouteImport } from './routes/q.$token'
-import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
-import { Route as ApiAiStatusRouteImport } from './routes/api/ai/status'
-import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as ApiCronFloorRouteImport } from './routes/api/cron/floor'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as ForgotPasswordRouteImport } from "./routes/forgot-password";
+import { Route as LoginRouteImport } from "./routes/login";
+import { Route as OfficeRouteImport } from "./routes/office";
+import { Route as PrivacyRouteImport } from "./routes/privacy";
+import { Route as RatesRouteImport } from "./routes/rates";
+import { Route as ResetPasswordRouteImport } from "./routes/reset-password";
+import { Route as SupportRouteImport } from "./routes/support";
+import { Route as TermsRouteImport } from "./routes/terms";
+import { Route as WorkRouteImport } from "./routes/work";
+import { Route as ApiHealthRouteImport } from "./routes/api/health";
+import { Route as ApiSiteSignalRouteImport } from "./routes/api/site-signal";
+import { Route as OfficeIndexRouteImport } from "./routes/office/index";
+import { Route as OfficeApprovalsRouteImport } from "./routes/office/approvals";
+import { Route as OfficeAuditRouteImport } from "./routes/office/audit";
+import { Route as OfficeCatalogueRouteImport } from "./routes/office/catalogue";
+import { Route as OfficeChatRouteImport } from "./routes/office/chat";
+import { Route as OfficeConstitutionRouteImport } from "./routes/office/constitution";
+import { Route as OfficeDelegationsRouteImport } from "./routes/office/delegations";
+import { Route as OfficeFloorRouteImport } from "./routes/office/floor";
+import { Route as OfficeInboxRouteImport } from "./routes/office/inbox";
+import { Route as OfficeLedgerRouteImport } from "./routes/office/ledger";
+import { Route as OfficeMarketingRouteImport } from "./routes/office/marketing";
+import { Route as OfficeMetricsRouteImport } from "./routes/office/metrics";
+import { Route as OfficeRevenueRouteImport } from "./routes/office/revenue";
+import { Route as OfficeSalesRouteImport } from "./routes/office/sales";
+import { Route as OfficeServiceRouteImport } from "./routes/office/service";
+import { Route as OfficeTechnicalRouteImport } from "./routes/office/technical";
+import { Route as QTokenRouteImport } from "./routes/q.$token";
+import { Route as ServicesSlugRouteImport } from "./routes/services.$slug";
+import { Route as ApiAiStatusRouteImport } from "./routes/api/ai/status";
+import { Route as ApiAuthSplatRouteImport } from "./routes/api/auth/$";
+import { Route as ApiCronFloorRouteImport } from "./routes/api/cron/floor";
 
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
+  id: "/forgot-password",
+  path: "/forgot-password",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+  id: "/login",
+  path: "/login",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const OfficeRoute = OfficeRouteImport.update({
-  id: '/office',
-  path: '/office',
+  id: "/office",
+  path: "/office",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
+  id: "/privacy",
+  path: "/privacy",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const RatesRoute = RatesRouteImport.update({
-  id: '/rates',
-  path: '/rates',
+  id: "/rates",
+  path: "/rates",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+  id: "/reset-password",
+  path: "/reset-password",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SupportRoute = SupportRouteImport.update({
-  id: '/support',
-  path: '/support',
+  id: "/support",
+  path: "/support",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+  id: "/terms",
+  path: "/terms",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const WorkRoute = WorkRouteImport.update({
-  id: '/work',
-  path: '/work',
+  id: "/work",
+  path: "/work",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+  id: "/api/health",
+  path: "/api/health",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiSiteSignalRoute = ApiSiteSignalRouteImport.update({
-  id: '/api/site-signal',
-  path: '/api/site-signal',
+  id: "/api/site-signal",
+  path: "/api/site-signal",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeApprovalsRoute = OfficeApprovalsRouteImport.update({
-  id: '/approvals',
-  path: '/approvals',
+  id: "/approvals",
+  path: "/approvals",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeAuditRoute = OfficeAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
+  id: "/audit",
+  path: "/audit",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeCatalogueRoute = OfficeCatalogueRouteImport.update({
-  id: '/catalogue',
-  path: '/catalogue',
+  id: "/catalogue",
+  path: "/catalogue",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeChatRoute = OfficeChatRouteImport.update({
-  id: '/chat',
-  path: '/chat',
+  id: "/chat",
+  path: "/chat",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeConstitutionRoute = OfficeConstitutionRouteImport.update({
-  id: '/constitution',
-  path: '/constitution',
+  id: "/constitution",
+  path: "/constitution",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
+const OfficeDelegationsRoute = OfficeDelegationsRouteImport.update({
+  id: "/delegations",
+  path: "/delegations",
+  getParentRoute: () => OfficeRoute,
+} as any);
 const OfficeFloorRoute = OfficeFloorRouteImport.update({
-  id: '/floor',
-  path: '/floor',
+  id: "/floor",
+  path: "/floor",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeInboxRoute = OfficeInboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
+  id: "/inbox",
+  path: "/inbox",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeLedgerRoute = OfficeLedgerRouteImport.update({
-  id: '/ledger',
-  path: '/ledger',
+  id: "/ledger",
+  path: "/ledger",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeMarketingRoute = OfficeMarketingRouteImport.update({
-  id: '/marketing',
-  path: '/marketing',
+  id: "/marketing",
+  path: "/marketing",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeMetricsRoute = OfficeMetricsRouteImport.update({
-  id: '/metrics',
-  path: '/metrics',
+  id: "/metrics",
+  path: "/metrics",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
+const OfficeRevenueRoute = OfficeRevenueRouteImport.update({
+  id: "/revenue",
+  path: "/revenue",
+  getParentRoute: () => OfficeRoute,
+} as any);
 const OfficeSalesRoute = OfficeSalesRouteImport.update({
-  id: '/sales',
-  path: '/sales',
+  id: "/sales",
+  path: "/sales",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeServiceRoute = OfficeServiceRouteImport.update({
-  id: '/service',
-  path: '/service',
+  id: "/service",
+  path: "/service",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const OfficeTechnicalRoute = OfficeTechnicalRouteImport.update({
-  id: '/technical',
-  path: '/technical',
+  id: "/technical",
+  path: "/technical",
   getParentRoute: () => OfficeRoute,
-} as any)
+} as any);
 const QTokenRoute = QTokenRouteImport.update({
-  id: '/q/$token',
-  path: '/q/$token',
+  id: "/q/$token",
+  path: "/q/$token",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ServicesSlugRoute = ServicesSlugRouteImport.update({
-  id: '/services/$slug',
-  path: '/services/$slug',
+  id: "/services/$slug",
+  path: "/services/$slug",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAiStatusRoute = ApiAiStatusRouteImport.update({
-  id: '/api/ai/status',
-  path: '/api/ai/status',
+  id: "/api/ai/status",
+  path: "/api/ai/status",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: '/api/auth/$',
-  path: '/api/auth/$',
+  id: "/api/auth/$",
+  path: "/api/auth/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
-  id: '/api/cron/floor',
-  path: '/api/cron/floor',
+  id: "/api/cron/floor",
+  path: "/api/cron/floor",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/login': typeof LoginRoute
-  '/office': typeof OfficeRouteWithChildren
-  '/privacy': typeof PrivacyRoute
-  '/rates': typeof RatesRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/support': typeof SupportRoute
-  '/terms': typeof TermsRoute
-  '/work': typeof WorkRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/site-signal': typeof ApiSiteSignalRoute
-  '/office/approvals': typeof OfficeApprovalsRoute
-  '/office/audit': typeof OfficeAuditRoute
-  '/office/catalogue': typeof OfficeCatalogueRoute
-  '/office/chat': typeof OfficeChatRoute
-  '/office/constitution': typeof OfficeConstitutionRoute
-  '/office/floor': typeof OfficeFloorRoute
-  '/office/inbox': typeof OfficeInboxRoute
-  '/office/ledger': typeof OfficeLedgerRoute
-  '/office/marketing': typeof OfficeMarketingRoute
-  '/office/metrics': typeof OfficeMetricsRoute
-  '/office/sales': typeof OfficeSalesRoute
-  '/office/service': typeof OfficeServiceRoute
-  '/office/technical': typeof OfficeTechnicalRoute
-  '/q/$token': typeof QTokenRoute
-  '/services/$slug': typeof ServicesSlugRoute
-  '/office/': typeof OfficeIndexRoute
-  '/api/ai/status': typeof ApiAiStatusRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/cron/floor': typeof ApiCronFloorRoute
+  "/": typeof IndexRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/login": typeof LoginRoute;
+  "/office": typeof OfficeRouteWithChildren;
+  "/privacy": typeof PrivacyRoute;
+  "/rates": typeof RatesRoute;
+  "/reset-password": typeof ResetPasswordRoute;
+  "/support": typeof SupportRoute;
+  "/terms": typeof TermsRoute;
+  "/work": typeof WorkRoute;
+  "/api/health": typeof ApiHealthRoute;
+  "/api/site-signal": typeof ApiSiteSignalRoute;
+  "/office/approvals": typeof OfficeApprovalsRoute;
+  "/office/audit": typeof OfficeAuditRoute;
+  "/office/catalogue": typeof OfficeCatalogueRoute;
+  "/office/chat": typeof OfficeChatRoute;
+  "/office/constitution": typeof OfficeConstitutionRoute;
+  "/office/delegations": typeof OfficeDelegationsRoute;
+  "/office/floor": typeof OfficeFloorRoute;
+  "/office/inbox": typeof OfficeInboxRoute;
+  "/office/ledger": typeof OfficeLedgerRoute;
+  "/office/marketing": typeof OfficeMarketingRoute;
+  "/office/metrics": typeof OfficeMetricsRoute;
+  "/office/revenue": typeof OfficeRevenueRoute;
+  "/office/sales": typeof OfficeSalesRoute;
+  "/office/service": typeof OfficeServiceRoute;
+  "/office/technical": typeof OfficeTechnicalRoute;
+  "/q/$token": typeof QTokenRoute;
+  "/services/$slug": typeof ServicesSlugRoute;
+  "/office/": typeof OfficeIndexRoute;
+  "/api/ai/status": typeof ApiAiStatusRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/cron/floor": typeof ApiCronFloorRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/login': typeof LoginRoute
-  '/privacy': typeof PrivacyRoute
-  '/rates': typeof RatesRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/support': typeof SupportRoute
-  '/terms': typeof TermsRoute
-  '/work': typeof WorkRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/site-signal': typeof ApiSiteSignalRoute
-  '/office/approvals': typeof OfficeApprovalsRoute
-  '/office/audit': typeof OfficeAuditRoute
-  '/office/catalogue': typeof OfficeCatalogueRoute
-  '/office/chat': typeof OfficeChatRoute
-  '/office/constitution': typeof OfficeConstitutionRoute
-  '/office/floor': typeof OfficeFloorRoute
-  '/office/inbox': typeof OfficeInboxRoute
-  '/office/ledger': typeof OfficeLedgerRoute
-  '/office/marketing': typeof OfficeMarketingRoute
-  '/office/metrics': typeof OfficeMetricsRoute
-  '/office/sales': typeof OfficeSalesRoute
-  '/office/service': typeof OfficeServiceRoute
-  '/office/technical': typeof OfficeTechnicalRoute
-  '/q/$token': typeof QTokenRoute
-  '/services/$slug': typeof ServicesSlugRoute
-  '/office': typeof OfficeIndexRoute
-  '/api/ai/status': typeof ApiAiStatusRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/cron/floor': typeof ApiCronFloorRoute
+  "/": typeof IndexRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/login": typeof LoginRoute;
+  "/privacy": typeof PrivacyRoute;
+  "/rates": typeof RatesRoute;
+  "/reset-password": typeof ResetPasswordRoute;
+  "/support": typeof SupportRoute;
+  "/terms": typeof TermsRoute;
+  "/work": typeof WorkRoute;
+  "/api/health": typeof ApiHealthRoute;
+  "/api/site-signal": typeof ApiSiteSignalRoute;
+  "/office/approvals": typeof OfficeApprovalsRoute;
+  "/office/audit": typeof OfficeAuditRoute;
+  "/office/catalogue": typeof OfficeCatalogueRoute;
+  "/office/chat": typeof OfficeChatRoute;
+  "/office/constitution": typeof OfficeConstitutionRoute;
+  "/office/delegations": typeof OfficeDelegationsRoute;
+  "/office/floor": typeof OfficeFloorRoute;
+  "/office/inbox": typeof OfficeInboxRoute;
+  "/office/ledger": typeof OfficeLedgerRoute;
+  "/office/marketing": typeof OfficeMarketingRoute;
+  "/office/metrics": typeof OfficeMetricsRoute;
+  "/office/revenue": typeof OfficeRevenueRoute;
+  "/office/sales": typeof OfficeSalesRoute;
+  "/office/service": typeof OfficeServiceRoute;
+  "/office/technical": typeof OfficeTechnicalRoute;
+  "/q/$token": typeof QTokenRoute;
+  "/services/$slug": typeof ServicesSlugRoute;
+  "/office": typeof OfficeIndexRoute;
+  "/api/ai/status": typeof ApiAiStatusRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/cron/floor": typeof ApiCronFloorRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/forgot-password': typeof ForgotPasswordRoute
-  '/login': typeof LoginRoute
-  '/office': typeof OfficeRouteWithChildren
-  '/privacy': typeof PrivacyRoute
-  '/rates': typeof RatesRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/support': typeof SupportRoute
-  '/terms': typeof TermsRoute
-  '/work': typeof WorkRoute
-  '/api/health': typeof ApiHealthRoute
-  '/api/site-signal': typeof ApiSiteSignalRoute
-  '/office/approvals': typeof OfficeApprovalsRoute
-  '/office/audit': typeof OfficeAuditRoute
-  '/office/catalogue': typeof OfficeCatalogueRoute
-  '/office/chat': typeof OfficeChatRoute
-  '/office/constitution': typeof OfficeConstitutionRoute
-  '/office/floor': typeof OfficeFloorRoute
-  '/office/inbox': typeof OfficeInboxRoute
-  '/office/ledger': typeof OfficeLedgerRoute
-  '/office/marketing': typeof OfficeMarketingRoute
-  '/office/metrics': typeof OfficeMetricsRoute
-  '/office/sales': typeof OfficeSalesRoute
-  '/office/service': typeof OfficeServiceRoute
-  '/office/technical': typeof OfficeTechnicalRoute
-  '/q/$token': typeof QTokenRoute
-  '/services/$slug': typeof ServicesSlugRoute
-  '/office/': typeof OfficeIndexRoute
-  '/api/ai/status': typeof ApiAiStatusRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/cron/floor': typeof ApiCronFloorRoute
+  __root__: typeof rootRouteImport;
+  "/": typeof IndexRoute;
+  "/forgot-password": typeof ForgotPasswordRoute;
+  "/login": typeof LoginRoute;
+  "/office": typeof OfficeRouteWithChildren;
+  "/privacy": typeof PrivacyRoute;
+  "/rates": typeof RatesRoute;
+  "/reset-password": typeof ResetPasswordRoute;
+  "/support": typeof SupportRoute;
+  "/terms": typeof TermsRoute;
+  "/work": typeof WorkRoute;
+  "/api/health": typeof ApiHealthRoute;
+  "/api/site-signal": typeof ApiSiteSignalRoute;
+  "/office/approvals": typeof OfficeApprovalsRoute;
+  "/office/audit": typeof OfficeAuditRoute;
+  "/office/catalogue": typeof OfficeCatalogueRoute;
+  "/office/chat": typeof OfficeChatRoute;
+  "/office/constitution": typeof OfficeConstitutionRoute;
+  "/office/delegations": typeof OfficeDelegationsRoute;
+  "/office/floor": typeof OfficeFloorRoute;
+  "/office/inbox": typeof OfficeInboxRoute;
+  "/office/ledger": typeof OfficeLedgerRoute;
+  "/office/marketing": typeof OfficeMarketingRoute;
+  "/office/metrics": typeof OfficeMetricsRoute;
+  "/office/revenue": typeof OfficeRevenueRoute;
+  "/office/sales": typeof OfficeSalesRoute;
+  "/office/service": typeof OfficeServiceRoute;
+  "/office/technical": typeof OfficeTechnicalRoute;
+  "/q/$token": typeof QTokenRoute;
+  "/services/$slug": typeof ServicesSlugRoute;
+  "/office/": typeof OfficeIndexRoute;
+  "/api/ai/status": typeof ApiAiStatusRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/cron/floor": typeof ApiCronFloorRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/forgot-password'
-    | '/login'
-    | '/office'
-    | '/privacy'
-    | '/rates'
-    | '/reset-password'
-    | '/support'
-    | '/terms'
-    | '/work'
-    | '/api/health'
-    | '/api/site-signal'
-    | '/office/approvals'
-    | '/office/audit'
-    | '/office/catalogue'
-    | '/office/chat'
-    | '/office/constitution'
-    | '/office/floor'
-    | '/office/inbox'
-    | '/office/ledger'
-    | '/office/marketing'
-    | '/office/metrics'
-    | '/office/sales'
-    | '/office/service'
-    | '/office/technical'
-    | '/q/$token'
-    | '/services/$slug'
-    | '/office/'
-    | '/api/ai/status'
-    | '/api/auth/$'
-    | '/api/cron/floor'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/forgot-password"
+    | "/login"
+    | "/office"
+    | "/privacy"
+    | "/rates"
+    | "/reset-password"
+    | "/support"
+    | "/terms"
+    | "/work"
+    | "/api/health"
+    | "/api/site-signal"
+    | "/office/approvals"
+    | "/office/audit"
+    | "/office/catalogue"
+    | "/office/chat"
+    | "/office/constitution"
+    | "/office/delegations"
+    | "/office/floor"
+    | "/office/inbox"
+    | "/office/ledger"
+    | "/office/marketing"
+    | "/office/metrics"
+    | "/office/revenue"
+    | "/office/sales"
+    | "/office/service"
+    | "/office/technical"
+    | "/q/$token"
+    | "/services/$slug"
+    | "/office/"
+    | "/api/ai/status"
+    | "/api/auth/$"
+    | "/api/cron/floor";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/forgot-password'
-    | '/login'
-    | '/privacy'
-    | '/rates'
-    | '/reset-password'
-    | '/support'
-    | '/terms'
-    | '/work'
-    | '/api/health'
-    | '/api/site-signal'
-    | '/office/approvals'
-    | '/office/audit'
-    | '/office/catalogue'
-    | '/office/chat'
-    | '/office/constitution'
-    | '/office/floor'
-    | '/office/inbox'
-    | '/office/ledger'
-    | '/office/marketing'
-    | '/office/metrics'
-    | '/office/sales'
-    | '/office/service'
-    | '/office/technical'
-    | '/q/$token'
-    | '/services/$slug'
-    | '/office'
-    | '/api/ai/status'
-    | '/api/auth/$'
-    | '/api/cron/floor'
+    | "/"
+    | "/forgot-password"
+    | "/login"
+    | "/privacy"
+    | "/rates"
+    | "/reset-password"
+    | "/support"
+    | "/terms"
+    | "/work"
+    | "/api/health"
+    | "/api/site-signal"
+    | "/office/approvals"
+    | "/office/audit"
+    | "/office/catalogue"
+    | "/office/chat"
+    | "/office/constitution"
+    | "/office/delegations"
+    | "/office/floor"
+    | "/office/inbox"
+    | "/office/ledger"
+    | "/office/marketing"
+    | "/office/metrics"
+    | "/office/revenue"
+    | "/office/sales"
+    | "/office/service"
+    | "/office/technical"
+    | "/q/$token"
+    | "/services/$slug"
+    | "/office"
+    | "/api/ai/status"
+    | "/api/auth/$"
+    | "/api/cron/floor";
   id:
-    | '__root__'
-    | '/'
-    | '/forgot-password'
-    | '/login'
-    | '/office'
-    | '/privacy'
-    | '/rates'
-    | '/reset-password'
-    | '/support'
-    | '/terms'
-    | '/work'
-    | '/api/health'
-    | '/api/site-signal'
-    | '/office/approvals'
-    | '/office/audit'
-    | '/office/catalogue'
-    | '/office/chat'
-    | '/office/constitution'
-    | '/office/floor'
-    | '/office/inbox'
-    | '/office/ledger'
-    | '/office/marketing'
-    | '/office/metrics'
-    | '/office/sales'
-    | '/office/service'
-    | '/office/technical'
-    | '/q/$token'
-    | '/services/$slug'
-    | '/office/'
-    | '/api/ai/status'
-    | '/api/auth/$'
-    | '/api/cron/floor'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/forgot-password"
+    | "/login"
+    | "/office"
+    | "/privacy"
+    | "/rates"
+    | "/reset-password"
+    | "/support"
+    | "/terms"
+    | "/work"
+    | "/api/health"
+    | "/api/site-signal"
+    | "/office/approvals"
+    | "/office/audit"
+    | "/office/catalogue"
+    | "/office/chat"
+    | "/office/constitution"
+    | "/office/delegations"
+    | "/office/floor"
+    | "/office/inbox"
+    | "/office/ledger"
+    | "/office/marketing"
+    | "/office/metrics"
+    | "/office/revenue"
+    | "/office/sales"
+    | "/office/service"
+    | "/office/technical"
+    | "/q/$token"
+    | "/services/$slug"
+    | "/office/"
+    | "/api/ai/status"
+    | "/api/auth/$"
+    | "/api/cron/floor";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ForgotPasswordRoute: typeof ForgotPasswordRoute
-  LoginRoute: typeof LoginRoute
-  OfficeRoute: typeof OfficeRouteWithChildren
-  PrivacyRoute: typeof PrivacyRoute
-  RatesRoute: typeof RatesRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
-  SupportRoute: typeof SupportRoute
-  TermsRoute: typeof TermsRoute
-  WorkRoute: typeof WorkRoute
-  ApiHealthRoute: typeof ApiHealthRoute
-  ApiSiteSignalRoute: typeof ApiSiteSignalRoute
-  QTokenRoute: typeof QTokenRoute
-  ServicesSlugRoute: typeof ServicesSlugRoute
-  ApiAiStatusRoute: typeof ApiAiStatusRoute
-  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiCronFloorRoute: typeof ApiCronFloorRoute
+  IndexRoute: typeof IndexRoute;
+  ForgotPasswordRoute: typeof ForgotPasswordRoute;
+  LoginRoute: typeof LoginRoute;
+  OfficeRoute: typeof OfficeRouteWithChildren;
+  PrivacyRoute: typeof PrivacyRoute;
+  RatesRoute: typeof RatesRoute;
+  ResetPasswordRoute: typeof ResetPasswordRoute;
+  SupportRoute: typeof SupportRoute;
+  TermsRoute: typeof TermsRoute;
+  WorkRoute: typeof WorkRoute;
+  ApiHealthRoute: typeof ApiHealthRoute;
+  ApiSiteSignalRoute: typeof ApiSiteSignalRoute;
+  QTokenRoute: typeof QTokenRoute;
+  ServicesSlugRoute: typeof ServicesSlugRoute;
+  ApiAiStatusRoute: typeof ApiAiStatusRoute;
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute;
+  ApiCronFloorRoute: typeof ApiCronFloorRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/office': {
-      id: '/office'
-      path: '/office'
-      fullPath: '/office'
-      preLoaderRoute: typeof OfficeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rates': {
-      id: '/rates'
-      path: '/rates'
-      fullPath: '/rates'
-      preLoaderRoute: typeof RatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/support': {
-      id: '/support'
-      path: '/support'
-      fullPath: '/support'
-      preLoaderRoute: typeof SupportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/work': {
-      id: '/work'
-      path: '/work'
-      fullPath: '/work'
-      preLoaderRoute: typeof WorkRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/site-signal': {
-      id: '/api/site-signal'
-      path: '/api/site-signal'
-      fullPath: '/api/site-signal'
-      preLoaderRoute: typeof ApiSiteSignalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/office/': {
-      id: '/office/'
-      path: '/'
-      fullPath: '/office/'
-      preLoaderRoute: typeof OfficeIndexRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/approvals': {
-      id: '/office/approvals'
-      path: '/approvals'
-      fullPath: '/office/approvals'
-      preLoaderRoute: typeof OfficeApprovalsRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/audit': {
-      id: '/office/audit'
-      path: '/audit'
-      fullPath: '/office/audit'
-      preLoaderRoute: typeof OfficeAuditRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/catalogue': {
-      id: '/office/catalogue'
-      path: '/catalogue'
-      fullPath: '/office/catalogue'
-      preLoaderRoute: typeof OfficeCatalogueRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/chat': {
-      id: '/office/chat'
-      path: '/chat'
-      fullPath: '/office/chat'
-      preLoaderRoute: typeof OfficeChatRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/constitution': {
-      id: '/office/constitution'
-      path: '/constitution'
-      fullPath: '/office/constitution'
-      preLoaderRoute: typeof OfficeConstitutionRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/floor': {
-      id: '/office/floor'
-      path: '/floor'
-      fullPath: '/office/floor'
-      preLoaderRoute: typeof OfficeFloorRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/inbox': {
-      id: '/office/inbox'
-      path: '/inbox'
-      fullPath: '/office/inbox'
-      preLoaderRoute: typeof OfficeInboxRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/ledger': {
-      id: '/office/ledger'
-      path: '/ledger'
-      fullPath: '/office/ledger'
-      preLoaderRoute: typeof OfficeLedgerRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/marketing': {
-      id: '/office/marketing'
-      path: '/marketing'
-      fullPath: '/office/marketing'
-      preLoaderRoute: typeof OfficeMarketingRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/metrics': {
-      id: '/office/metrics'
-      path: '/metrics'
-      fullPath: '/office/metrics'
-      preLoaderRoute: typeof OfficeMetricsRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/sales': {
-      id: '/office/sales'
-      path: '/sales'
-      fullPath: '/office/sales'
-      preLoaderRoute: typeof OfficeSalesRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/service': {
-      id: '/office/service'
-      path: '/service'
-      fullPath: '/office/service'
-      preLoaderRoute: typeof OfficeServiceRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/office/technical': {
-      id: '/office/technical'
-      path: '/technical'
-      fullPath: '/office/technical'
-      preLoaderRoute: typeof OfficeTechnicalRouteImport
-      parentRoute: typeof OfficeRoute
-    }
-    '/q/$token': {
-      id: '/q/$token'
-      path: '/q/$token'
-      fullPath: '/q/$token'
-      preLoaderRoute: typeof QTokenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/services/$slug': {
-      id: '/services/$slug'
-      path: '/services/$slug'
-      fullPath: '/services/$slug'
-      preLoaderRoute: typeof ServicesSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/ai/status': {
-      id: '/api/ai/status'
-      path: '/api/ai/status'
-      fullPath: '/api/ai/status'
-      preLoaderRoute: typeof ApiAiStatusRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/$': {
-      id: '/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiAuthSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/cron/floor': {
-      id: '/api/cron/floor'
-      path: '/api/cron/floor'
-      fullPath: '/api/cron/floor'
-      preLoaderRoute: typeof ApiCronFloorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/forgot-password": {
+      id: "/forgot-password";
+      path: "/forgot-password";
+      fullPath: "/forgot-password";
+      preLoaderRoute: typeof ForgotPasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/login": {
+      id: "/login";
+      path: "/login";
+      fullPath: "/login";
+      preLoaderRoute: typeof LoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/office": {
+      id: "/office";
+      path: "/office";
+      fullPath: "/office";
+      preLoaderRoute: typeof OfficeRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/privacy": {
+      id: "/privacy";
+      path: "/privacy";
+      fullPath: "/privacy";
+      preLoaderRoute: typeof PrivacyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/rates": {
+      id: "/rates";
+      path: "/rates";
+      fullPath: "/rates";
+      preLoaderRoute: typeof RatesRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/reset-password": {
+      id: "/reset-password";
+      path: "/reset-password";
+      fullPath: "/reset-password";
+      preLoaderRoute: typeof ResetPasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/support": {
+      id: "/support";
+      path: "/support";
+      fullPath: "/support";
+      preLoaderRoute: typeof SupportRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/terms": {
+      id: "/terms";
+      path: "/terms";
+      fullPath: "/terms";
+      preLoaderRoute: typeof TermsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/work": {
+      id: "/work";
+      path: "/work";
+      fullPath: "/work";
+      preLoaderRoute: typeof WorkRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/health": {
+      id: "/api/health";
+      path: "/api/health";
+      fullPath: "/api/health";
+      preLoaderRoute: typeof ApiHealthRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/site-signal": {
+      id: "/api/site-signal";
+      path: "/api/site-signal";
+      fullPath: "/api/site-signal";
+      preLoaderRoute: typeof ApiSiteSignalRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/office/": {
+      id: "/office/";
+      path: "/";
+      fullPath: "/office/";
+      preLoaderRoute: typeof OfficeIndexRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/approvals": {
+      id: "/office/approvals";
+      path: "/approvals";
+      fullPath: "/office/approvals";
+      preLoaderRoute: typeof OfficeApprovalsRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/audit": {
+      id: "/office/audit";
+      path: "/audit";
+      fullPath: "/office/audit";
+      preLoaderRoute: typeof OfficeAuditRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/catalogue": {
+      id: "/office/catalogue";
+      path: "/catalogue";
+      fullPath: "/office/catalogue";
+      preLoaderRoute: typeof OfficeCatalogueRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/chat": {
+      id: "/office/chat";
+      path: "/chat";
+      fullPath: "/office/chat";
+      preLoaderRoute: typeof OfficeChatRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/constitution": {
+      id: "/office/constitution";
+      path: "/constitution";
+      fullPath: "/office/constitution";
+      preLoaderRoute: typeof OfficeConstitutionRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/delegations": {
+      id: "/office/delegations";
+      path: "/delegations";
+      fullPath: "/office/delegations";
+      preLoaderRoute: typeof OfficeDelegationsRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/floor": {
+      id: "/office/floor";
+      path: "/floor";
+      fullPath: "/office/floor";
+      preLoaderRoute: typeof OfficeFloorRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/inbox": {
+      id: "/office/inbox";
+      path: "/inbox";
+      fullPath: "/office/inbox";
+      preLoaderRoute: typeof OfficeInboxRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/ledger": {
+      id: "/office/ledger";
+      path: "/ledger";
+      fullPath: "/office/ledger";
+      preLoaderRoute: typeof OfficeLedgerRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/marketing": {
+      id: "/office/marketing";
+      path: "/marketing";
+      fullPath: "/office/marketing";
+      preLoaderRoute: typeof OfficeMarketingRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/metrics": {
+      id: "/office/metrics";
+      path: "/metrics";
+      fullPath: "/office/metrics";
+      preLoaderRoute: typeof OfficeMetricsRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/revenue": {
+      id: "/office/revenue";
+      path: "/revenue";
+      fullPath: "/office/revenue";
+      preLoaderRoute: typeof OfficeRevenueRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/sales": {
+      id: "/office/sales";
+      path: "/sales";
+      fullPath: "/office/sales";
+      preLoaderRoute: typeof OfficeSalesRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/service": {
+      id: "/office/service";
+      path: "/service";
+      fullPath: "/office/service";
+      preLoaderRoute: typeof OfficeServiceRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/office/technical": {
+      id: "/office/technical";
+      path: "/technical";
+      fullPath: "/office/technical";
+      preLoaderRoute: typeof OfficeTechnicalRouteImport;
+      parentRoute: typeof OfficeRoute;
+    };
+    "/q/$token": {
+      id: "/q/$token";
+      path: "/q/$token";
+      fullPath: "/q/$token";
+      preLoaderRoute: typeof QTokenRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/services/$slug": {
+      id: "/services/$slug";
+      path: "/services/$slug";
+      fullPath: "/services/$slug";
+      preLoaderRoute: typeof ServicesSlugRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/ai/status": {
+      id: "/api/ai/status";
+      path: "/api/ai/status";
+      fullPath: "/api/ai/status";
+      preLoaderRoute: typeof ApiAiStatusRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/auth/$": {
+      id: "/api/auth/$";
+      path: "/api/auth/$";
+      fullPath: "/api/auth/$";
+      preLoaderRoute: typeof ApiAuthSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/cron/floor": {
+      id: "/api/cron/floor";
+      path: "/api/cron/floor";
+      fullPath: "/api/cron/floor";
+      preLoaderRoute: typeof ApiCronFloorRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
 interface OfficeRouteChildren {
-  OfficeApprovalsRoute: typeof OfficeApprovalsRoute
-  OfficeAuditRoute: typeof OfficeAuditRoute
-  OfficeCatalogueRoute: typeof OfficeCatalogueRoute
-  OfficeChatRoute: typeof OfficeChatRoute
-  OfficeConstitutionRoute: typeof OfficeConstitutionRoute
-  OfficeFloorRoute: typeof OfficeFloorRoute
-  OfficeInboxRoute: typeof OfficeInboxRoute
-  OfficeLedgerRoute: typeof OfficeLedgerRoute
-  OfficeMarketingRoute: typeof OfficeMarketingRoute
-  OfficeMetricsRoute: typeof OfficeMetricsRoute
-  OfficeSalesRoute: typeof OfficeSalesRoute
-  OfficeServiceRoute: typeof OfficeServiceRoute
-  OfficeTechnicalRoute: typeof OfficeTechnicalRoute
-  OfficeIndexRoute: typeof OfficeIndexRoute
+  OfficeApprovalsRoute: typeof OfficeApprovalsRoute;
+  OfficeAuditRoute: typeof OfficeAuditRoute;
+  OfficeCatalogueRoute: typeof OfficeCatalogueRoute;
+  OfficeChatRoute: typeof OfficeChatRoute;
+  OfficeConstitutionRoute: typeof OfficeConstitutionRoute;
+  OfficeDelegationsRoute: typeof OfficeDelegationsRoute;
+  OfficeFloorRoute: typeof OfficeFloorRoute;
+  OfficeInboxRoute: typeof OfficeInboxRoute;
+  OfficeLedgerRoute: typeof OfficeLedgerRoute;
+  OfficeMarketingRoute: typeof OfficeMarketingRoute;
+  OfficeMetricsRoute: typeof OfficeMetricsRoute;
+  OfficeRevenueRoute: typeof OfficeRevenueRoute;
+  OfficeSalesRoute: typeof OfficeSalesRoute;
+  OfficeServiceRoute: typeof OfficeServiceRoute;
+  OfficeTechnicalRoute: typeof OfficeTechnicalRoute;
+  OfficeIndexRoute: typeof OfficeIndexRoute;
 }
 
 const OfficeRouteChildren: OfficeRouteChildren = {
@@ -662,19 +702,20 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeCatalogueRoute: OfficeCatalogueRoute,
   OfficeChatRoute: OfficeChatRoute,
   OfficeConstitutionRoute: OfficeConstitutionRoute,
+  OfficeDelegationsRoute: OfficeDelegationsRoute,
   OfficeFloorRoute: OfficeFloorRoute,
   OfficeInboxRoute: OfficeInboxRoute,
   OfficeLedgerRoute: OfficeLedgerRoute,
   OfficeMarketingRoute: OfficeMarketingRoute,
   OfficeMetricsRoute: OfficeMetricsRoute,
+  OfficeRevenueRoute: OfficeRevenueRoute,
   OfficeSalesRoute: OfficeSalesRoute,
   OfficeServiceRoute: OfficeServiceRoute,
   OfficeTechnicalRoute: OfficeTechnicalRoute,
   OfficeIndexRoute: OfficeIndexRoute,
-}
+};
 
-const OfficeRouteWithChildren =
-  OfficeRoute._addFileChildren(OfficeRouteChildren)
+const OfficeRouteWithChildren = OfficeRoute._addFileChildren(OfficeRouteChildren);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -694,16 +735,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAiStatusRoute: ApiAiStatusRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronFloorRoute: ApiCronFloorRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+import type { createStart } from "@tanstack/react-start";
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
   }
 }

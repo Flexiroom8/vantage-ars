@@ -2,8 +2,10 @@
  * Public service pages. Every price and limit here comes from the published
  * catalogue (`@/lib/office/catalogue`); nothing new is promised.
  */
+import { PUBLISHED_RATES } from "@/lib/office/catalogue";
+
 export type ServicePage = {
-  slug: "voip" | "networking" | "it-infrastructure";
+  slug: "voip" | "networking" | "it-infrastructure" | "managed-support";
   number: string;
   title: string;
   metaTitle: string;
@@ -12,9 +14,17 @@ export type ServicePage = {
   symptoms: string[];
   approach: { title: string; body: string }[];
   rateIds: string[];
+  /** Overrides the shared "Not in the labour rate" heading where it would be wrong. */
+  excludedTitle?: string;
   excluded: string[];
   faqs: { q: string; a: string }[];
 };
+
+/** The published amount for a rate, read from the catalogue and never typed out here. */
+function zarAmount(rateId: string): string {
+  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+  return rate?.price.match(/R[\d,]+/)?.[0] ?? "";
+}
 
 export const SERVICE_PAGES: ServicePage[] = [
   {
@@ -33,9 +43,18 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Moving to a hosted PBX or SIP trunk and needing a plan",
     ],
     approach: [
-      { title: "Diagnose remotely first", body: "We check endpoint and network symptoms and the call-path information you can provide. Many faults can be narrowed down without a site visit." },
-      { title: "Quote the fix in writing", body: "Once the cause is clear you get a written quote: scope, hours, and whether VAT applies. Nothing starts until you accept it." },
-      { title: "Configure and test", body: "Customer-approved hosted or on-premises systems are configured, extensions and routing set, and the agreed tests run." },
+      {
+        title: "Diagnose remotely first",
+        body: "We check endpoint and network symptoms and the call-path information you can provide. Many faults can be narrowed down without a site visit.",
+      },
+      {
+        title: "Quote the fix in writing",
+        body: "Once the cause is clear you get a written quote: scope, hours, and whether VAT applies. Nothing starts until you accept it.",
+      },
+      {
+        title: "Configure and test",
+        body: "Customer-approved hosted or on-premises systems are configured, extensions and routing set, and the agreed tests run.",
+      },
     ],
     rateIds: ["voip-diagnosis", "pbx-design", "pbx-install", "remote-support", "onsite-support"],
     excluded: [
@@ -44,8 +63,14 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Unsupported platforms",
     ],
     faqs: [
-      { q: "Can you fix it without coming on site?", a: "Often, yes. Remote support is R690 an hour with a 30-minute minimum. If someone needs to be there, on-site work is R805 an hour and travel is quoted before booking." },
-      { q: "Do you sell phone lines or a PBX?", a: "No. Carrier services, licences and handsets come from suppliers and are itemised in the quote. We design, configure and test." },
+      {
+        q: "Can you fix it without coming on site?",
+        a: "Often, yes. Remote support is R690 an hour with a 30-minute minimum. If someone needs to be there, on-site work is R805 an hour and travel is quoted before booking.",
+      },
+      {
+        q: "Do you sell phone lines or a PBX?",
+        a: "No. Carrier services, licences and handsets come from suppliers and are itemised in the quote. We design, configure and test.",
+      },
     ],
   },
   {
@@ -64,9 +89,18 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Devices that cannot reach printers, servers or each other",
     ],
     approach: [
-      { title: "Understand the layout", body: "Device count, access, topology and acceptance checks decide the price. Remote review first; a site survey when the building matters." },
-      { title: "Fix the price", body: "Typical small jobs fall between R1,380 and R3,450. The written quote fixes the fee before work starts." },
-      { title: "Configure, test, hand over", body: "Routers, switches, Wi-Fi, VLANs and addressing are configured and tested against the agreed checks." },
+      {
+        title: "Understand the layout",
+        body: "Device count, access, topology and acceptance checks decide the price. Remote review first; a site survey when the building matters.",
+      },
+      {
+        title: "Fix the price",
+        body: "Typical small jobs fall between R1,380 and R3,450. The written quote fixes the fee before work starts.",
+      },
+      {
+        title: "Configure, test, hand over",
+        body: "Routers, switches, Wi-Fi, VLANs and addressing are configured and tested against the agreed checks.",
+      },
     ],
     rateIds: ["network-setup", "network-point", "survey", "remote-support", "onsite-support"],
     excluded: [
@@ -75,8 +109,14 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Drawings, certification and third-party fees unless listed in the quote",
     ],
     faqs: [
-      { q: "What does a network point cost?", a: "R805 per point for labour: install and test one cable point up to 20 m from the hub, where site conditions permit. Materials and building work are quoted separately." },
-      { q: "Do I need a site survey?", a: "Only when the building affects the work. A survey is R805 an hour, two-hour minimum plus approved travel, and ends with a priced recommendation." },
+      {
+        q: "What does a network point cost?",
+        a: "R805 per point for labour: install and test one cable point up to 20 m from the hub, where site conditions permit. Materials and building work are quoted separately.",
+      },
+      {
+        q: "Do I need a site survey?",
+        a: "Only when the building affects the work. A survey is R805 an hour, two-hour minimum plus approved travel, and ends with a priced recommendation.",
+      },
     ],
   },
   {
@@ -94,19 +134,95 @@ export const SERVICE_PAGES: ServicePage[] = [
       "Planning an upgrade and needing a prioritised list",
     ],
     approach: [
-      { title: "Assess", body: "A review of a defined set of existing network and IT components, ending in a prioritised findings report." },
-      { title: "Plan the change", body: "Each change has rollback and acceptance steps. Hardware, licences and vendor fees are separated in the quote." },
+      {
+        title: "Assess",
+        body: "A review of a defined set of existing network and IT components, ending in a prioritised findings report.",
+      },
+      {
+        title: "Plan the change",
+        body: "Each change has rollback and acceptance steps. Hardware, licences and vendor fees are separated in the quote.",
+      },
       { title: "Implement", body: "R690 an hour remote or R805 on-site, fixed after discovery." },
     ],
-    rateIds: ["infra-assessment", "infra-change", "remote-support", "onsite-support", "after-hours"],
+    rateIds: [
+      "infra-assessment",
+      "infra-change",
+      "remote-support",
+      "onsite-support",
+      "after-hours",
+    ],
     excluded: [
       "Penetration testing and compliance certification",
       "Hardware, licences, vendor fees and out-of-scope remediation (separated in the quote)",
-      "Managed support retainers, monitoring or an SLA (not offered)",
+      "Live monitoring of your estate, an uptime promise and a contractual service level (none of these are offered)",
     ],
     faqs: [
-      { q: "Do you offer monthly managed support?", a: "No. There is no retainer, monitoring promise or SLA. You pay for agreed work, then you are done." },
-      { q: "Can work be done after hours?", a: "By appointment, at 1.5× labour: R1,035 an hour remote or R1,207.50 on-site. It is not an emergency response guarantee." },
+      {
+        q: "Do you offer monthly managed support?",
+        a: "Yes. The managed support plan is a fixed monthly price, remote only, with a written report every month. There is still no live monitoring of your estate, no uptime promise and no contractual service level. The plan and its prices are on the managed services page.",
+      },
+      {
+        q: "Can work be done after hours?",
+        a: "By appointment, at 1.5× labour: R1,035 an hour remote or R1,207.50 on-site. It is not an emergency response guarantee.",
+      },
+    ],
+  },
+  {
+    slug: "managed-support",
+    number: "04",
+    title: "Managed services",
+    metaTitle: "Managed services & monthly support plans · Vantage-ARS",
+    description: `Monthly remote support, a written report every month and a quarterly review. The managed support plan is ${zarAmount("managed-support")} a month, remote only, with no uptime promise.`,
+    lead: "Not every job should need a ticket and a chase. The managed plan is remote support time each month, a written report on what we have actually done, and a quarterly look at the setup. The price is published, the scope is written down, and it stays the same every month.",
+    symptoms: [
+      "Faults are raised, but nothing moves until somebody chases it",
+      "Nobody is sure what was invoiced, or which quote it came from",
+      "Every new person starts without knowing how the setup fits together",
+      "Continuity planning that exists in somebody's head only",
+      "A support budget that needs a known monthly figure",
+    ],
+    approach: [
+      {
+        title: "Agree the month in writing",
+        body: "The plan covers eight included remote support hours a month, a managed service report every month and a quarterly infrastructure review. The monthly fee is fixed and published, and what it includes is written down before the first month starts.",
+      },
+      {
+        title: "Work the faults as they arrive",
+        body: "Raise a fault and it is triaged without you chasing us. Our target for the plan is a first response on P2 faults within four working hours. That is a working target we measure ourselves against, not a contractual service level.",
+      },
+      {
+        title: "Report from our own records",
+        body: "Each monthly report lists the faults raised, the quotes issued, the invoices raised and what is still open. It is compiled from what we have actually recorded for you, not from a template.",
+      },
+    ],
+    rateIds: [
+      "managed-support",
+      "health-watch",
+      "service-report",
+      "billing-audit",
+      "handover-pack",
+      "continuity-plan",
+      "sla-review",
+    ],
+    excludedTitle: "Not included in the monthly price",
+    excluded: [
+      "Live monitoring of your estate, an uptime promise and a contractual service level",
+      "On-site work, hardware, third-party licences and carrier costs",
+      "After-hours work, which is quoted separately",
+    ],
+    faqs: [
+      {
+        q: "Is there an SLA or an uptime promise?",
+        a: "No. There is no uptime promise, no contractual service level and no cover outside our working hours. We publish our response targets, measure ourselves against them and report the result in writing.",
+      },
+      {
+        q: "Can I buy a report without the plan?",
+        a: `Yes. The reports and reviews are separate products: a service report is ${zarAmount("service-report")}, a billing audit ${zarAmount("billing-audit")}, a handover pack ${zarAmount("handover-pack")}, a continuity plan ${zarAmount("continuity-plan")} and a service level review ${zarAmount("sla-review")}. Each one is ordered on its own.`,
+      },
+      {
+        q: "Is on-site work part of the plan?",
+        a: "No. The plan is remote only. On-site work is quoted separately at the published on-site rate, and travel is agreed before anyone is booked.",
+      },
     ],
   },
 ];

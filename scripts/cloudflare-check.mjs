@@ -21,13 +21,17 @@ export const ACCOUNT_RE = /^[a-f0-9]{32}$/i;
 export const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 // Quoted key names only (not prose): catches `"CLOUDFLARE_API_TOKEN": ...`
 // while ignoring words like "secrets" in comments.
-const SECRET_KEY_RE = /"[^"]*(API_TOKEN|SETUP_TOKEN|APP_PASSWORD|PRIVATE_KEY|BETTER_AUTH_SECRET)[^"]*"\s*:/gi;
+const SECRET_KEY_RE =
+  /"[^"]*(API_TOKEN|SETUP_TOKEN|APP_PASSWORD|PRIVATE_KEY|BETTER_AUTH_SECRET)[^"]*"\s*:/gi;
 
 export function accountStatus(value) {
   const v = (value ?? "").trim();
   if (!v) return { state: "missing", detail: "CLOUDFLARE_ACCOUNT_ID is not set." };
   if (!ACCOUNT_RE.test(v))
-    return { state: "malformed", detail: "CLOUDFLARE_ACCOUNT_ID must be 32 hex chars (Dashboard URL segment)." };
+    return {
+      state: "malformed",
+      detail: "CLOUDFLARE_ACCOUNT_ID must be 32 hex chars (Dashboard URL segment).",
+    };
   return { state: "ok", detail: `Account id shape ok (…${v.slice(-4)}).` };
 }
 
@@ -60,7 +64,10 @@ export function wranglerSecretsCheck(rootDir) {
   const hits = [...text.matchAll(SECRET_KEY_RE)].map((m) => m[0].trim());
   const unique = [...new Set(hits)];
   if (unique.length)
-    return { state: "leak", detail: `wrangler.jsonc embeds secret-bearing keys (${unique.join("; ")}). Move them to host env.` };
+    return {
+      state: "leak",
+      detail: `wrangler.jsonc embeds secret-bearing keys (${unique.join("; ")}). Move them to host env.`,
+    };
   return { state: "ok", detail: "wrangler.jsonc holds no secret-bearing keys." };
 }
 
@@ -88,5 +95,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const result = check(process.env, root);
   console.log(formatReport(result));
-  if (process.argv.includes("--strict") && (!result.usable || result.wrangler.state === "leak")) process.exit(1);
+  if (process.argv.includes("--strict") && (!result.usable || result.wrangler.state === "leak"))
+    process.exit(1);
 }

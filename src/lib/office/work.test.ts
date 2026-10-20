@@ -14,7 +14,9 @@ describe("founder work", () => {
       ...empty,
       documents: [{ id: "q1", kind: "quote", status: "approved_unsent", title: "Quote · Harbour" }],
       opportunities: [{ id: "o1", stage: "won", companyName: "Harbour" }],
-      ledger: [{ id: "inv1", kind: "invoice", status: "paid", relatedId: "o1", counterparty: "Harbour" }],
+      ledger: [
+        { id: "inv1", kind: "invoice", status: "paid", relatedId: "o1", counterparty: "Harbour" },
+      ],
       tickets: [{ id: "t1", status: "resolved", ownerAgent: "forge", title: "Deliver · Harbour" }],
     });
     assert.deepEqual(

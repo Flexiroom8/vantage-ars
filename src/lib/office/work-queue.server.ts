@@ -18,6 +18,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { getSql, type Sql } from "../db";
+import { pruneKeepDays, retryBackoffMinutes, staleClaimMinutes } from "./queue-timing";
 
 export type WorkStatus = "open" | "claimed" | "done" | "failed" | "abandoned";
 
@@ -66,7 +67,7 @@ export async function enqueueWork(input: EnqueueInput): Promise<EnqueueResult> {
       ${id}, ${input.agentId}, ${input.kind}, ${input.reason.slice(0, 600)},
       ${JSON.stringify(input.payload ?? {})}, ${Math.round(input.priority ?? 50)},
       'open', ${Math.max(1, input.maxAttempts ?? 3)}, ${input.dedupeKey ?? null},
-      now() + (${dueMinutes} || '0')::interval
+      now() + make_interval(mins => ${dueMinutes})
     )
     on conflict do nothing
     returning id
@@ -80,7 +81,7 @@ export async function reopenWork(dedupeKey: string, dueInMinutes = 0): Promise<E
   const reopened = await sql<{ id: string }>`
     update work_items
     set status = 'open',
-        due_at = now() + (${Math.max(0, dueInMinutes)} || '0')::interval,
+        due_at = now() + make_interval(mins => ${Math.max(0, dueInMinutes)}),
         attempts = 0,
         last_error = null,
         updated_at = now()
@@ -88,6 +89,35 @@ export async function reopenWork(dedupeKey: string, dueInMinutes = 0): Promise<E
     returning id
   `;
   return reopened.length ? "enqueued" : "duplicate";
+}
+
+/**
+ * Put one abandoned item back on the queue.
+ *
+ * Redrive is a founder action, never an automatic one. The item goes back
+ * with its attempt count reset and its error cleared, and the fact that it was
+ * redriven is written to the audit chain by the caller.
+ */
+export async function redriveWorkById(
+  workId: string,
+): Promise<{ ok: true; kind: string; agentId: string } | { ok: false; error: string }> {
+  const sql = await getSql();
+  const rows = await sql<{ id: string; kind: string; agent_id: string }>`
+    update work_items
+    set status = 'open',
+        attempts = 0,
+        last_error = null,
+        due_at = now(),
+        started_at = null,
+        finished_at = null,
+        updated_at = now()
+    where id = ${workId} and status in ('abandoned', 'failed')
+    returning id, kind, agent_id
+  `;
+  if (!rows.length) {
+    return { ok: false, error: "That item is not in the dead-letter queue." };
+  }
+  return { ok: true, kind: String(rows[0].kind), agentId: String(rows[0].agent_id) };
 }
 
 /**
@@ -130,18 +160,24 @@ export async function completeWork(id: string, outcome: string): Promise<void> {
  * Record a failure. The item is retried with a backoff until `max_attempts`, at
  * which point it is abandoned and the failure is surfaced rather than retried
  * forever.
+ *
+ * The backoff is `min(60, 2 ** attempts)` minutes: two minutes after the first
+ * failure, four after the second, eight after the third, and never more than an
+ * hour. The delay is built with `make_interval`, so it is minutes of real
+ * time and not a number of seconds.
  */
 export async function failWork(id: string, error: string, maxAttempts: number): Promise<void> {
   const sql = await getSql();
   const rows = await sql<{ attempts: number }>`select attempts from work_items where id = ${id}`;
   const attempts = Number(rows[0]?.attempts ?? 1);
   const exhausted = attempts >= maxAttempts;
+  const backoffMinutes = retryBackoffMinutes(attempts);
   await sql`
     update work_items
     set status = ${exhausted ? "abandoned" : "open"},
         last_error = ${error.slice(0, 2000)},
-        due_at = now() + (${Math.min(60, 2 ** attempts)} || '0')::interval,
-        finished_at = ${exhausted ? sql`(now())` : null},
+        due_at = now() + make_interval(mins => ${backoffMinutes}),
+        finished_at = case when ${exhausted}::boolean then now() else null end,
         updated_at = now()
     where id = ${id}
   `;
@@ -150,13 +186,14 @@ export async function failWork(id: string, error: string, maxAttempts: number): 
 /** Give up on anything left claimed by a process that died mid-run. */
 export async function releaseStaleWork(staleAfterMinutes = 30): Promise<number> {
   const sql = await getSql();
+  const staleMinutes = staleClaimMinutes(staleAfterMinutes);
   const released = await sql<{ id: string }>`
     update work_items
     set status = case when attempts >= max_attempts then 'abandoned' else 'open' end,
         last_error = 'Worker did not finish; reclaimed by the scheduler.',
         due_at = now(),
         updated_at = now()
-    where status = 'claimed' and started_at < now() - (${staleAfterMinutes} || '30')::interval
+    where status = 'claimed' and started_at < now() - make_interval(mins => ${staleMinutes})
     returning id
   `;
   return released.length;
@@ -172,7 +209,13 @@ export async function listWork(limit = 100): Promise<WorkItem[]> {
   return rows.map(mapWork);
 }
 
-export async function workCounts(): Promise<{ open: number; claimed: number; failed: number; abandoned: number; done: number }> {
+export async function workCounts(): Promise<{
+  open: number;
+  claimed: number;
+  failed: number;
+  abandoned: number;
+  done: number;
+}> {
   const sql = await getSql();
   const rows = await sql<{ status: string; n: number }>`
     select status, count(*)::int as n from work_items group by status
@@ -215,9 +258,10 @@ function mapWork(row: Record<string, unknown>): WorkItem {
  */
 export async function pruneWork(keepDays = 30): Promise<number> {
   const sql: Sql = await getSql();
+  const keep = pruneKeepDays(keepDays);
   const removed = await sql<{ id: string }>`
     delete from work_items
-    where status in ('done', 'abandoned') and updated_at < now() - (${keepDays} || '30')::interval
+    where status in ('done', 'abandoned') and updated_at < now() - make_interval(days => ${keep})
     returning id
   `;
   return removed.length;

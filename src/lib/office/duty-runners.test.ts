@@ -28,6 +28,71 @@ function busyView(): DutyView {
   return {
     now: NOW,
     halted: false,
+    subscriptions: [
+      {
+        id: "sub1",
+        companyName: "Delta",
+        planId: "managed-support",
+        rateId: "managed-support",
+        cycle: "monthly",
+        priceCents: 275000,
+        status: "active",
+        nextBillingAt: daysAgo(10),
+        startedAt: daysAgo(40),
+        contactEmail: "accounts@delta.example",
+      },
+    ],
+    billingCycles: [
+      {
+        id: "cy1",
+        subscriptionId: "sub1",
+        companyName: "Delta",
+        planId: "managed-support",
+        amountCents: 275000,
+        status: "invoiced",
+        periodStart: daysAgo(30),
+        periodEnd: daysAgo(1),
+        invoiceId: "lg2",
+        documentId: "dc3",
+        reportDocumentId: null,
+        notifiedAt: null,
+      },
+      {
+        id: "cy2",
+        subscriptionId: "sub1",
+        companyName: "Delta",
+        planId: "managed-support",
+        amountCents: 275000,
+        status: "fulfilled",
+        periodStart: daysAgo(60),
+        periodEnd: daysAgo(31),
+        invoiceId: "lg3",
+        documentId: "dc4",
+        reportDocumentId: "dc5",
+        notifiedAt: null,
+      },
+    ],
+    delegation: {
+      id: "primary",
+      label: "Managed revenue",
+      status: "active",
+      maxAmountCents: 500000,
+      maxActionsPerDay: 20,
+      maxActionsPerMonth: 200,
+      allowedActions: [
+        "open_opportunity",
+        "issue_quote",
+        "issue_invoice",
+        "record_inbound_payment",
+        "start_subscription",
+        "cancel_subscription",
+        "fulfil_service",
+        "send_customer_mail",
+      ],
+      allowCustomerMail: true,
+      allowAutoReconcile: true,
+      requireAcceptedQuote: false,
+    },
     inbound: [
       {
         id: "in1",
@@ -71,13 +136,83 @@ function busyView(): DutyView {
       },
     ],
     opportunities: [
-      { id: "op1", companyName: "Acme", stage: "discovery", valueCents: 0, summary: "Phone system", updatedAt: hoursAgo(1) },
-      { id: "op2", companyName: "Delta", stage: "proposal", valueCents: 320000, summary: "Migration", updatedAt: hoursAgo(4) },
-      { id: "op3", companyName: "Epsilon", stage: "proposal", valueCents: 120000, summary: "Cabling", updatedAt: daysAgo(20) },
-      { id: "op4", companyName: "Zeta", stage: "won", valueCents: 644000, summary: "PBX install", updatedAt: daysAgo(2) },
+      {
+        id: "op1",
+        companyName: "Acme",
+        stage: "discovery",
+        valueCents: 0,
+        summary: "Phone system",
+        updatedAt: hoursAgo(1),
+      },
+      {
+        id: "op2",
+        companyName: "Delta",
+        stage: "proposal",
+        valueCents: 320000,
+        summary: "Migration",
+        updatedAt: hoursAgo(4),
+      },
+      {
+        id: "op4",
+        companyName: "Delta",
+        stage: "won",
+        valueCents: 275000,
+        summary: "Managed support plan accepted",
+        updatedAt: daysAgo(20),
+      },
+      {
+        id: "op5",
+        companyName: "Epsilon",
+        stage: "won",
+        valueCents: 120000,
+        summary: "Cabling signed off, nothing filed",
+        updatedAt: daysAgo(9),
+      },
+      {
+        id: "op6",
+        companyName: "Zeta",
+        stage: "won",
+        valueCents: 275000,
+        summary: "Managed support plan accepted",
+        updatedAt: daysAgo(12),
+      },
+      {
+        id: "op3",
+        companyName: "Epsilon",
+        stage: "proposal",
+        valueCents: 120000,
+        summary: "Cabling",
+        updatedAt: daysAgo(20),
+      },
+      {
+        id: "op4",
+        companyName: "Zeta",
+        stage: "won",
+        valueCents: 644000,
+        summary: "PBX install",
+        updatedAt: daysAgo(2),
+      },
     ],
     quotes: [
-      { id: "q1", title: "Quote · Delta", kind: "quote", status: "approved_unsent", relatedId: "op2", createdAt: daysAgo(3) },
+      {
+        id: "q1",
+        title: "Quote · Delta",
+        kind: "quote",
+        status: "approved_unsent",
+        relatedId: "op2",
+        createdAt: daysAgo(3),
+      },
+      {
+        id: "q2",
+        title: "Quote · Zeta",
+        kind: "quote",
+        status: "accepted",
+        relatedId: "op6",
+        createdAt: daysAgo(12),
+        // The accepted quote for a recurring plan, so the duty that starts a
+        // subscription has a published rate line to read the plan from.
+        rateId: "managed-support",
+      },
     ],
     tickets: [
       {
@@ -133,13 +268,79 @@ function busyView(): DutyView {
       },
     ],
     documents: [
-      { id: "dc1", title: "Quote · Acme", kind: "quote", status: "approved_unsent", relatedId: "op1", createdAt: daysAgo(5) },
-      { id: "dc2", title: "Quote · Delta", kind: "quote", status: "approved_unsent", relatedId: "op2", createdAt: daysAgo(3) },
+      {
+        id: "dc5",
+        title: "Managed support plan · Delta",
+        kind: "service_report",
+        status: "delivered",
+        relatedId: "cy2",
+        createdAt: daysAgo(30),
+      },
+      {
+        id: "dc4",
+        title: "Invoice · Delta",
+        kind: "invoice",
+        status: "approved_unsent",
+        relatedId: "cy2",
+        createdAt: daysAgo(31),
+      },
+      {
+        id: "dc3",
+        title: "Invoice · Delta",
+        kind: "invoice",
+        status: "approved_unsent",
+        relatedId: "cy1",
+        createdAt: daysAgo(1),
+      },
+      {
+        id: "dc1",
+        title: "Quote · Acme",
+        kind: "quote",
+        status: "approved_unsent",
+        relatedId: "op1",
+        createdAt: daysAgo(5),
+      },
+      {
+        id: "dc2",
+        title: "Quote · Delta",
+        kind: "quote",
+        status: "approved_unsent",
+        relatedId: "op2",
+        createdAt: daysAgo(3),
+      },
+      {
+        id: "dc6",
+        title: "Quote · Delta",
+        kind: "quote",
+        status: "accepted",
+        relatedId: "op4",
+        createdAt: daysAgo(20),
+      },
+      {
+        id: "dc7",
+        title: "Quote · Zeta",
+        kind: "quote",
+        status: "accepted",
+        relatedId: "op6",
+        createdAt: daysAgo(12),
+      },
     ],
     campaigns: [],
     approvalsPending: [
-      { id: "ap1", kind: "sales_handoff", title: "Handoff", companyName: "Delta", createdAt: hoursAgo(1) },
-      { id: "ap2", kind: "constraint_margin", title: "Unsure about role", companyName: "Acme", createdAt: hoursAgo(2) },
+      {
+        id: "ap1",
+        kind: "sales_handoff",
+        title: "Handoff",
+        companyName: "Delta",
+        createdAt: hoursAgo(1),
+      },
+      {
+        id: "ap2",
+        kind: "constraint_margin",
+        title: "Unsure about role",
+        companyName: "Acme",
+        createdAt: hoursAgo(2),
+      },
     ],
     agents: [{ id: "foyer", callsign: "FOYER", status: "idle", lastHeartbeat: null }],
     siteEvents: [
@@ -147,7 +348,14 @@ function busyView(): DutyView {
       { kind: "page_view", path: "/", occurredAt: hoursAgo(3) },
     ],
     chatThreads: [
-      { id: "ct1", name: "Site chat", status: "open", updatedAt: hoursAgo(2), lastMessageAt: hoursAgo(1), unansweredCount: 2 },
+      {
+        id: "ct1",
+        name: "Site chat",
+        status: "open",
+        updatedAt: hoursAgo(2),
+        lastMessageAt: hoursAgo(1),
+        unansweredCount: 2,
+      },
     ],
     quoteLinks: [],
     treasuryCents: 100000,
@@ -156,10 +364,46 @@ function busyView(): DutyView {
     publishedPathCount: 8,
     chainIntact: false,
     work: [
-      { id: "w1", agentId: "signal", kind: "qualify_lead", status: "open", attempts: 1, maxAttempts: 3, dueAt: daysAgo(1), lastError: null },
-      { id: "w2", agentId: "signal", kind: "qualify_lead", status: "open", attempts: 1, maxAttempts: 3, dueAt: daysAgo(1), lastError: null },
-      { id: "w3", agentId: "close", kind: "advance_discovery", status: "open", attempts: 2, maxAttempts: 3, dueAt: daysAgo(1), lastError: "timeout" },
-      { id: "w4", agentId: "ledger", kind: "report_payables", status: "abandoned", attempts: 3, maxAttempts: 3, dueAt: daysAgo(2), lastError: "database down" },
+      {
+        id: "w1",
+        agentId: "signal",
+        kind: "qualify_lead",
+        status: "open",
+        attempts: 1,
+        maxAttempts: 3,
+        dueAt: daysAgo(1),
+        lastError: null,
+      },
+      {
+        id: "w2",
+        agentId: "signal",
+        kind: "qualify_lead",
+        status: "open",
+        attempts: 1,
+        maxAttempts: 3,
+        dueAt: daysAgo(1),
+        lastError: null,
+      },
+      {
+        id: "w3",
+        agentId: "close",
+        kind: "advance_discovery",
+        status: "open",
+        attempts: 2,
+        maxAttempts: 3,
+        dueAt: daysAgo(1),
+        lastError: "timeout",
+      },
+      {
+        id: "w4",
+        agentId: "ledger",
+        kind: "report_payables",
+        status: "abandoned",
+        attempts: 3,
+        maxAttempts: 3,
+        dueAt: daysAgo(2),
+        lastError: "database down",
+      },
     ],
   };
 }
@@ -169,17 +413,27 @@ describe("planner and runner registry agree", () => {
     const busy = busyView();
     const planned = new Map<DutyId, string[]>();
     for (const duty of ALL_DUTIES) {
-      planned.set(duty, planDuty(duty, busy).map((item) => item.kind));
+      planned.set(
+        duty,
+        planDuty(duty, busy).map((item) => item.kind),
+      );
     }
 
     // Self-check: the fixture must exercise every duty, or this test silently
     // skips the very duty that has a hole.
     const silent = ALL_DUTIES.filter((duty) => (planned.get(duty) ?? []).length === 0);
-    assert.deepEqual(silent, [], `these duties planned nothing on the busy fixture: ${silent.join(", ")}`);
+    assert.deepEqual(
+      silent,
+      [],
+      `these duties planned nothing on the busy fixture: ${silent.join(", ")}`,
+    );
 
     for (const [duty, kinds] of planned) {
       for (const kind of kinds) {
-        assert.ok(RUNNERS[kind], `${duty} plans work of kind "${kind}" but no runner is registered for it`);
+        assert.ok(
+          RUNNERS[kind],
+          `${duty} plans work of kind "${kind}" but no runner is registered for it`,
+        );
       }
     }
   });

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { AutonomyPanel } from "@/components/office/autonomy-panel";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { MailNote } from "@/components/office/mail-note";
@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/office/")({
   component: CommandCenter,
 });
-
 
 function CommandCenter() {
   const snapshot = useOfficeSnapshot();
@@ -43,7 +42,11 @@ function CommandCenter() {
       <MailNote notices={snapshot.notices} mail={snapshot.mail} />
 
       <div className="mb-6 grid gap-px overflow-hidden rounded-xl bg-border shadow-[var(--shadow-border)] sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Treasury" value={formatZar(snapshot.company.treasuryCents)} hint="Grows only from receipts" />
+        <Metric
+          label="Treasury"
+          value={formatZar(snapshot.company.treasuryCents)}
+          hint="Grows only from receipts"
+        />
         <Metric
           label="Waiting on you"
           value={String(pending.length)}
@@ -63,16 +66,36 @@ function CommandCenter() {
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <SituationChip to="/office/inbox" label="Unrouted inbound" value={unrouted} warn={unrouted > 0} />
+        <SituationChip
+          to="/office/inbox"
+          label="Unrouted inbound"
+          value={unrouted}
+          warn={unrouted > 0}
+        />
         <SituationChip
           to="/office/service"
           label="Service cases"
-          value={snapshot.tickets.filter((ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved").length}
-          warn={snapshot.tickets.some((ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved")}
+          value={
+            snapshot.tickets.filter(
+              (ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved",
+            ).length
+          }
+          warn={snapshot.tickets.some(
+            (ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved",
+          )}
         />
         <SituationChip to="/office/sales" label="Pipeline" value={formatZar(pipeline)} />
-        <SituationChip to="/office/technical" label="Open tickets" value={openTickets} warn={openTickets > 0} />
-        <SituationChip to="/office/ledger" label="Receivable" value={formatZar(snapshot.company.receivableCents)} />
+        <SituationChip
+          to="/office/technical"
+          label="Open tickets"
+          value={openTickets}
+          warn={openTickets > 0}
+        />
+        <SituationChip
+          to="/office/ledger"
+          label="Receivable"
+          value={formatZar(snapshot.company.receivableCents)}
+        />
         <SituationChip
           to="/office/floor"
           label="Blocked"
@@ -96,7 +119,9 @@ function CommandCenter() {
               </li>
             ))}
             {work.length === 0 ? (
-              <p className="text-sm text-muted">Nothing needs you. The fleet is inside its envelope.</p>
+              <p className="text-sm text-muted">
+                Nothing needs you. The fleet is inside its envelope.
+              </p>
             ) : null}
           </ul>
           {pending.length > 0 ? (
@@ -125,7 +150,9 @@ function CommandCenter() {
           {snapshot.agents.map((agent) => (
             <div key={agent.id} className="bg-surface p-4">
               <div className="flex items-center justify-between">
-                <p className="font-mono text-[11px] tracking-[0.16em] text-muted">{agent.callsign}</p>
+                <p className="font-mono text-[11px] tracking-[0.16em] text-muted">
+                  {agent.callsign}
+                </p>
                 <span className="sr-only">{agent.status}</span>
                 <span
                   aria-hidden="true"
@@ -140,7 +167,9 @@ function CommandCenter() {
                 />
               </div>
               <p className="mt-2 font-serif text-xl">{agent.title}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-muted">{agent.currentTask ?? agent.summary}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-muted">
+                {agent.currentTask ?? agent.summary}
+              </p>
             </div>
           ))}
         </div>
@@ -162,7 +191,8 @@ function CommandCenter() {
                 <div>
                   <p className="text-sm text-fg">{decision.title}</p>
                   <p className="text-xs text-muted">
-                    {decision.agentId} · {decision.actionKind} · {formatDateTime(decision.createdAt)}
+                    {decision.agentId} · {decision.actionKind} ·{" "}
+                    {formatDateTime(decision.createdAt)}
                   </p>
                 </div>
                 <Badge
@@ -199,7 +229,9 @@ function Metric({
   return (
     <div className="bg-surface p-4">
       <p className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
-      <p className={cn("mt-2 font-mono text-2xl tabular-nums", warn ? "text-warn" : "text-fg")}>{value}</p>
+      <p className={cn("mt-2 font-mono text-2xl tabular-nums", warn ? "text-warn" : "text-fg")}>
+        {value}
+      </p>
       <p className="mt-1 text-xs text-subtle">{hint}</p>
     </div>
   );
@@ -211,7 +243,13 @@ function SituationChip({
   value,
   warn,
 }: {
-  to: "/office/inbox" | "/office/service" | "/office/sales" | "/office/technical" | "/office/ledger" | "/office/floor";
+  to:
+    | "/office/inbox"
+    | "/office/service"
+    | "/office/sales"
+    | "/office/technical"
+    | "/office/ledger"
+    | "/office/floor";
   value: string | number;
   label: string;
   warn?: boolean;

@@ -17,7 +17,12 @@ export function clientKey(headers: { get(name: string): string | null } | undefi
   if (!headers) return "local";
   const edge = headers.get("cf-connecting-ip")?.trim() || headers.get("x-real-ip")?.trim();
   if (edge) return edge.slice(0, 64);
-  const hops = headers.get("x-forwarded-for")?.split(",").map((hop) => hop.trim()).filter(Boolean) ?? [];
+  const hops =
+    headers
+      .get("x-forwarded-for")
+      ?.split(",")
+      .map((hop) => hop.trim())
+      .filter(Boolean) ?? [];
   return (hops[hops.length - 1] ?? "local").slice(0, 64);
 }
 

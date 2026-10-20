@@ -15,7 +15,9 @@ describe("floor plan", () => {
           summary: "VoIP quote",
         },
       ],
-      inbound: [{ id: "in-1", companyName: "Harbour", summary: "Email: ada@harbour.example\nNeed a quote" }],
+      inbound: [
+        { id: "in-1", companyName: "Harbour", summary: "Email: ada@harbour.example\nNeed a quote" },
+      ],
       documents: [],
       tickets: [
         {
@@ -45,7 +47,13 @@ describe("floor plan", () => {
     const tasks = planFloor({
       campaigns: [{ status: "active", budgetCents: 0, channel: "owned" }],
       leads: [
-        { id: "lead-1", companyName: "Harbour", stage: "qualified", inboundId: "in-1", summary: "Quote" },
+        {
+          id: "lead-1",
+          companyName: "Harbour",
+          stage: "qualified",
+          inboundId: "in-1",
+          summary: "Quote",
+        },
       ],
       inbound: [],
       documents: [{ kind: "follow_up", relatedId: "lead-1" }],

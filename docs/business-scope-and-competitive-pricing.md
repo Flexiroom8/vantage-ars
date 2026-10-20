@@ -2,7 +2,7 @@
 
 **Published service scope and price basis · Worldwide remote delivery · ZAR · researched 2 October 2026**
 
-This document defines Vantage-ARS's practical VoIP and telecoms, networking, and IT infrastructure services for people and organisations operating real systems. Remote service is available worldwide; on-site work can be arranged worldwide subject to travel, local access, and project arrangements. Prices below are customer-facing rates in ZAR. Where VAT is chargeable, the written quote states the applicable VAT treatment; international customer tax treatment and currency conversion are confirmed on the written quote.
+This document defines Vantage-ARS's practical VoIP and telecoms, networking, and IT infrastructure services, and its managed services, for people and organisations operating real systems. Remote service is available worldwide; on-site work can be arranged worldwide subject to travel, local access, and project arrangements. Prices below are customer-facing rates in ZAR. Where VAT is chargeable, the written quote states the applicable VAT treatment; international customer tax treatment and currency conversion are confirmed on the written quote.
 
 ## 1. Business purpose and customer
 
@@ -15,6 +15,8 @@ Vantage-ARS helps individuals and organisations worldwide diagnose, plan, config
 ## 2. Service catalogue and customer pricing
 
 The listed hourly and unit rates are customer-facing ZAR prices. The final written quote states whether South African VAT applies and shows the treatment clearly. Fixed project estimates are starting ranges only; confirm requirements and assumptions in a written quote before work begins.
+
+The managed services below are productised: a fixed scope, a published price, and a deliverable produced from our own records. They are remote only, and none of them promises monitoring, uptime or a contractual service level.
 
 | Service | Included scope | Published price (ZAR) | Pricing basis and limits |
 |---|---|---:|---|
@@ -30,9 +32,26 @@ The listed hourly and unit rates are customer-facing ZAR prices. The final writt
 | VoIP / PBX installation and configuration | Configure customer-approved hosted or on-premises phone system, extensions, routing, and agreed tests | R805/hour on-site or R690/hour remote; fixed project quote after survey | Excludes carrier charges, hardware, licence, number porting, and unsupported platforms. |
 | IT infrastructure assessment | Review a defined set of existing network/IT components and provide a prioritised findings report | R805/hour on-site or R690/hour remote; 2-hour minimum on-site | Scope components and access agreed in writing; security penetration testing and formal compliance certification excluded. |
 | IT infrastructure implementation / change | A defined server, network, connectivity, or infrastructure change with rollback/acceptance steps | R690–R805/hour by work location; fixed quote after discovery | Hardware/software, licences, vendor fees, backup, maintenance window, and out-of-scope remediation separated. |
-| Managed support retainer | Recurring support, monitoring, maintenance, and reporting | **Not currently offered** | No recurring package, monitoring promise, or SLA is published. |
 | Hardware, software, connectivity, carrier services | Third-party products or services needed for the approved job | Supplier quotation, itemised in advance | Third-party charges are not included in labour rates; owner and customer approval precede commitment. |
 | Travel | Travel to an approved site | Actual agreed travel cost, disclosed before booking | Available worldwide by arrangement; international travel, accommodation, visas, and local expenses are quoted separately. |
+
+### Managed services
+
+Seven productised services, each with a fixed scope, a published price, and a deliverable produced from our own records. They are published on the public rates page under **Managed services**, remote only. Each service is priced against its published rate line, and the plan id and the rate id are the same string: one line, one price.
+
+| Service | Included scope | Published price (ZAR) | Cycle, basis and limits |
+|---|---|---:|---|
+| Managed support plan (`managed-support`) | Remote support on a monthly plan, with the triage, the reporting and the invoicing handled for you | R2,750 / month | Monthly. 8 included remote hours a month, a managed service report every month, and a quarterly infrastructure review. On-site work, hardware and third-party costs are excluded. Not 24/7 cover and not an uptime promise. |
+| Remote health and spend watch (`health-watch`) | A written watch over open faults, our measured response times, and everything invoiced to you, every month | R990 / month | Monthly. Delivered from our own records. Remote only. Not a monitoring service and not a service-level agreement. |
+| Service report (`service-report`) | A written account of the faults raised, quotes issued and invoices raised in a period | R690 | One-off. One report per order, compiled from our records. Reports on work already done; it does not include any new work. |
+| Billing and rate compliance audit (`billing-audit`) | Every invoice we issued you in a period, checked line by line against this published rate card | R1,150 | One-off. One audit per order. We report anything that does not reconcile; nothing is adjusted without your agreement. Supplier and carrier invoices are excluded. |
+| Infrastructure documentation and handover pack (`handover-pack`) | Your network and phone estate as we have recorded it: faults fixed, changes made, and what is still open | R1,380 | One-off. One pack per order, built from our records. Not a site survey, and it does not document equipment or cabling we have never seen. |
+| Business continuity plan (`continuity-plan`) | The failure points we have actually recorded for you, the order to recover them in, and the gaps we can see | R1,725 | One-off. One plan per order, built from your recorded fault history. Not a formal disaster recovery plan and not a compliance certification. |
+| Service level and response review (`sla-review`) | How the faults raised in a period were actually handled, measured against our own written response targets | R690 | One-off. One review per order. Our response targets are working targets we measure ourselves against, not a contractual service level, and we do not sell them as one. |
+
+Two of the seven are recurring. The billing arithmetic supports a quarterly cycle as well, but no plan is currently published on it. VAT is added only where the invoice states it, and the recurring invoice does not state it.
+
+The included support hours on the managed support plan are engineering time delivered by a Vantage-ARS engineer. The office produces the report, the invoice, the customer notice and the payment matching; it does not do the engineering work, and it does not do new work — every report describes work already done.
 
 ### Competitive evidence and pricing judgement
 
@@ -41,9 +60,11 @@ The listed hourly and unit rates are customer-facing ZAR prices. The final writt
 - Komena publishes 2026 labour at R650/hour in business hours and R950/hour after hours, a two-hour on-site minimum, R650 per network point up to 20 m from the hub, and R6.50/km return travel from Margate. Its page says VAT is excluded unless otherwise stated. [Komena 2026 rate card](https://komena.com/rates.html)
 - Rent A Technician publishes R1,100 for an online consultation up to one hour, R1,100 base on-site call-out plus travel, R850/hour additional time, and R1,100–R2,800 as a typical network setup estimate. [Rent A Technician cost guidelines](https://www.rentatechnician.co.za/cost-guidelines/)
 - SoReal lists hosted-switchboard service at R260/month per 10 extensions excl. VAT; usage-based SIP trunk at R100/month for four channels, and unlimited SIP trunk bundles from R1,000/month excl. VAT, with call charges, configuration, VAT, and package rules varying. These are provider product prices, not Vantage-ARS labour rates. [SoReal VoIP rates](https://www.soreal.co.za/voip.html)
-- MiBOT publishes its managed IT plan at R450/user/month excl. VAT on a 12-month term and describes broader market bands, but this is a provider-authored market guide and its bundled scope differs from Vantage-ARS's currently described project support. [MiBOT South African managed IT cost guide](https://www.mibot.co.za/managed-it-support-cost-south-africa)
+- MiBOT publishes its managed IT plan at R450/user/month excl. VAT on a 12-month term and describes broader market bands, but this is a provider-authored market guide and its bundled scope differs from Vantage-ARS's published managed services, which are priced per plan and not per user. [MiBOT South African managed IT cost guide](https://www.mibot.co.za/managed-it-support-cost-south-africa)
 
 These are public competitor snapshots checked 2 October 2026, not a statistically representative price survey. Rates may change, have different VAT bases, locations, minimums, inclusions, and service levels. The updated R690 remote and R805 on-site rates are Vantage-ARS pricing decisions informed by this small comparison, not claims of a market average. A market comparison does not prove a competitor or Vantage-ARS has the same delivery scope or cost base.
+
+The managed services are not priced from a competitor's figure. The one published managed IT price above is per user per month on a 12-month term, while the Vantage-ARS managed services are priced per plan, so the two are not the same unit and the figures cannot be read across.
 
 ## 3. Work included and excluded
 
@@ -55,6 +76,7 @@ These are public competitor snapshots checked 2 October 2026, not a statisticall
 - Practical IT infrastructure assessment, configuration, installation, and troubleshooting for systems within demonstrated competence.
 - A written scope, assumptions, exclusions, customer responsibilities, price, schedule, acceptance checks, and change-control process for each job.
 - A short completion note recording work performed, unresolved items, and customer handover information.
+- A published managed plan, accepted in writing, and the report, invoice and customer notice that go with each billing period of it.
 
 ### Excluded unless specifically assessed, insured, qualified, and written into a separate quote
 
@@ -63,7 +85,7 @@ These are public competitor snapshots checked 2 October 2026, not a statisticall
 - Data recovery guarantees, unsupported vendor/platform changes, or work requiring credentials or access the customer cannot lawfully provide.
 - Carrier/network-provider service charges, airtime/call charges, internet subscriptions, hardware, software licences, cloud subscriptions, taxes, permits, and third-party professional fees.
 - Customer data migration, backups, or deletion unless explicitly specified with a verified recovery plan and customer authorisation.
-- Unapproved emergency work, purchases, ongoing support obligations, or customer-facing claims about vendor partnership or certification.
+- Unapproved emergency work, purchases, ongoing support obligations outside a published managed plan, or customer-facing claims about vendor partnership or certification.
 
 ## 4. End-to-end business operating scope
 
@@ -77,7 +99,7 @@ The business lifecycle is enquiry to approved work to documented close-out. The 
 6. **Approval and scheduling:** obtain explicit customer acceptance and any required deposits or supplier approvals under written terms. Do not incur costs or book non-refundable services before the founder's approval and customer authority are recorded.
 7. **Technical delivery:** work only to the accepted scope; protect customer information; document configuration changes; stop and seek change approval if scope, cost, risk, or timing changes.
 8. **Operations and close-out:** record work notes, tests, outstanding risks, customer handover, asset/vendor details supplied for the job, and acceptance. Do not claim resolved where not verified.
-9. **Finance and accounting:** prepare quotes/invoice details and reconcile evidence under owner control. The current workspace does not post accounting entries, collect payments, or connect to accounting/payment services.
+9. **Finance and accounting:** prepare quotes/invoice details and reconcile evidence under owner control. The office can raise an invoice and book a receipt in its own ledger, on the founder's instruction or under a standing delegation, but it does not post accounting entries, move money, or connect to an accounting or payment service.
 10. **Administration and governance:** manage access, records, backups, privacy requests, policies, and audit; limit access by role and retain records only under an approved retention policy.
 11. **Customer support and risk:** log complaints, outages, safety/security concerns, disputes, and proposed customer outcomes; route material risk, refunds, credits, or commitments to the founder.
 
@@ -94,6 +116,20 @@ The business lifecycle is enquiry to approved work to documented close-out. The 
 | Finance & accounting | Cost evidence, quote/invoice preparation, reconciliation support | Payment, refund, credit, accounting post, tax assertion, or spend without owner authorisation. |
 | Administration | Access, records, privacy handling, document control, backup coordination | Disclosing personal data, deleting required records, external publication, or access expansion. |
 
+### Under a standing delegation
+
+The table above is the standing boundary: the office stops at the founder gate for everything that touches a customer or the money. A standing delegation is how the founder answers that gate once, in advance, for a bounded class of action, up to a cap per action and a count per day and per month. It changes who may act; it does not change what each role is.
+
+| Agent | May act without the founder, under a delegation |
+|---|---|
+| Customer service | Fulfil a productised service, end a subscription, and email the customer the report. |
+| Finance | Raise an invoice for accepted work, book an exact inbound payment against it, start a subscription, and email the customer the invoice or the receipt. |
+| Sales | Open an opportunity and issue a quote from the published card, and email the customer the quote — to a customer who actually contacted the office. |
+
+The agent definition decides which actions an agent may ever take, and role separation is a hard block that a delegation cannot widen. The delegation is what permits the office to take those actions on its own instead of stopping for the founder. Four actions exist only under a delegation: fulfilling a service, starting a subscription, ending a subscription, and emailing a customer. Without one, the office acting on its own is refused rather than escalated.
+
+The caps are the founder's to set — by default R5,000.00 for a single action, 20 actions a day and 200 a month. An action over the cap, a refund, a credit, and any cancellation the delegation does not cover still stop for the founder. A customer loss always does. A customer win stays with the founder unless the delegation names it, and none of the four presets does.
+
 ## 5. Commercial rules for every quote
 
 - Quote in ZAR and state the applicable South African VAT treatment clearly. Where standard-rated VAT applies, show the 15% component. Confirm the customer's country and applicable tax treatment before invoicing cross-border work.
@@ -106,8 +142,8 @@ The business lifecycle is enquiry to approved work to documented close-out. The 
 
 ## 6. Readiness before public launch of the rate card
 
-The public site publishes the rates in this document and offers remote delivery worldwide, with on-site delivery by arrangement. Each job still requires a written scope, schedule, exclusions, and total price before work starts. Keep international tax and currency treatment, local travel costs, supplier charges, and customer terms explicit in each quote.
+The public site publishes the rates in this document, including the managed services, and offers remote delivery worldwide, with on-site delivery by arrangement. Each job still requires a written scope, schedule, exclusions, and total price before work starts. Keep international tax and currency treatment, local travel costs, supplier charges, and customer terms explicit in each quote.
 
 ## 7. Workspace implementation boundary
 
-Vantage-ARS Office can hold the approved business profile, service catalogue, enquiries, department tasks, message drafts, founder approvals, and audit records. The current workspace does not send messages, make payments, create accounting entries, deploy customer changes, provide technical monitoring, or connect an AI worker. Service delivery remains a real person-led responsibility and each customer job needs its own accepted scope.
+Vantage-ARS Office can hold the approved business profile, service catalogue, enquiries, department tasks, message drafts, founder approvals, and audit records. Under a standing delegation it can also email a customer from its own templates, deliver a productised service from its own records, raise an invoice for a billing period, and book an exact payment against one. It does not move money, post accounting entries, deploy customer changes, or monitor a customer's systems, and its autonomous duties decide from office records rather than from a language model. Service delivery remains a real person-led responsibility — the included support hours on the managed support plan are engineering time — and each customer job needs its own accepted scope.

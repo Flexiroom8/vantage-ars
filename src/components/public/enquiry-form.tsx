@@ -112,9 +112,7 @@ export function EnquiryForm({
           minLength={nameMinLength}
           maxLength={nameMaxLength}
           value={form.name}
-          onChange={(event) =>
-            setForm({ ...form, name: event.target.value })
-          }
+          onChange={(event) => setForm({ ...form, name: event.target.value })}
         />
       </div>
       <div>
@@ -127,9 +125,7 @@ export function EnquiryForm({
           required
           maxLength={emailMaxLength}
           value={form.email}
-          onChange={(event) =>
-            setForm({ ...form, email: event.target.value })
-          }
+          onChange={(event) => setForm({ ...form, email: event.target.value })}
         />
       </div>
       {desk && matters.length > 0 && (
@@ -160,9 +156,7 @@ export function EnquiryForm({
           rows={messageRows}
           placeholder={messagePlaceholder}
           value={form.message}
-          onChange={(event) =>
-            setForm({ ...form, message: event.target.value })
-          }
+          onChange={(event) => setForm({ ...form, message: event.target.value })}
         />
       </div>
       <div className="h-0 overflow-hidden" aria-hidden="true">
@@ -171,13 +165,13 @@ export function EnquiryForm({
           tabIndex={-1}
           autoComplete="off"
           value={form.website}
-          onChange={(event) =>
-            setForm({ ...form, website: event.target.value })
-          }
+          onChange={(event) => setForm({ ...form, website: event.target.value })}
         />
       </div>
       {error ? (
-        <p role="alert" className="text-sm text-danger">{error}</p>
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
       ) : null}
       <Button type="submit" disabled={pending} className="cta w-full border-0 sm:w-auto">
         {pending ? "Sending…" : submitLabel}

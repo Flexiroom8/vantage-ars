@@ -5,37 +5,119 @@ const LINES: { id: string; title: string; words: string[] }[] = [
     id: "voip",
     title: "VoIP & telecoms",
     words: [
-      "voip", "sip", "pbx", "pabx", "trunk", "trunks", "handset", "handsets", "telephony", "extension",
-      "extensions", "call quality", "dial tone", "3cx", "asterisk", "freepbx", "softphone", "ivr", "did number",
+      "voip",
+      "sip",
+      "pbx",
+      "pabx",
+      "trunk",
+      "trunks",
+      "handset",
+      "handsets",
+      "telephony",
+      "extension",
+      "extensions",
+      "call quality",
+      "dial tone",
+      "3cx",
+      "asterisk",
+      "freepbx",
+      "softphone",
+      "ivr",
+      "did number",
     ],
   },
   {
     id: "network",
     title: "Networking",
     words: [
-      "network", "networks", "networking", "wifi", "wi-fi", "wlan", "vlan", "switch", "router", "routers", "cabling",
-      "cable", "cables", "access point", "access points", "lan", "wan", "vpn", "fibre", "fiber", "dns", "dhcp",
+      "network",
+      "networks",
+      "networking",
+      "wifi",
+      "wi-fi",
+      "wlan",
+      "vlan",
+      "switch",
+      "router",
+      "routers",
+      "cabling",
+      "cable",
+      "cables",
+      "access point",
+      "access points",
+      "lan",
+      "wan",
+      "vpn",
+      "fibre",
+      "fiber",
+      "dns",
+      "dhcp",
     ],
   },
   {
     id: "infra",
     title: "IT infrastructure",
     words: [
-      "server", "servers", "infrastructure", "firewall", "backup", "backups", "active directory", "laptop",
-      "workstation", "nas", "hypervisor", "proxmox", "vmware", "hyper-v", "virtual machine",
+      "server",
+      "servers",
+      "infrastructure",
+      "firewall",
+      "backup",
+      "backups",
+      "active directory",
+      "laptop",
+      "workstation",
+      "nas",
+      "hypervisor",
+      "proxmox",
+      "vmware",
+      "hyper-v",
+      "virtual machine",
     ],
   },
 ];
 
 const COMMERCIAL = [
-  "quote", "quotation", "price", "pricing", "how much", "invoice", "book", "booking", "proposal", "install",
-  "installation", "cost", "rates", "estimate",
+  "quote",
+  "quotation",
+  "price",
+  "pricing",
+  "how much",
+  "invoice",
+  "book",
+  "booking",
+  "proposal",
+  "install",
+  "installation",
+  "cost",
+  "rates",
+  "estimate",
 ];
 const SUPPORT = [
-  "down", "broken", "fault", "faulty", "outage", "not working", "one-way", "no dial", "no dial tone", "dropping",
-  "cannot connect", "can't connect", "no connection",
+  "down",
+  "broken",
+  "fault",
+  "faulty",
+  "outage",
+  "not working",
+  "one-way",
+  "no dial",
+  "no dial tone",
+  "dropping",
+  "cannot connect",
+  "can't connect",
+  "no connection",
 ];
-const RISK = ["refund", "complaint", "unhappy", "dispute", "cancel", "terrible service", "chargeback", "lawyer"];
+const RISK = [
+  "refund",
+  "complaint",
+  "unhappy",
+  "dispute",
+  "cancel",
+  "terrible service",
+  "chargeback",
+  "lawyer",
+];
 
 const patternCache = new Map<string, RegExp>();
 
@@ -61,7 +143,9 @@ export type EnquiryClass = {
 
 export function classifyEnquiry(message: string): EnquiryClass {
   const text = message.toLowerCase();
-  const lines = LINES.filter((line) => line.words.some((word) => hasTerm(text, word))).map((line) => line.title);
+  const lines = LINES.filter((line) => line.words.some((word) => hasTerm(text, word))).map(
+    (line) => line.title,
+  );
   const commercial = COMMERCIAL.some((word) => hasTerm(text, word));
   const support = SUPPORT.some((word) => hasTerm(text, word));
   const risk = RISK.some((word) => hasTerm(text, word));
@@ -70,13 +154,20 @@ export function classifyEnquiry(message: string): EnquiryClass {
   return { lines, commercial, support, risk, score, stage };
 }
 
-export function intakeDestination(classification: EnquiryClass, forceDesk = false): "desk" | "signal" {
+export function intakeDestination(
+  classification: EnquiryClass,
+  forceDesk = false,
+): "desk" | "signal" {
   if (forceDesk || classification.support || classification.risk) return "desk";
   return "signal";
 }
 
 export function safePartyName(name: string): string {
-  const cleaned = name.replace(/[^\p{L}\p{N}\s.'-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  const cleaned = name
+    .replace(/[^\p{L}\p{N}\s.'-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
   const lower = cleaned.toLowerCase();
   const unsafe = ["ignore", "instruction", "system prompt", "stupid", "hate", "scam"];
   if (!cleaned || unsafe.some((word) => hasTerm(lower, word))) return "the enquirer";
@@ -194,7 +285,8 @@ export async function processWebsiteEnquiry(input: {
       {
         kind: "open_ticket",
         title: "Website fault noted",
-        rationale: "Technical fault noted from a website enquiry. No purchase and no customer concession.",
+        rationale:
+          "Technical fault noted from a website enquiry. No purchase and no customer concession.",
         confidence: 0.84,
         amountCents: 0,
         companyName: party,

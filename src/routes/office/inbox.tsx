@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { DispatchPanel } from "@/components/office/dispatch-panel";

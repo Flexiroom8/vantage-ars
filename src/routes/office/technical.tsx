@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
@@ -11,10 +11,11 @@ export const Route = createFileRoute("/office/technical")({
   component: TechnicalPage,
 });
 
-
 function TechnicalPage() {
   const snapshot = useOfficeSnapshot();
-  const tickets = snapshot.tickets.filter((ticket) => ticket.ownerAgent === "forge" || ticket.ownerAgent === "keep");
+  const tickets = snapshot.tickets.filter(
+    (ticket) => ticket.ownerAgent === "forge" || ticket.ownerAgent === "keep",
+  );
 
   return (
     <div className="enter-up mx-auto max-w-5xl">
@@ -37,7 +38,10 @@ function TechnicalPage() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Tickets</h2>
         {tickets.length === 0 ? (
-          <EmptyState title="No tickets" body="FORGE is idle. Brief it when something actually breaks or needs building." />
+          <EmptyState
+            title="No tickets"
+            body="FORGE is idle. Brief it when something actually breaks or needs building."
+          />
         ) : (
           <ul className="space-y-2">
             {tickets.map((ticket) => (
@@ -52,8 +56,12 @@ function TechnicalPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={ticket.severity === "p0" ? "danger" : "default"}>{ticket.severity}</Badge>
-                  <Badge variant={ticket.status === "resolved" ? "ok" : "warn"}>{ticket.status}</Badge>
+                  <Badge variant={ticket.severity === "p0" ? "danger" : "default"}>
+                    {ticket.severity}
+                  </Badge>
+                  <Badge variant={ticket.status === "resolved" ? "ok" : "warn"}>
+                    {ticket.status}
+                  </Badge>
                   <TicketActions id={ticket.id} status={ticket.status} />
                 </div>
               </li>
@@ -65,7 +73,10 @@ function TechnicalPage() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Documents</h2>
         {snapshot.documents.length === 0 ? (
-          <EmptyState title="No drafts" body="KEEP files what the office produces. Nothing is pre-written." />
+          <EmptyState
+            title="No drafts"
+            body="KEEP files what the office produces. Nothing is pre-written."
+          />
         ) : (
           <ul className="divide-y divide-border rounded-xl bg-surface shadow-[var(--shadow-border)]">
             {snapshot.documents.map((doc) => (

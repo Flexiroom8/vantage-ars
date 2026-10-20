@@ -21,7 +21,10 @@ export function parsePaymentNotice(input: {
   if (name === "the enquirer") return { ok: false, error: "Enter the name on the payment." };
   const reference = input.reference.trim().toUpperCase().replace(/\s/g, "");
   if (!/^VA-[A-Z0-9]{4,12}$/.test(reference)) {
-    return { ok: false, error: "Enter the quote or invoice reference, such as VA- followed by the code." };
+    return {
+      ok: false,
+      error: "Enter the quote or invoice reference, such as VA- followed by the code.",
+    };
   }
   const cents = parseClaimedZar(input.amount);
   if (cents === null) return { ok: false, error: "Enter the amount you paid, in rand." };

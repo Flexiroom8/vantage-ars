@@ -7,18 +7,22 @@ infrastructure support, South Africa.
 Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## Stack
+
 - TanStack Start + React 19, Tailwind CSS 4, Vite 8, Nitro 3
 - Postgres: Neon (or any Postgres) when `DATABASE_URL` is set, otherwise embedded PGLite
 - Better Auth (founder email and password), pdf-lib for quotes, Gmail SMTP for notices
 - Nine AI staff, each with a fixed role, working a durable queue on their own cadence
+- Seven productised services at published prices, and a standing founder delegation (ART-13) that lets the office deliver and bill them unattended
 
 ## What is in it
-| Area | Routes |
-| --- | --- |
-| Public site | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/rates`, `/work`, `/support`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline |
-| Founder office | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more |
-| Operations | `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status` |
+
+| Area                | Routes                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/rates`, `/work`, `/support`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                            |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                          |
+| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                              |
+| Operations          | `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                  |
 
 ## The office runs itself
 
@@ -28,18 +32,62 @@ enquiries, marketing scores leads on what the buyer actually wrote, flags repeat
 site interest as prospects, and drafts weekly owned-channel campaigns, then files
 a founder-gated handoff when demand is real; sales drafts real follow-ups on real
 quotes, the service desk drafts acknowledgements, technical writes procedures,
-finance chases overdue invoices, admin checks the filing, the orchestrator
-briefs you once a day from the books, and compliance halts the office if the
-audit chain ever fails to verify.
+finance chases overdue invoices, bills the subscriptions that are due and duns
+the ones that are not, admin checks the filing and reviews the recurring-revenue
+book, the orchestrator briefs you once a day from the books, and compliance halts
+the office if the audit chain ever fails to verify.
 
 None of them email a customer, spend money, win or lose a customer, or publish
-anything. Those are founder approvals, with the constitutional trace attached.
+anything. Those are founder approvals, with the constitutional trace attached —
+unless you have granted a standing delegation.
 
 Full detail, including every duty and every brake: **[docs/autonomy.md](docs/autonomy.md)**.
+
+## Standing delegation (ART-13)
+
+Nothing is delegated by default. The office ships with no delegation at all, and
+it stops at the founder gate for every cost, every customer win, every customer
+loss and every marketing-to-sales handoff.
+
+A delegation is the founder answering a whole class of question in advance:
+"for this bounded class of action, at this price, up to this many times a day,
+you may act without asking me again." It names the action kinds it covers, the
+published rate lines it may charge, the most any single action may be worth, and
+how many actions it may take per day and per month. It is revocable, and
+revocation takes effect on the very next action.
+
+A delegation never overrides a hard block. It cannot widen an agent's role,
+permit a price that is not published, permit a promise to a customer, or survive
+a halt. Every action taken under one is written into the audit chain against the
+delegation that allowed it.
+
+The founder sets it at **`/office/delegations`**. Four presets are offered, and
+none of them is on until it is saved.
+
+## Productised services and recurring revenue
+
+Seven services are published with a fixed scope, a fixed price and a
+deliverable the office can produce from its own records: the managed support
+plan and the remote health and spend watch, both monthly, and the service
+report, the billing and rate compliance audit, the infrastructure documentation
+and handover pack, the business continuity plan and the service level and
+response review, all one-off.
+
+Because the office can deliver them and can bill them, they are recurring
+revenue rather than jobs. A subscription bills on its own cycle, the
+deliverable is compiled from the office's own records, and the customer is sent
+their report and their invoice. Every email the office sends is kept in full
+under `customer_notices`.
+
+None of it happens on its own. The office delivers and bills a plan only under
+a delegation, and emails a customer only under a delegation that allows mail.
+The book is at **`/office/revenue`**; the plans and their prices are on
+**`/rates`** and **`/services/managed-support`**.
 
 ## Run locally
 
 Node 22.12 or newer.
+
 ```sh
 npm ci
 cp .env.example .env      # fill in what you need; everything is optional locally
@@ -50,38 +98,45 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 90 checks, no mocks and no
-sample data. If autonomy breaks, this fails.
+scheduler, and asserts on what the real agents did — 198 checks, no mocks and
+no sample data. If autonomy breaks, this fails.
 
 ## Environment
 
 Everything is in [`.env.example`](.env.example). The ones that matter:
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Postgres (Neon). Migrations run during `npm run build`. Unset means embedded PGLite. |
-| `PGLITE_DATA_DIR` | With PGLite, keep data here. Unset means in-memory, lost on restart. |
-| `BETTER_AUTH_URL` | The public URL. |
-| `BETTER_AUTH_SECRET` | A long random secret (`openssl rand -base64 32`). Required in production. |
-| `FOUNDER_SETUP_TOKEN` | One-time code for creating the founder account. Remove it afterwards. |
-| `FOUNDER_EMAIL` | The only account allowed into the office. |
-| `AUTONOMY` | `on` lets the office act unattended. Anything else and only the button works. |
-| `CRON_SECRET` | Bearer token the scheduler must present. 16+ characters. |
-| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Founder notices. |
-| `PAYMENT_*` | Bank details on the site and quotes. |
-| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff reasoning. Every autonomous duty works without it. |
+| Variable                                                        | Purpose                                                                              |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                                  | Postgres (Neon). Migrations run during `npm run build`. Unset means embedded PGLite. |
+| `PGLITE_DATA_DIR`                                               | With PGLite, keep data here. Unset means in-memory, lost on restart.                 |
+| `BETTER_AUTH_URL`                                               | The public URL.                                                                      |
+| `BETTER_AUTH_SECRET`                                            | A long random secret (`openssl rand -base64 32`). Required in production.            |
+| `FOUNDER_SETUP_TOKEN`                                           | One-time code for creating the founder account. Remove it afterwards.                |
+| `FOUNDER_EMAIL`                                                 | The only account allowed into the office.                                            |
+| `AUTONOMY`                                                      | `on` lets the office act unattended. Anything else and only the button works.        |
+| `CRON_SECRET`                                                   | Bearer token the scheduler must present. 16+ characters.                             |
+| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`                    | Founder notices.                                                                     |
+| `PAYMENT_*`                                                     | Bank details on the site and quotes.                                                 |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff reasoning. Every autonomous duty works without it.                          |
+
+Nothing new is needed for the delegation or the productised services. A
+delegation is set inside the office, and customer email uses the same
+`GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD` as founder notices.
 
 ## Founder setup (once)
+
 1. Set `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `FOUNDER_SETUP_TOKEN` and, if needed, `FOUNDER_EMAIL`. Deploy.
 2. Open `/office`. The page offers "First-time founder setup".
 3. Enter the founder email, a password of 12+ characters and the setup token.
 4. Remove `FOUNDER_SETUP_TOKEN` and redeploy. Sign-up is closed once a founder exists.
 
 ## Deploy
+
 **[docs/deploy-vercel.md](docs/deploy-vercel.md) is the full walkthrough** — the
 variables to set, the founder setup, the domain cutover, and how to verify it.
 
 ### Vercel + Neon (recommended)
+
 1. Import the GitHub repo in Vercel.
 2. Add a Neon database and set `DATABASE_URL`, then the auth settings above.
 3. Set `AUTONOMY=on` and a generated `CRON_SECRET`. The ten-minute tick is
@@ -97,12 +152,14 @@ variables to set, the founder setup, the domain cutover, and how to verify it.
    be `false`.
 
 ### Docker (any server)
+
 ```sh
 cp .env.example .env      # set AUTONOMY=on, CRON_SECRET, auth settings
 docker compose up -d --build
 ```
 
 ### Plain Node
+
 ```sh
 npm ci && npm run build && npm start      # .output/server/index.mjs, PORT defaults to 3000
 ```
@@ -118,7 +175,10 @@ heartbeat.
 
 **Autonomy UI.** `/office` shows the scheduler state, every duty and when it is
 next due, the live queue, and what each agent did last. The same panel runs the
-office on demand through the identical code path.
+office on demand through the identical code path. It also lists the
+dead-letter queue on its own, with the error that killed each item, and lets
+the founder redrive one: redriving is a founder action, never an automatic one,
+and it is written to the audit chain.
 
 **Money.** Amounts are integer cents. A receipt may only retire money actually
 owed — the balance update and the ledger row are one transaction that reads the
@@ -136,11 +196,14 @@ transactional: it never deletes or overwrites, and a half-restored office is
 impossible.
 
 ## CI
+
 `.github/workflows/ci.yml` runs typecheck, lint, tests, a production build and
 the office verification on every push to `main` and every pull request.
 
 ## Docs
+
 - [docs/autonomy.md](docs/autonomy.md): every duty, every brake, and why.
+- [docs/governance-architecture.md](docs/governance-architecture.md): the five planes, the risk tiers, the dead-letter queue, and what is deliberately not implemented.
 - [docs/deploy-vercel.md](docs/deploy-vercel.md): environment, cutover, verification.
 - [docs/business-scope-and-competitive-pricing.md](docs/business-scope-and-competitive-pricing.md): scope, rates and department boundaries.
 - [docs/cloudflare-workers-ai.md](docs/cloudflare-workers-ai.md): account id, API token, per-host env, verification.
@@ -148,6 +211,17 @@ the office verification on every push to `main` and every pull request.
 - [CHANGELOG.md](CHANGELOG.md): what changed and when.
 
 ## Governance
+
 Agents act only inside their role. Anything that costs money, risks a customer,
-or can win one goes to the founder for approval. Every decision is recorded in a
-hash-chained audit trail that the office verifies on its own.
+or can win one goes to the founder for approval, unless a standing delegation
+covers it. Every decision is recorded in a hash-chained audit trail that the
+office verifies on its own.
+
+The founder's own rulings are recorded too, and in more detail than the chain
+alone: the risk tier of the decision, the POPIA section 71 test and its
+answers, the material conditions the ruling was made under, and a signed
+receipt for the execution. A precedent is evidence, never authority — nothing
+in the code reads a past approval to permit a present action.
+
+How the office is bounded, and what it does not do:
+**[docs/governance-architecture.md](docs/governance-architecture.md)**.

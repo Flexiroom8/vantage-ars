@@ -48,9 +48,10 @@ function WorkPage() {
           Remote first. Quoted first. Tested after.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-          Every job follows the same path: understand the fault, fix the price in writing, then
-          do the agreed work. No retainer, no SLA promise — just defined work with a way to check
-          it.
+          Every job follows the same path: understand the fault, fix the price in writing, then do
+          the agreed work. Monthly managed plans are offered at a fixed published price, and there
+          is still no live monitoring of your estate, no uptime promise and no contractual service
+          level — just defined work with a way to check it.
         </p>
       </section>
 
@@ -58,7 +59,8 @@ function WorkPage() {
         {STEPS.map((step, index) => (
           <div
             key={step.title}
-            className={`panel panel-hover rounded-2xl p-6 ${index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"}`}>
+            className={`panel panel-hover rounded-2xl p-6 ${index === 1 ? "enter-up d-1" : index === 2 ? "enter-up d-2" : "enter-up"}`}
+          >
             <div className="flex items-center justify-between">
               <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
                 <step.Icon className="size-6 text-accent" aria-hidden="true" />
@@ -74,9 +76,15 @@ function WorkPage() {
       <section className="border-t border-border py-16">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Where this applies</h2>
-          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">Three lines of work</p>
+          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
+            Four lines of work
+          </p>
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+          Managed services run monthly or as a one-off written report. Everything on the managed
+          side is remote only, fixed in price, and produced from our own records.
+        </p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {SERVICE_PAGES.map((page) => (
             <Link
               key={page.slug}

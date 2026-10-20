@@ -28,15 +28,25 @@ test("link state follows the answer, revocation, document and expiry", () => {
 });
 
 test("customer answer needs a name, and acceptance needs the box ticked", () => {
-  assert.equal(parseCustomerAnswer({ outcome: "accepted", name: "Ann Lee", agree: false }).ok, false);
+  assert.equal(
+    parseCustomerAnswer({ outcome: "accepted", name: "Ann Lee", agree: false }).ok,
+    false,
+  );
   assert.equal(parseCustomerAnswer({ outcome: "accepted", name: "A", agree: true }).ok, false);
   assert.equal(parseCustomerAnswer({ outcome: "maybe", name: "Ann Lee" }).ok, false);
-  assert.deepEqual(parseCustomerAnswer({ outcome: "accepted", name: "  Ann   Lee ", agree: true }), {
-    ok: true,
-    outcome: "accepted",
+  assert.deepEqual(
+    parseCustomerAnswer({ outcome: "accepted", name: "  Ann   Lee ", agree: true }),
+    {
+      ok: true,
+      outcome: "accepted",
+      name: "Ann Lee",
+      note: "",
+    },
+  );
+  const declined = parseCustomerAnswer({
+    outcome: "declined",
     name: "Ann Lee",
-    note: "",
+    note: "Too far out",
   });
-  const declined = parseCustomerAnswer({ outcome: "declined", name: "Ann Lee", note: "Too far out" });
   assert.equal(declined.ok && declined.note, "Too far out");
 });

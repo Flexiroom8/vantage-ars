@@ -10,17 +10,17 @@ export type SignInOptions = {
 };
 
 /** What the private door should offer. Reveals no account details. */
-export const getSignInOptions = createServerFn({ method: "GET" }).handler(async (): Promise<SignInOptions> => {
-  const [{ oauthEnabled }, { emailAndPasswordEnabled }, { founderSetupOpen }] = await Promise.all([
-    import("./server"),
-    import("./email-password"),
-    import("./founder-setup"),
-  ]);
-  let setupOpen = false;
-  try {
-    setupOpen = emailAndPasswordEnabled && (await founderSetupOpen());
-  } catch {
-    setupOpen = false;
-  }
-  return { password: emailAndPasswordEnabled, oauth: oauthEnabled, setupOpen };
-});
+export const getSignInOptions = createServerFn({ method: "GET" }).handler(
+  async (): Promise<SignInOptions> => {
+    const [{ oauthEnabled }, { emailAndPasswordEnabled }, { founderSetupOpen }] = await Promise.all(
+      [import("./server"), import("./email-password"), import("./founder-setup")],
+    );
+    let setupOpen = false;
+    try {
+      setupOpen = emailAndPasswordEnabled && (await founderSetupOpen());
+    } catch {
+      setupOpen = false;
+    }
+    return { password: emailAndPasswordEnabled, oauth: oauthEnabled, setupOpen };
+  },
+);

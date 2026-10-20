@@ -1,27 +1,76 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID } from "node:crypto";
 import { getSql, type Sql } from "../db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
 import { COMPANY, GENESIS_HASH } from "./company";
 import { authorizeAction } from "./governor";
 import { chainHash, sha256Hex, stableStringify } from "./hash";
+import { assessRisk, type RiskAssessment, type RiskTier, type RiskTierName } from "./risk";
+import {
+  REASON_CODES,
+  requiresPreExposureReasoning,
+  runGate71,
+  validatePreExposureReasoning,
+  type GateAnswer,
+  type GateOutcome,
+  type GateQuestion,
+} from "./gate71";
+import {
+  amountBand,
+  precedentAdvice,
+  retrievePrecedent,
+  type DecisionEpisode,
+  type PrecedentMatch,
+} from "./precedent";
 import { PUBLISHED_RATES } from "./catalogue";
 import { buildQuoteDocument } from "./quote";
-import { customerQuoteText, deliveryJob, documentRef, invoiceCopy, ledgerVat, parseVatTreatment, type VatTreatment, expenseVat, paymentInstructionsText, paymentNote, quoteInvoice, receiptCopy, receiptForInvoice } from "./invoice";
+import {
+  DELEGATABLE_ACTIONS,
+  delegatableRateIds,
+  type DelegationAction,
+  type DelegationPolicy,
+} from "./delegation";
+import { planById } from "./plans";
+import { nextCycleStart } from "./subscription";
+import { resolveRecipient } from "./customer-notice.server";
+import {
+  customerQuoteText,
+  deliveryJob,
+  documentRef,
+  invoiceCopy,
+  ledgerVat,
+  parseVatTreatment,
+  type VatTreatment,
+  expenseVat,
+  paymentInstructionsText,
+  paymentNote,
+  quoteInvoice,
+  receiptCopy,
+  receiptForInvoice,
+} from "./invoice";
 import { parsePaymentNotice } from "./payment-notice";
 import { nextTicketStatus } from "./ticket";
-import { linkExpiry, linkState, plausibleToken, type QuoteLinkState, type QuoteLinkSummary } from "./quote-link";
+import {
+  linkExpiry,
+  linkState,
+  plausibleToken,
+  type QuoteLinkState,
+  type QuoteLinkSummary,
+} from "./quote-link";
 import { smtpStatus } from "./smtp.server";
 import type {
   ActionKind,
   AgentDef,
   AgentRow,
+  ApprovalKind,
   ApprovalRow,
   AuditRow,
   AutonomyHealth,
+  BillingCycleRow,
   CampaignRow,
   CompanySnapshot,
   DecisionRow,
+  DelegationUsage,
   DispatchResult,
   DocumentRow,
   InboundRow,
@@ -33,6 +82,8 @@ import type {
   ProposedAction,
   ProvisionCheck,
   ProvisionRow,
+  RevenueMetrics,
+  SubscriptionRow,
   TicketRow,
   Json,
 } from "./types";
@@ -225,7 +276,9 @@ async function provisionOffice(): Promise<void> {
   }
 
   await sql.transaction(async (tx) => {
-    const raced = await tx<{ id: string }>`select id from company_state where id = ${COMPANY.id} for update`;
+    const raced = await tx<{
+      id: string;
+    }>`select id from company_state where id = ${COMPANY.id} for update`;
     if (raced.length) return;
 
     await tx`
@@ -262,7 +315,7 @@ async function provisionOffice(): Promise<void> {
     const previous = GENESIS_HASH;
     const id = randomUUID();
     const body =
-      "Constitution v1.0.0 ratified by Juan-louw Greyling. Nine non-human identities issued. Treasury R0.00. Autonomy A3 within role; founder gates on cost, customer win, customer loss, and marketing-to-sales handoff.";
+      "Constitution v1.1.0 ratified by Juan-louw Greyling. Nine non-human identities issued. Treasury R0.00. Autonomy A3 within role; founder gates on cost, customer win, customer loss, and marketing-to-sales handoff, with a standing delegation available under ART-13.";
     const recordHash = chainHash(previous, {
       id,
       kind: "office_open",
@@ -341,6 +394,21 @@ async function syncRoster(sql: Sql): Promise<void> {
       where id = ${"art-11"} and body is distinct from ${role.body}
     `;
   }
+  // A constitution amendment must reach an office that was provisioned before
+  // it. Every provision is re-synced, so a deployed office is never running a
+  // constitution that is one version behind the code.
+  for (const provision of CONSTITUTION) {
+    await sql`
+      update constitution_provisions
+      set body = ${provision.body},
+          title = ${provision.title},
+          priority = ${provision.priority}
+      where id = ${provision.id}
+        and (body is distinct from ${provision.body}
+             or title is distinct from ${provision.title}
+             or priority is distinct from ${provision.priority})
+    `;
+  }
 }
 
 function mapAgent(row: Record<string, unknown>): AgentRow {
@@ -356,15 +424,18 @@ function mapAgent(row: Record<string, unknown>): AgentRow {
     summary: String(row.summary),
     allowedActions: parseJson(row.allowed_actions_json, def?.allowedActions ?? []),
     bindings: parseJson(row.bindings_json, def?.bindings ?? []),
-    authority: parseJson(row.authority_json, def?.authority ?? {
-      maySpend: false,
-      mayContactMarket: false,
-      mayEnterSales: false,
-      mayIssueInvoice: false,
-      mayHaltFleet: false,
-      vetoPower: false,
-      maxAutonomousCents: 0,
-    }),
+    authority: parseJson(
+      row.authority_json,
+      def?.authority ?? {
+        maySpend: false,
+        mayContactMarket: false,
+        mayEnterSales: false,
+        mayIssueInvoice: false,
+        mayHaltFleet: false,
+        vetoPower: false,
+        maxAutonomousCents: 0,
+      },
+    ),
     currentTask: row.current_task ? String(row.current_task) : null,
     lastHeartbeat: row.last_heartbeat ? iso(row.last_heartbeat) : null,
     decisionsCount: num(row.decisions_count),
@@ -434,7 +505,9 @@ function healthOf(
   const total = decisions.length;
   const blocked = decisions.filter((d) => d.status === "blocked").length;
   const escalated = decisions.filter((d) => d.status === "escalated").length;
-  const executed = decisions.filter((d) => d.status === "executed" || d.status === "authorized").length;
+  const executed = decisions.filter(
+    (d) => d.status === "executed" || d.status === "authorized",
+  ).length;
   const pending = approvals.filter((a) => a.status === "pending").length;
   const resolved = approvals.filter((a) => a.status !== "pending").length;
   // A block is the system refusing to act. That is the constitution working, not
@@ -443,7 +516,8 @@ function healthOf(
   const interventionRate = total === 0 ? 0 : escalated / total;
   const autonomousResolution = total === 0 ? 1 : executed / total;
   // Hard blocks are expected to be rare. Above ~2% the fleet is pushing.
-  const constraintAdherence = total === 0 ? 1 : Math.max(0, 1 - hardViolations / Math.max(total, 1));
+  const constraintAdherence =
+    total === 0 ? 1 : Math.max(0, 1 - hardViolations / Math.max(total, 1));
   const decisionQuality = total === 0 ? 1 : Math.max(0, 1 - blocked / Math.max(total, 1));
   const governance = company.halted ? 0.4 : 0.98;
   // Backlog of unresolved founder gates is the one thing that silently rots.
@@ -498,7 +572,9 @@ export async function readSnapshot(): Promise<OfficeSnapshot> {
     auditRows,
     noticeRows,
   ] = await Promise.all([
-    sql<Record<string, unknown>>`select * from constitution_provisions order by priority, article_id`,
+    sql<
+      Record<string, unknown>
+    >`select * from constitution_provisions order by priority, article_id`,
     sql<Record<string, unknown>>`select * from agents order by callsign`,
     sql<Record<string, unknown>>`select * from inbound_items order by created_at desc limit 80`,
     sql<Record<string, unknown>>`select * from leads order by updated_at desc limit 80`,
@@ -627,6 +703,20 @@ export async function readSnapshot(): Promise<OfficeSnapshot> {
     createdAt: iso(row.created_at),
   }));
 
+  const delegation = await readDelegationTx(sql);
+  const delegationUsage = delegation
+    ? await readDelegationUsageTx(sql, delegation.id)
+    : {
+        usedToday: 0,
+        spentTodayCents: 0,
+        usedThisMonth: 0,
+        spentThisMonthCents: 0,
+      };
+  const subscriptionRows = await sql<Record<string, unknown>>`
+    select * from subscriptions order by created_at desc limit 200
+  `;
+  const revenue = await revenueMetrics();
+
   return {
     company,
     provisions,
@@ -644,6 +734,10 @@ export async function readSnapshot(): Promise<OfficeSnapshot> {
     notices,
     mail: smtpStatus(),
     health: healthOf(company, decisions, approvals),
+    delegation,
+    delegationUsage,
+    subscriptions: subscriptionRows.map(mapSubscription),
+    revenue,
   };
 }
 
@@ -667,6 +761,215 @@ async function hasWonOpportunity(sql: Sql, companyName: string): Promise<boolean
   return rows.length > 0;
 }
 
+/**
+ * Whether the customer has an accepted quote on file.
+ *
+ * This is the anchor for delegated billing: the office may only charge a
+ * customer for work they have agreed to. It is checked against the whole
+ * table, never a window.
+ */
+async function hasAcceptedQuote(sql: Sql, companyName: string): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    select d.id from documents d
+    join opportunities o on o.id = d.related_id
+    where d.kind = 'quote'
+      and d.status = 'accepted'
+      and lower(o.company_name) = ${companyName.trim().toLowerCase()}
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Whether this customer actually contacted the office.
+ *
+ * A lead the office invented from a page view has no inbound record, and the
+ * office may not put a commercial offer in front of it — even under a
+ * delegation.
+ */
+async function hasRealEnquiry(sql: Sql, companyName: string): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    select id from inbound_items
+    where lower(company_name) = ${companyName.trim().toLowerCase()}
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
+// ── Delegated authority ───────────────────────────────────────────────────────
+
+/** There is one delegation. It is edited, paused and revoked, never duplicated. */
+const DELEGATION_ID = "primary";
+
+function mapDelegation(row: Record<string, unknown>): DelegationPolicy {
+  const actions = parseJson<string[]>(row.allowed_actions_json, []).filter(
+    (action): action is DelegationAction =>
+      (DELEGATABLE_ACTIONS as readonly string[]).includes(action as string),
+  );
+  const rates = parseJson<string[]>(row.allowed_rate_ids_json, []).filter((id) =>
+    delegatableRateIds().includes(id),
+  );
+  return {
+    id: String(row.id),
+    label: String(row.label ?? "Delegation"),
+    status: (String(row.status) as DelegationPolicy["status"]) || "active",
+    maxAmountCents: num(row.max_amount_cents, 500000),
+    maxActionsPerDay: num(row.max_actions_per_day, 20),
+    maxActionsPerMonth: num(row.max_actions_per_month, 200),
+    allowedActions: actions,
+    allowedRateIds: rates,
+    allowCustomerMail: bool(row.allow_customer_mail),
+    allowAutoReconcile: bool(row.allow_auto_reconcile),
+    requireAcceptedQuote: bool(row.require_accepted_quote),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+    revokedAt: row.revoked_at ? iso(row.revoked_at) : null,
+  };
+}
+
+async function readDelegationTx(sql: Sql): Promise<DelegationPolicy | null> {
+  const rows = await sql<Record<string, unknown>>`
+    select * from delegations where id = ${DELEGATION_ID} limit 1
+  `;
+  return rows.length ? mapDelegation(rows[0]) : null;
+}
+
+/** The founder's standing delegation, if there is one. */
+export async function readDelegation(): Promise<DelegationPolicy | null> {
+  return readDelegationTx(await getSql());
+}
+
+/** How much of the delegation has been used. Counted from real rows. */
+export async function readDelegationUsage(
+  delegationId: string = DELEGATION_ID,
+): Promise<DelegationUsage> {
+  return readDelegationUsageTx(await getSql(), delegationId);
+}
+
+async function readDelegationUsageTx(sql: Sql, delegationId: string): Promise<DelegationUsage> {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const month = now.toISOString().slice(0, 7);
+  const rows = await sql<{ n: number; cents: number; month_n: number; month_cents: number }>`
+    select
+      count(*) filter (where usage_day = ${day})::int as n,
+      coalesce(sum(amount_cents) filter (where usage_day = ${day}), 0)::int as cents,
+      count(*) filter (where usage_month = ${month})::int as month_n,
+      coalesce(sum(amount_cents) filter (where usage_month = ${month}), 0)::int as month_cents
+    from delegation_usage
+    where delegation_id = ${delegationId}
+  `;
+  const row = rows[0];
+  return {
+    usedToday: num(row?.n),
+    spentTodayCents: num(row?.cents),
+    usedThisMonth: num(row?.month_n),
+    spentThisMonthCents: num(row?.month_cents),
+  };
+}
+
+/**
+ * Save the delegation. This is the founder writing down, in advance, exactly
+ * how far the office may go on its own. Every change is audited, so the
+ * authority that allowed a given action can always be read back.
+ */
+export async function saveDelegation(input: {
+  label: string;
+  status?: "active" | "paused";
+  maxAmountCents: number;
+  maxActionsPerDay: number;
+  maxActionsPerMonth: number;
+  allowedActions: string[];
+  allowedRateIds: string[];
+  allowCustomerMail: boolean;
+  allowAutoReconcile: boolean;
+  requireAcceptedQuote: boolean;
+}): Promise<{ ok: true; delegation: DelegationPolicy } | { ok: false; error: string }> {
+  const label = (input.label ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (label.length < 3)
+    return { ok: false, error: "Give the delegation a name you will recognise." };
+  const actions = (input.allowedActions ?? []).filter((action): action is DelegationAction =>
+    (DELEGATABLE_ACTIONS as readonly string[]).includes(action),
+  );
+  if (actions.length !== (input.allowedActions ?? []).length) {
+    return { ok: false, error: "One of those actions cannot be delegated." };
+  }
+  const rates = (input.allowedRateIds ?? []).filter((id) => delegatableRateIds().includes(id));
+  const maxAmount = Math.max(0, Math.round(Number(input.maxAmountCents) || 0));
+  if (maxAmount <= 0) return { ok: false, error: "Set a limit for a single action." };
+  const perDay = Math.max(0, Math.round(Number(input.maxActionsPerDay) || 0));
+  const perMonth = Math.max(0, Math.round(Number(input.maxActionsPerMonth) || 0));
+  if (perDay <= 0 || perMonth <= 0) {
+    return { ok: false, error: "Set how many actions the delegation may take per day and month." };
+  }
+  if (perMonth < perDay) {
+    return { ok: false, error: "The monthly limit cannot be smaller than the daily limit." };
+  }
+  if (actions.includes("send_customer_mail") && !input.allowCustomerMail) {
+    return { ok: false, error: "Allow customer email, or remove it from the delegated actions." };
+  }
+
+  const sql = await getSql();
+  const status = input.status === "paused" ? "paused" : "active";
+  await sql`
+    insert into delegations (
+      id, label, status, max_amount_cents, max_actions_per_day, max_actions_per_month,
+      allowed_actions_json, allowed_rate_ids_json, allow_customer_mail,
+      allow_auto_reconcile, require_accepted_quote, created_at, updated_at, revoked_at
+    ) values (
+      ${DELEGATION_ID}, ${label}, ${status}, ${maxAmount}, ${perDay}, ${perMonth},
+      ${JSON.stringify(actions)}, ${JSON.stringify(rates)}, ${input.allowCustomerMail === true},
+      ${input.allowAutoReconcile === true}, ${input.requireAcceptedQuote !== false},
+      now(), now(), null
+    )
+    on conflict (id) do update set
+      label = excluded.label,
+      status = excluded.status,
+      max_amount_cents = excluded.max_amount_cents,
+      max_actions_per_day = excluded.max_actions_per_day,
+      max_actions_per_month = excluded.max_actions_per_month,
+      allowed_actions_json = excluded.allowed_actions_json,
+      allowed_rate_ids_json = excluded.allowed_rate_ids_json,
+      allow_customer_mail = excluded.allow_customer_mail,
+      allow_auto_reconcile = excluded.allow_auto_reconcile,
+      require_accepted_quote = excluded.require_accepted_quote,
+      updated_at = now(),
+      revoked_at = null
+  `;
+  const delegation = await readDelegationTx(sql);
+  await appendAudit(
+    "delegation_saved",
+    `Delegation "${label}" ${status === "paused" ? "paused" : "active"}`,
+    `Actions: ${actions.length ? actions.join(", ") : "none"}. Limit R${(maxAmount / 100).toFixed(2)} per action, ${perDay} per day, ${perMonth} per month. Customer email ${input.allowCustomerMail ? "on" : "off"}. Automatic payment matching ${input.allowAutoReconcile ? "on" : "off"}.`,
+    "founder",
+  );
+  return { ok: true, delegation: delegation as DelegationPolicy };
+}
+
+/**
+ * Revoke the delegation. It takes effect on the very next action the office
+ * would take; there is no grace period and no queue of work already approved.
+ */
+export async function revokeDelegation(
+  reason: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sql = await getSql();
+  const rows = await sql<{ id: string }>`select id from delegations where id = ${DELEGATION_ID}`;
+  if (!rows.length) return { ok: false, error: "There is no delegation to revoke." };
+  await sql`
+    update delegations
+    set status = 'revoked', revoked_at = now(), updated_at = now()
+    where id = ${DELEGATION_ID}
+  `;
+  await appendAudit(
+    "delegation_revoked",
+    "Delegation revoked",
+    `The founder revoked the standing delegation. ${reason.replace(/\s+/g, " ").trim().slice(0, 400)}`,
+    "founder",
+  );
+  return { ok: true };
+}
+
 async function recordDecisionTx(
   sql: Sql,
   input: {
@@ -676,6 +979,7 @@ async function recordDecisionTx(
     trace: ProvisionCheck[];
     reversibility: DecisionRow["reversibility"];
     observation: Record<string, Json>;
+    delegationId?: string | null;
   },
 ): Promise<string> {
   const previous = await readAuditHead(sql);
@@ -691,18 +995,19 @@ async function recordDecisionTx(
     trace: input.trace,
     observation: input.observation,
     evidenceHash,
+    delegationId: input.delegationId ?? null,
   });
   await sql`
     insert into decisions (
       id, agent_id, action_kind, title, rationale, status, confidence, reversibility,
       amount_cents, constitutional_trace_json, observation_json, action_json,
-      evidence_hash, previous_hash, record_hash
+      evidence_hash, previous_hash, record_hash, delegation_id
     ) values (
       ${id}, ${input.agentId}, ${input.action.kind}, ${input.action.title},
       ${input.action.rationale}, ${input.status}, ${input.action.confidence},
       ${input.reversibility}, ${input.action.amountCents}, ${JSON.stringify(input.trace)},
       ${JSON.stringify(input.observation)}, ${JSON.stringify(input.action)},
-      ${evidenceHash}, ${previous}, ${recordHash}
+      ${evidenceHash}, ${previous}, ${recordHash}, ${input.delegationId ?? null}
     )
   `;
   await sql`
@@ -731,7 +1036,7 @@ async function executeAuthorized(
   agentId: string,
   action: ProposedAction,
   approvalId?: string,
-): Promise<void> {
+): Promise<{ documentId?: string }> {
   const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
   const amount = Math.max(0, Math.round(action.amountCents || 0));
 
@@ -814,7 +1119,8 @@ async function executeAuthorized(
     case "activate_campaign": {
       const budget = amount;
       const books = await loadCompanyTx(sql);
-      const canPay = action.kind === "activate_campaign" && budget > 0 && books.treasuryCents >= budget;
+      const canPay =
+        action.kind === "activate_campaign" && budget > 0 && books.treasuryCents >= budget;
       const status =
         action.kind === "activate_campaign"
           ? budget === 0
@@ -914,9 +1220,11 @@ async function executeAuthorized(
       }
       const quoteId = randomUUID();
       const body = quoteDocumentBody(quoteId, action);
+      const rateId =
+        typeof action.payload.rateId === "string" ? action.payload.rateId.trim() : null;
       await sql`
-        insert into documents (id, title, kind, status, summary, related_id)
-        values (${quoteId}, ${action.title}, 'quote', 'approved_unsent', ${body}, ${action.relatedId ?? null})
+        insert into documents (id, title, kind, status, summary, related_id, rate_id)
+        values (${quoteId}, ${action.title}, 'quote', 'approved_unsent', ${body}, ${action.relatedId ?? null}, ${rateId})
       `;
       break;
     }
@@ -954,6 +1262,20 @@ async function executeAuthorized(
       break;
     }
     case "issue_invoice": {
+      const cycleId =
+        typeof action.payload.cycleId === "string" ? action.payload.cycleId.trim() : "";
+      // A billing period may only be invoiced once. The claim is a conditional
+      // update, so two ticks racing on the same period cannot both win.
+      if (cycleId) {
+        const claimed = await sql<{ id: string }>`
+          update billing_cycles set status = 'invoiced'
+          where id = ${cycleId} and status = 'pending'
+          returning id
+        `;
+        if (!claimed.length) {
+          throw new Error("That billing period has already been invoiced.");
+        }
+      }
       const id = randomUUID();
       const given = action.payload.vatCents;
       const vat =
@@ -969,6 +1291,25 @@ async function executeAuthorized(
         set receivable_cents = receivable_cents + ${amount}, updated_at = now()
         where id = ${COMPANY.id}
       `;
+      if (cycleId) {
+        const documentId = randomUUID();
+        const reference = documentRef(documentId);
+        const summary = invoiceCopy(companyName || "Counterparty", amount, reference, {
+          treatment: parseVatTreatment(action.payload.vatTreatment),
+          netCents: amount - vat,
+          vatCents: vat,
+        });
+        await sql`
+          insert into documents (id, title, kind, status, summary, related_id)
+          values (${documentId}, ${`Invoice · ${companyName || "Counterparty"}`}, 'invoice', 'approved_unsent', ${summary}, ${cycleId})
+        `;
+        await sql`
+          update billing_cycles
+          set invoice_id = ${id}, document_id = ${documentId}
+          where id = ${cycleId}
+        `;
+        return { documentId };
+      }
       break;
     }
     case "record_expense": {
@@ -1064,9 +1405,618 @@ async function executeAuthorized(
     }
     case "notify_operator":
       break;
+    case "fulfil_service": {
+      // The deliverable was produced by the office from its own records and is
+      // carried in the payload. It is written down as a document so the
+      // customer can be sent exactly what was produced.
+      const cycleId = String(action.payload.cycleId ?? action.relatedId ?? "");
+      const report = String(action.payload.reportBody ?? "").trim();
+      if (!report) throw new Error("A service cannot be fulfilled without a deliverable.");
+      const id = randomUUID();
+      await sql`
+        insert into documents (id, title, kind, status, summary, related_id)
+        values (${id}, ${action.title}, 'service_report', 'delivered', ${report}, ${cycleId || null})
+      `;
+      if (cycleId) {
+        await sql`
+          update billing_cycles
+          set status = 'fulfilled', report_document_id = ${id}, fulfilled_at = now()
+          where id = ${cycleId} and status in ('pending', 'invoiced')
+        `;
+      }
+      return { documentId: id };
+    }
+    case "start_subscription": {
+      const planId = String(action.payload.planId ?? "");
+      const rateId = String(action.payload.rateId ?? "");
+      const priceCents = Math.max(0, Math.round(Number(action.payload.priceCents ?? 0)));
+      if (!planId || !rateId || priceCents <= 0) {
+        throw new Error("A subscription needs a plan, a rate line, and a price.");
+      }
+      const id = randomUUID();
+      const cycle = String(action.payload.cycle ?? "monthly");
+      const periodStart = String(action.payload.periodStart ?? new Date().toISOString());
+      await sql`
+        insert into subscriptions (
+          id, company_name, contact_name, contact_email, plan_id, rate_id, cycle,
+          price_cents, status, opportunity_id, quote_document_id, started_at,
+          next_billing_at, created_at, updated_at
+        ) values (
+          ${id}, ${companyName}, ${String(action.payload.contactName ?? "") || null},
+          ${String(action.payload.contactEmail ?? "") || null}, ${planId}, ${rateId}, ${cycle},
+          ${priceCents}, 'active', ${String(action.payload.opportunityId ?? "") || null},
+          ${String(action.payload.quoteDocumentId ?? "") || null}, ${periodStart},
+          ${periodStart}, now(), now()
+        )
+      `;
+      return { documentId: id };
+    }
+    case "cancel_subscription": {
+      const id = String(action.relatedId ?? "");
+      if (!id) throw new Error("A subscription needs an id to cancel.");
+      const reason = String(action.payload.reason ?? action.rationale).slice(0, 400);
+      const updated = await sql<{ id: string }>`
+        update subscriptions
+        set status = 'cancelled', cancelled_at = now(), cancellation_reason = ${reason},
+            updated_at = now()
+        where id = ${id} and status <> 'cancelled'
+        returning id
+      `;
+      if (!updated.length) throw new Error("That subscription is already cancelled.");
+      await sql`
+        update billing_cycles
+        set status = 'cancelled'
+        where subscription_id = ${id} and status in ('pending', 'invoiced') and period_start > now()
+      `;
+      break;
+    }
+    case "send_customer_mail": {
+      const template = String(action.payload.template ?? "");
+      const { draftNotice } = await import("./customer-notice.server");
+      const isQuote = template === "quote";
+      let quoteToken: string | null = null;
+      if (isQuote) {
+        const quoteDocumentId = String(action.payload.quoteDocumentId ?? "");
+        if (!quoteDocumentId) throw new Error("A quote notice needs a quote to send.");
+        const link = await createQuoteLinkTx(sql, quoteDocumentId, {
+          actor: agentId,
+          revokeExisting: false,
+        });
+        if (!link.ok) throw new Error(link.error);
+        quoteToken = link.token;
+      }
+      const draft = await draftNotice(sql, {
+        template: template as never,
+        companyName,
+        cycleId: String(action.payload.cycleId ?? "") || null,
+        quoteDocumentId: String(action.payload.quoteDocumentId ?? "") || null,
+        subscriptionId: String(action.payload.subscriptionId ?? "") || null,
+        invoiceId: String(action.payload.invoiceId ?? "") || null,
+        quoteToken,
+      });
+      if (!draft.ok) throw new Error(draft.error);
+      const id = randomUUID();
+      await sql`
+        insert into customer_notices (
+          id, document_id, subscription_id, cycle_id, company_name, template,
+          recipient, subject, body, status, created_at
+        ) values (
+          ${id}, ${String(action.payload.quoteDocumentId ?? "") || null},
+          ${String(action.payload.subscriptionId ?? "") || null},
+          ${String(action.payload.cycleId ?? "") || null},
+          ${companyName || null}, ${template}, ${draft.recipient}, ${draft.subject},
+          ${draft.body}, 'approved_unsent', now()
+        )
+      `;
+      return { documentId: id };
+    }
     default:
       throw new Error(`Unknown action kind: ${action.kind}`);
   }
+  return {};
+}
+
+// ── Governed decisions ───────────────────────────────────────────────────────
+//
+// Four things live here, and they are four different records of one moment:
+//
+//   1. the RISK TIER of an action (risk.ts) — one word that says how much of
+//      the founder's judgement an action is asking for;
+//   2. the POPIA section 71 GATE (gate71.ts) — the five-question test, and the
+//      reasoning the founder must write down before a legal action is exposed;
+//   3. the DECISION EPISODE (precedent.ts) — what the founder decided, under
+//      which material conditions, so the same question can be put to them
+//      with the last answer in front of them;
+//   4. the EXECUTION RECEIPT — a signed statement of what ran, under which
+//      authority, and against which audit chain head.
+//
+// All four are pure modules doing the thinking; this file is where their
+// answers are written down.
+
+/**
+ * Action kinds whose outcome is a customer loss.
+ *
+ * These are the decisions that end a relationship with a person, so they are
+ * the ones where POPIA section 71 bites hardest: the processing is profiling
+ * a customer because the office is ranking, scoring and closing them.
+ */
+const CUSTOMER_LOSS_KINDS = new Set([
+  "propose_close_lost",
+  "escalate_account_risk",
+  "cancel_subscription",
+]);
+
+/** The tier an action sits in, and why. */
+function riskOfAction(action: ProposedAction): RiskAssessment {
+  return assessRisk({
+    kind: action.kind,
+    amountCents: action.amountCents,
+    companyName: action.companyName,
+    payload: action.payload,
+  });
+}
+
+/**
+ * Run the section 71 test with the answers the office can determine on its
+ * own.
+ *
+ * `humanJudgedFirst` is false on purpose. Nobody has judged the case yet —
+ * the founder is being asked to — and saying so is what promotes the action
+ * to a legal gate: the gate exists precisely because the machine proposed
+ * something before a human had looked at the case.
+ */
+function gateOutcomeFor(action: ProposedAction, risk: RiskAssessment): GateOutcome {
+  const legal = risk.name === "1-Legal";
+  return runGate71({
+    significantEffect: legal,
+    humanJudgedFirst: false,
+    profiling: legal && CUSTOMER_LOSS_KINDS.has(action.kind),
+    purposeConsistent: true,
+    explainable: true,
+  });
+}
+
+/** The policy version the office is running under right now. */
+function policyVersionOf(company: CompanySnapshot): string {
+  return company.constitutionVersion;
+}
+
+/**
+ * The stage of the opportunity this decision is about, if one is linked.
+ *
+ * Two ways to find it: the action may point at the opportunity directly, and
+ * failing that the company may have one on file. Stage is a material
+ * condition of a ruling, so it is worth the extra read.
+ */
+async function stageForDecision(
+  sql: Sql,
+  action: ProposedAction,
+  companyName: string | null,
+): Promise<string | null> {
+  const relatedId = action.relatedId ?? "";
+  if (relatedId) {
+    const direct = await sql<{ stage: string }>`
+      select stage from opportunities where id = ${relatedId} limit 1
+    `;
+    if (direct[0]?.stage) return String(direct[0].stage);
+  }
+  if (companyName && companyName.trim() !== "") {
+    const byCompany = await sql<{ stage: string }>`
+      select stage from opportunities
+      where lower(company_name) = ${companyName.trim().toLowerCase()}
+      order by created_at desc
+      limit 1
+    `;
+    if (byCompany[0]?.stage) return String(byCompany[0].stage);
+  }
+  return null;
+}
+
+/**
+ * The key a decision receipt is signed with.
+ *
+ * The receipt's whole purpose is to be checkable by somebody else, later, so
+ * it must be signed with a key that is not in the repository. In a deployed
+ * office that is BETTER_AUTH_SECRET, falling back to CRON_SECRET for an
+ * installation that only ever runs the scheduler.
+ *
+ * A receipt signed with the LOCAL key below is NOT a production receipt. The
+ * local key is in the source code, so anyone can forge a receipt that
+ * verifies against it. It exists so a local or preview office still records
+ * that a decision was taken and signed; treat it as a placeholder, not as
+ * evidence.
+ */
+function receiptSigningKey(): string {
+  const secret = process.env.BETTER_AUTH_SECRET?.trim() || process.env.CRON_SECRET?.trim() || "";
+  if (secret) return sha256Hex(`vantage-ars:decision-receipt:${secret}`);
+  return sha256Hex("vantage-ars:decision-receipt:LOCAL-KEY-NOT-A-PRODUCTION-RECEIPT");
+}
+
+/**
+ * Write a signed receipt for an execution that carries real consequence.
+ *
+ * Only Tier 1–3 actions get one: a receipt for a routine note would be
+ * noise, and a receipt for a Tier 4 judgement call would say nothing. The
+ * signature is an HMAC over the receipt's own payload, so a receipt that has
+ * been edited no longer verifies.
+ */
+async function writeDecisionReceiptTx(
+  sql: Sql,
+  input: {
+    decisionId: string;
+    action: ProposedAction;
+    risk: RiskAssessment;
+    agentId: string;
+    approvalId?: string | null;
+    delegationId?: string | null;
+    approvedBy?: string | null;
+  },
+): Promise<void> {
+  const chainHead = await readAuditHead(sql);
+  const payload = {
+    actionKind: input.action.kind,
+    amountCents: Math.max(0, Math.round(input.action.amountCents || 0)),
+    companyName: (
+      input.action.companyName || String(input.action.payload.companyName ?? "")
+    ).trim(),
+    agentId: input.agentId,
+    approvalId: input.approvalId ?? null,
+    delegationId: input.delegationId ?? null,
+    chainHead,
+  };
+  const payloadJson = stableStringify(payload);
+  const signature = createHmac("sha256", receiptSigningKey()).update(payloadJson).digest("hex");
+  await sql`
+    insert into decision_receipts (
+      id, decision_id, action_kind, amount_cents, risk_tier, delegation_id,
+      approved_by, approval_id, chain_head, payload_json, signature
+    ) values (
+      ${randomUUID()}, ${input.decisionId}, ${input.action.kind}, ${payload.amountCents},
+      ${input.risk.name}, ${input.delegationId ?? null}, ${input.approvedBy ?? null},
+      ${input.approvalId ?? null}, ${chainHead}, ${payloadJson}, ${signature}
+    )
+  `;
+}
+
+/**
+ * Write the §71 record for a case: the five questions, as answered.
+ *
+ * Called once when the gate is opened (before anyone has decided) and again
+ * when the founder's decision is recorded, so the record shows both the test
+ * and the answer to it.
+ */
+async function writeGateRecordTx(
+  sql: Sql,
+  input: {
+    approvalId: string;
+    decisionId?: string | null;
+    gate: GateOutcome;
+    policyVersion: string;
+    reasoning?: string | null;
+    evidenceShown?: string | null;
+    decided?: boolean;
+  },
+): Promise<void> {
+  await sql`
+    insert into gate_records (
+      id, approval_id, decision_id, questions_json, legal, failed_question,
+      pre_exposure_reasoning, evidence_shown, policy_version, exposure_at, decided_at
+    ) values (
+      ${randomUUID()}, ${input.approvalId}, ${input.decisionId ?? null},
+      ${JSON.stringify(input.gate.questions)}, ${input.gate.legal},
+      ${input.gate.failed}, ${input.reasoning ?? null}, ${input.evidenceShown ?? null},
+      ${input.policyVersion}, now(),
+      case when ${input.decided === true} then now() else null end
+    )
+  `;
+}
+
+/**
+ * Record what the founder decided, and under which conditions.
+ *
+ * One row per Tier 1–3 human ruling. The material conditions — action kind,
+ * company, amount band, stage, policy version — are what a later decision is
+ * compared against, so they are stored with the ruling rather than inferred
+ * from it afterwards.
+ *
+ * `later_outcome` is left null on purpose: it is filled in by a later pass
+ * that knows what actually happened, and nothing else may write it.
+ */
+async function recordDecisionEpisodeTx(
+  sql: Sql,
+  input: {
+    decisionId: string | null;
+    action: ProposedAction;
+    companyName: string | null;
+    outcome: "approved" | "rejected";
+    reasonCode: string;
+    reasoning: string;
+    exceptionConditions: string | null;
+    policyVersion: string;
+    stage: string | null;
+    agentId: string;
+  },
+): Promise<void> {
+  const amountCents = Math.max(0, Math.round(input.action.amountCents || 0));
+  await sql`
+    insert into decision_episodes (
+      id, action_kind, company_name, amount_cents, amount_band, stage, policy_version,
+      outcome, reason_code, reasoning, exception_conditions, later_outcome, decided_at,
+      decision_id, agent_id
+    ) values (
+      ${randomUUID()}, ${input.action.kind}, ${input.companyName}, ${amountCents},
+      ${amountBand(amountCents)}, ${input.stage}, ${input.policyVersion},
+      ${input.outcome}, ${input.reasonCode}, ${input.reasoning},
+      ${input.exceptionConditions}, null, now(),
+      ${input.decisionId}, ${input.agentId}
+    )
+  `;
+}
+
+/** The exception conditions an action carried, if it named any. */
+function exceptionConditionsOf(action: ProposedAction): string | null {
+  const stated = action.payload.exceptionConditions;
+  if (typeof stated !== "string") return null;
+  const text = stated.trim();
+  return text === "" ? null : text.slice(0, 2000);
+}
+
+/**
+ * A reason code from the fixed taxonomy, or the honest default.
+ *
+ * The taxonomy is closed on purpose: a governance record whose vocabulary can
+ * grow at runtime cannot be counted against itself across years. When the
+ * founder gave no code, the ruling still happened at a human gate, and
+ * `escalated_to_human` says exactly that without claiming anything more.
+ */
+function episodeReasonCode(reasonCode: string | null): string {
+  const code = (reasonCode ?? "").trim();
+  if (code && REASON_CODES.some((entry) => entry.code === code)) return code;
+  return "escalated_to_human";
+}
+
+/**
+ * The founder's reasoning for a ruling.
+ *
+ * Their own words if they gave any, and otherwise one plain sentence that
+ * says what happened. The episode is never written with an empty reason.
+ */
+function episodeReasoning(
+  reasoning: string | null,
+  note: string,
+  outcome: "approved" | "rejected",
+): string {
+  const written = (reasoning ?? "").trim();
+  if (written) return written;
+  if (note) return note;
+  return `The founder ${outcome === "approved" ? "approved" : "refused"} this action at the founder gate.`;
+}
+
+/** One row of the precedent memory, as the founder's screen reads it. */
+export type DecisionEpisodeRow = {
+  id: string;
+  actionKind: string;
+  companyName: string | null;
+  amountCents: number;
+  amountBand: string | null;
+  stage: string | null;
+  policyVersion: string | null;
+  outcome: "approved" | "rejected";
+  reasonCode: string;
+  reasoning: string;
+  exceptionConditions: string | null;
+  laterOutcome: string | null;
+  decidedAt: string;
+  decisionId: string | null;
+  agentId: string | null;
+};
+
+function mapDecisionEpisode(row: Record<string, unknown>): DecisionEpisodeRow {
+  return {
+    id: String(row.id),
+    actionKind: String(row.action_kind),
+    companyName: row.company_name ? String(row.company_name) : null,
+    amountCents: num(row.amount_cents),
+    amountBand: row.amount_band ? String(row.amount_band) : null,
+    stage: row.stage ? String(row.stage) : null,
+    policyVersion: row.policy_version ? String(row.policy_version) : null,
+    outcome: (String(row.outcome) === "rejected" ? "rejected" : "approved") as
+      "approved" | "rejected",
+    reasonCode: String(row.reason_code ?? ""),
+    reasoning: String(row.reasoning ?? ""),
+    exceptionConditions: row.exception_conditions ? String(row.exception_conditions) : null,
+    laterOutcome: row.later_outcome ? String(row.later_outcome) : null,
+    decidedAt: iso(row.decided_at),
+    decisionId: row.decision_id ? String(row.decision_id) : null,
+    agentId: row.agent_id ? String(row.agent_id) : null,
+  };
+}
+
+/** The precedent memory, as the comparison module wants it. */
+function asEpisode(row: DecisionEpisodeRow): DecisionEpisode {
+  return {
+    id: row.id,
+    actionKind: row.actionKind,
+    conditions: {
+      companyName: row.companyName,
+      amountBand: row.amountBand,
+      stage: row.stage,
+      jurisdiction: null,
+      policyVersion: row.policyVersion,
+    },
+    reasonCode: row.reasonCode,
+    reasoning: row.reasoning,
+    outcome: row.outcome,
+    exceptionConditions: row.exceptionConditions,
+    laterOutcome: row.laterOutcome,
+    decidedAt: row.decidedAt,
+  };
+}
+
+/**
+ * The founder's precedent history, newest first.
+ *
+ * The rulings that carry consequence: a decision that was never gated has
+ * nothing to teach the next one.
+ */
+export async function listDecisionEpisodes(limit = 50): Promise<DecisionEpisodeRow[]> {
+  await ensureOffice();
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from decision_episodes
+    order by decided_at desc, id desc
+    limit ${Math.max(1, Math.min(Math.trunc(limit) || 1, 200))}
+  `;
+  return rows.map(mapDecisionEpisode);
+}
+
+/**
+ * Everything the founder needs to decide one approval.
+ *
+ * One plain object: the approval itself, the risk tier it sits in, the §71
+ * gate and its five questions, whether a written reason is required before
+ * the action may be exposed, the fixed reason codes, the earlier rulings on
+ * the same terms, and what those rulings say about this one.
+ *
+ * A precedent is evidence, never authority. Nothing here can allow an action;
+ * it can only show the founder what they decided last time.
+ */
+export type ApprovalContext = {
+  approval: {
+    id: string;
+    kind: ApprovalKind;
+    title: string;
+    rationale: string;
+    amountCents: number;
+    agentId: string;
+    companyName: string | null;
+    createdAt: string;
+    riskScore: number;
+    actionKind: string;
+  };
+  risk: {
+    tier: RiskTier;
+    name: RiskTierName;
+    rationale: string;
+    gated: boolean;
+    personalData: boolean;
+  };
+  gate: {
+    legal: boolean;
+    questions: GateAnswer[];
+    failed: GateQuestion | null;
+    summary: string;
+  };
+  requiresReasoning: boolean;
+  reasonCodes: { code: string; label: string }[];
+  precedent: {
+    episodeId: string;
+    actionKind: string;
+    outcome: "approved" | "rejected";
+    similarity: PrecedentMatch["similarity"];
+    difference: string | null;
+    effect: PrecedentMatch["effect"];
+    decidedAt: string;
+    reasoning: string;
+    reasonCode: string;
+  }[];
+  guidance: string;
+};
+
+export async function getApprovalContext(approvalId: string): Promise<ApprovalContext> {
+  await ensureOffice();
+  const sql = await getSql();
+  const row = await sql<Record<string, unknown>>`
+    select * from approvals where id = ${approvalId} limit 1
+  `.then((rows) => rows[0]);
+  if (!row) throw new Error("That approval is not on file.");
+
+  const action = parseJson<ProposedAction>(row.action_json, {
+    kind: "notify_operator",
+    title: String(row.title),
+    rationale: String(row.rationale),
+    confidence: 1,
+    amountCents: num(row.amount_cents),
+    payload: {},
+  });
+  const risk = riskOfAction(action);
+  const gate = gateOutcomeFor(action, risk);
+  const company = await loadCompany();
+  const policyVersion = policyVersionOf(company);
+  const companyName = row.company_name ? String(row.company_name) : null;
+  const amountCents = num(row.amount_cents);
+  const stage = await stageForDecision(sql, action, companyName);
+
+  const earlier = await sql<Record<string, unknown>>`
+    select * from decision_episodes
+    where action_kind = ${action.kind}
+    order by decided_at desc
+    limit 50
+  `;
+  const episodes = earlier.map(mapDecisionEpisode).map(asEpisode);
+
+  const candidate: DecisionEpisode = {
+    id: `pending:${String(row.id)}`,
+    actionKind: action.kind,
+    conditions: {
+      companyName,
+      amountBand: amountBand(amountCents),
+      stage,
+      jurisdiction: null,
+      policyVersion,
+    },
+    reasonCode: "",
+    reasoning: "",
+    outcome: "approved",
+    exceptionConditions: null,
+    laterOutcome: null,
+    decidedAt: iso(row.created_at),
+  };
+
+  const matches = retrievePrecedent(episodes, candidate);
+  const advice = precedentAdvice(matches);
+
+  return {
+    approval: {
+      id: String(row.id),
+      kind: String(row.kind) as ApprovalKind,
+      title: String(row.title),
+      rationale: String(row.rationale),
+      amountCents,
+      agentId: String(row.agent_id),
+      companyName,
+      createdAt: iso(row.created_at),
+      riskScore: num(row.risk_score),
+      actionKind: action.kind,
+    },
+    risk: {
+      tier: risk.tier,
+      name: risk.name,
+      rationale: risk.rationale,
+      gated: risk.gated,
+      personalData: risk.personalData,
+    },
+    gate: {
+      legal: gate.legal,
+      questions: gate.questions,
+      failed: gate.failed,
+      summary: gate.summary,
+    },
+    requiresReasoning: requiresPreExposureReasoning(gate),
+    reasonCodes: REASON_CODES.map((entry) => ({ code: entry.code, label: entry.label })),
+    precedent: matches.map((match) => ({
+      episodeId: match.episode.id,
+      actionKind: match.episode.actionKind,
+      outcome: match.episode.outcome,
+      similarity: match.similarity,
+      difference: match.difference,
+      effect: match.effect,
+      decidedAt: match.episode.decidedAt,
+      reasoning: match.episode.reasoning,
+      reasonCode: match.episode.reasonCode,
+    })),
+    guidance: advice.guidance,
+  };
 }
 
 /**
@@ -1082,13 +2032,33 @@ export async function applyProposedAction(
   agentId: string,
   action: ProposedAction,
   observation: { [key: string]: Json },
-): Promise<{ decisionId: string; approvalId?: string; status: DecisionRow["status"]; error?: string }> {
-  return withChain(async (tx) => {
+): Promise<{
+  decisionId: string;
+  approvalId?: string;
+  status: DecisionRow["status"];
+  error?: string;
+  documentId?: string;
+  /** What happened when the notice was put in front of the mail server. */
+  delivery?: { ok: boolean; detail?: string };
+}> {
+  const autonomous = observation.autonomous === true;
+  const result = await withChain(async (tx) => {
     const company = await loadCompanyTx(tx);
     const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
+    // A delegation is the office acting for itself. A founder action is not
+    // covered by one, and must never consume the office's autonomous budget.
+    const delegation = autonomous ? await readDelegationTx(tx) : null;
+    const usage = autonomous && delegation ? await readDelegationUsageTx(tx, delegation.id) : null;
     const extras = {
       approvedHandoff: companyName ? await hasApprovedHandoff(tx, companyName) : false,
       opportunityWon: companyName ? await hasWonOpportunity(tx, companyName) : false,
+      acceptedQuote: companyName ? await hasAcceptedQuote(tx, companyName) : false,
+      realEnquiry: companyName ? await hasRealEnquiry(tx, companyName) : false,
+      founderInitiated: !autonomous,
+      delegation,
+      delegationUsage: usage
+        ? { usedToday: usage.usedToday, usedThisMonth: usage.usedThisMonth }
+        : undefined,
     };
     const auth = authorizeAction(action, agentId, company, extras);
 
@@ -1107,15 +2077,18 @@ export async function applyProposedAction(
 
     if (auth.verdict === "review") {
       const approvalId = randomUUID();
+      const risk = riskOfAction(action);
+      const gate = gateOutcomeFor(action, risk);
+      const policyVersion = policyVersionOf(company);
       await tx`
         insert into approvals (
           id, kind, title, rationale, amount_cents, agent_id, company_name, status,
-          risk_score, constitutional_trace_json, action_json
+          risk_score, constitutional_trace_json, action_json, policy_version
         ) values (
           ${approvalId}, ${auth.approvalKind ?? "constraint_margin"}, ${action.title},
           ${auth.reason}, ${action.amountCents}, ${agentId}, ${companyName || null},
           'pending', ${Math.round((1 - action.confidence) * 100)},
-          ${JSON.stringify(auth.trace)}, ${JSON.stringify(action)}
+          ${JSON.stringify(auth.trace)}, ${JSON.stringify(action)}, ${policyVersion}
         )
       `;
       const decisionId = await recordDecisionTx(tx, {
@@ -1126,6 +2099,17 @@ export async function applyProposedAction(
         reversibility: auth.reversibility,
         observation: { ...observation, reason: auth.reason, approvalId },
       });
+      // A legal action is opened with its §71 test already written down, so the
+      // record exists before the founder is asked rather than after they have
+      // answered. The gate is open because nobody has judged the case yet.
+      if (gate.legal) {
+        await writeGateRecordTx(tx, {
+          approvalId,
+          decisionId,
+          gate,
+          policyVersion,
+        });
+      }
       await appendAuditTx(
         tx,
         "approval_opened",
@@ -1146,8 +2130,25 @@ export async function applyProposedAction(
     }
 
     let decisionId: string;
+    let documentId: string | undefined;
     try {
-      await executeAuthorized(tx, agentId, action);
+      const executed = await executeAuthorized(tx, agentId, action);
+      documentId = executed.documentId;
+      // The delegation is spent here, in the same transaction that took the
+      // action, so the caps are counted from real rows and a retried tick
+      // cannot slip past them.
+      if (auth.delegation && delegation) {
+        const now = new Date();
+        await tx`
+          insert into delegation_usage (
+            id, delegation_id, action_kind, amount_cents, company_name, usage_day, usage_month
+          ) values (
+            ${randomUUID()}, ${delegation.id}, ${action.kind}, ${action.amountCents},
+            ${companyName || null}, ${now.toISOString().slice(0, 10)},
+            ${now.toISOString().slice(0, 7)}
+          )
+        `;
+      }
       decisionId = await recordDecisionTx(tx, {
         agentId,
         action,
@@ -1155,8 +2156,22 @@ export async function applyProposedAction(
         trace: auth.trace,
         reversibility: auth.reversibility,
         observation,
+        delegationId: auth.delegation?.id ?? null,
       });
       await appendAuditTx(tx, "decision_executed", action.title, action.rationale, agentId);
+      // An execution that carries consequence is signed for. Tier 1–3 only:
+      // a receipt for a routine note would be noise.
+      const risk = riskOfAction(action);
+      if (risk.tier === 1 || risk.tier === 2 || risk.tier === 3) {
+        await writeDecisionReceiptTx(tx, {
+          decisionId,
+          action,
+          risk,
+          agentId,
+          delegationId: auth.delegation?.id ?? null,
+          approvedBy: auth.delegation ? auth.delegation.label : null,
+        });
+      }
     } catch (error) {
       // The transaction rolls back, so nothing was executed. Record the refusal
       // so the failure is visible in the audit trail rather than silent.
@@ -1172,8 +2187,23 @@ export async function applyProposedAction(
       await appendAuditTx(tx, "decision_blocked", action.title, reason, agentId);
       return { decisionId: failedId, status: "blocked" as const, error: reason };
     }
-    return { decisionId, status: "executed" as const };
+    return { decisionId, status: "executed" as const, documentId };
   });
+
+  // A customer email is sent after the transaction commits, so a slow SMTP
+  // call can never hold the audit-chain lock open. The notice is already on
+  // file; this is the delivery step, and it records what happened.
+  if (result.status === "executed" && result.documentId && action.kind === "send_customer_mail") {
+    const { deliverNotice } = await import("./customer-notice.server");
+    const sql = await getSql();
+    const delivery = await deliverNotice(sql, result.documentId).catch(() => ({
+      ok: false,
+      detail: "The delivery attempt failed.",
+    }));
+    return { ...result, delivery };
+  }
+
+  return result;
 }
 
 async function notifyApproval(input: {
@@ -1200,14 +2230,29 @@ async function notifyApproval(input: {
  * transaction that performs the work. Two clicks, two tabs, or a retry after a
  * network timeout can therefore never execute the action twice — which is the
  * difference between one invoice and two.
+ *
+ * A legal decision (POPIA section 71) may not be resolved at all until the
+ * founder's reasoning has been written down: a reason code from the fixed
+ * taxonomy, the reasoning itself, and the evidence that was shown. That check
+ * happens BEFORE the row is claimed and before anything executes, so a legal
+ * action can never reach the outside world on the machine's say-so alone.
  */
 export async function resolveApproval(input: {
   approvalId: string;
   decision: "approved" | "rejected";
   note?: string;
+  /** Why the founder decided this, in their own words. */
+  reasoning?: string;
+  /** A code from the fixed reason-code taxonomy. */
+  reasonCode?: string;
+  /** What the founder was shown when they decided. */
+  evidenceShown?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   await ensureOffice();
   const note = (input.note ?? "").trim();
+  const givenReasoning = (input.reasoning ?? "").trim();
+  const givenReasonCode = (input.reasonCode ?? "").trim();
+  const givenEvidence = (input.evidenceShown ?? "").trim();
 
   return withChain(async (tx) => {
     const row = await tx<Record<string, unknown>>`
@@ -1227,12 +2272,59 @@ export async function resolveApproval(input: {
       payload: {},
     });
     const agentId = String(row.agent_id);
+    const company = await loadCompanyTx(tx);
+    const policyVersion = policyVersionOf(company);
+    const risk = riskOfAction(action);
+    const gate = gateOutcomeFor(action, risk);
+    const companyName = row.company_name ? String(row.company_name) : null;
+
+    // Approve: honour a halt. The governor refuses all agent action while the
+    // office is halted; founder approval is the only thing that can lift that,
+    // and it is not an implicit one. Refusing a queued action is always safe,
+    // so a refusal is still allowed while the office is halted.
+    if (input.decision === "approved" && company.halted) {
+      return {
+        ok: false,
+        error: "The office is halted. Resume it before approving queued work.",
+      };
+    }
+
+    // Section 71: a legal decision carries the founder's own reasoning, and it
+    // carries it before the action is exposed. The founder's note stands in
+    // for the reasoning when they wrote one, but the reason code and the
+    // evidence are the founder's to give.
+    let reasoning = givenReasoning;
+    if (gate.legal) {
+      const written = reasoning || note;
+      const verdict = validatePreExposureReasoning({
+        reasonCode: givenReasonCode,
+        reasoning: written,
+        evidenceShown: givenEvidence,
+        policyVersion,
+      });
+      if (!verdict.ok) {
+        return {
+          ok: false,
+          error: `${verdict.error} This decision reaches POPIA section 71, so it cannot be resolved without a reason code, your reasoning, and the evidence you were shown.`,
+        };
+      }
+      reasoning = written;
+    }
+
+    // Tier 1–3 rulings are remembered: what was decided, and under which
+    // material conditions.
+    const remember = risk.tier === 1 || risk.tier === 2 || risk.tier === 3;
+    const stage = remember ? await stageForDecision(tx, action, companyName) : null;
 
     if (input.decision === "rejected") {
       const claimed = await tx<{ id: string }>`
         update approvals
         set status = 'rejected',
             resolution_note = ${note || "Rejected by founder."},
+            pre_exposure_reasoning = ${reasoning || null},
+            pre_exposure_reason_code = ${givenReasonCode || null},
+            evidence_shown = ${givenEvidence || null},
+            decided_at = now(),
             resolved_at = now()
         where id = ${input.approvalId} and status = 'pending'
         returning id
@@ -1240,7 +2332,7 @@ export async function resolveApproval(input: {
       if (!claimed.length) return { ok: false, error: "That approval has already been resolved." };
       // Record the refusal as its own decision so the escalation does not stay
       // open forever in the autonomy metrics.
-      await recordDecisionTx(tx, {
+      const decisionId = await recordDecisionTx(tx, {
         agentId,
         action,
         status: "blocked",
@@ -1248,6 +2340,31 @@ export async function resolveApproval(input: {
         reversibility: "fully_reversible",
         observation: { gate: "founder", decision: "rejected", approvalId: input.approvalId },
       });
+      if (gate.legal) {
+        await writeGateRecordTx(tx, {
+          approvalId: input.approvalId,
+          decisionId,
+          gate,
+          policyVersion,
+          reasoning: reasoning || null,
+          evidenceShown: givenEvidence || null,
+          decided: true,
+        });
+      }
+      if (remember) {
+        await recordDecisionEpisodeTx(tx, {
+          decisionId,
+          action,
+          companyName,
+          outcome: "rejected",
+          reasonCode: episodeReasonCode(givenReasonCode),
+          reasoning: episodeReasoning(reasoning, note, "rejected"),
+          exceptionConditions: exceptionConditionsOf(action),
+          policyVersion,
+          stage,
+          agentId,
+        });
+      }
       await appendAuditTx(
         tx,
         "approval_rejected",
@@ -1258,29 +2375,23 @@ export async function resolveApproval(input: {
       return { ok: true };
     }
 
-    // Approve: honour a halt. The governor refuses all agent action while the
-    // office is halted; founder approval is the only thing that can lift that,
-    // and it is not an implicit one.
-    const company = await loadCompanyTx(tx);
-    if (company.halted) {
-      return {
-        ok: false,
-        error: "The office is halted. Resume it before approving queued work.",
-      };
-    }
-
     const claimed = await tx<{ id: string }>`
       update approvals
-      set status = 'approved',
-          resolution_note = ${note || "Approved by founder."},
-          resolved_at = now()
-      where id = ${input.approvalId} and status = 'pending'
-      returning id
+        set status = 'approved',
+            resolution_note = ${note || "Approved by founder."},
+            pre_exposure_reasoning = ${reasoning || null},
+            pre_exposure_reason_code = ${givenReasonCode || null},
+            evidence_shown = ${givenEvidence || null},
+            decided_at = now(),
+            exposure_at = now(),
+            resolved_at = now()
+        where id = ${input.approvalId} and status = 'pending'
+        returning id
     `;
     if (!claimed.length) return { ok: false, error: "That approval has already been resolved." };
 
     if (action.kind === "handoff_to_sales") {
-      const companyName = String(row.company_name ?? action.companyName ?? "Unnamed company");
+      const handoffCompany = String(row.company_name ?? action.companyName ?? "Unnamed company");
       const oppId = randomUUID();
       let leadId = action.relatedId ? String(action.relatedId) : null;
       if (leadId) {
@@ -1292,7 +2403,7 @@ export async function resolveApproval(input: {
         await tx`
           insert into leads (id, company_name, source, stage, score, summary)
           values (
-            ${leadId}, ${companyName}, 'marketing', 'in_sales',
+            ${leadId}, ${handoffCompany}, 'marketing', 'in_sales',
             ${num(action.payload.score, 55)}, ${action.rationale}
           )
         `;
@@ -1300,7 +2411,7 @@ export async function resolveApproval(input: {
       await tx`
         insert into opportunities (id, lead_id, company_name, stage, value_cents, summary, handoff_approval_id)
         values (
-          ${oppId}, ${leadId}, ${companyName}, 'discovery', ${action.amountCents},
+          ${oppId}, ${leadId}, ${handoffCompany}, 'discovery', ${action.amountCents},
           ${action.rationale}, ${input.approvalId}
         )
       `;
@@ -1309,7 +2420,7 @@ export async function resolveApproval(input: {
       await executeAuthorized(tx, agentId, action, input.approvalId);
     }
 
-    await recordDecisionTx(tx, {
+    const decisionId = await recordDecisionTx(tx, {
       agentId,
       action,
       status: "executed",
@@ -1317,6 +2428,42 @@ export async function resolveApproval(input: {
       reversibility: "partially_reversible",
       observation: { gate: "founder", decision: "approved", approvalId: input.approvalId },
     });
+    if (gate.legal) {
+      await writeGateRecordTx(tx, {
+        approvalId: input.approvalId,
+        decisionId,
+        gate,
+        policyVersion,
+        reasoning: reasoning || null,
+        evidenceShown: givenEvidence || null,
+        decided: true,
+      });
+    }
+    if (remember) {
+      await recordDecisionEpisodeTx(tx, {
+        decisionId,
+        action,
+        companyName,
+        outcome: "approved",
+        reasonCode: episodeReasonCode(givenReasonCode),
+        reasoning: episodeReasoning(reasoning, note, "approved"),
+        exceptionConditions: exceptionConditionsOf(action),
+        policyVersion,
+        stage,
+        agentId,
+      });
+    }
+    // The execution itself is signed for, against the chain head it landed on.
+    if (risk.tier === 1 || risk.tier === 2 || risk.tier === 3) {
+      await writeDecisionReceiptTx(tx, {
+        decisionId,
+        action,
+        risk,
+        agentId,
+        approvalId: input.approvalId,
+        approvedBy: "founder",
+      });
+    }
     await appendAuditTx(
       tx,
       "approval_approved",
@@ -1435,11 +2582,13 @@ export function compactState(snapshot: OfficeSnapshot): Record<string, unknown> 
     receivableCents: snapshot.company.receivableCents,
     payableCents: snapshot.company.payableCents,
     halted: snapshot.company.halted,
-    pendingApprovals: snapshot.approvals.filter((a) => a.status === "pending").map((a) => ({
-      id: a.id,
-      kind: a.kind,
-      title: a.title,
-    })),
+    pendingApprovals: snapshot.approvals
+      .filter((a) => a.status === "pending")
+      .map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        title: a.title,
+      })),
     inboundOpen: snapshot.inbound
       .filter((i) => i.status === "received")
       .slice(0, 8)
@@ -1603,7 +2752,6 @@ async function closeOpportunity(input: {
 
 // ── Customer quote links ─────────────────────────────────────────────────────
 
-
 export type PublicQuote =
   | {
       ok: true;
@@ -1624,22 +2772,29 @@ function tokenHash(token: string): string {
   return sha256Hex(`quote-link:${token}`);
 }
 
-/** Founder: create a fresh link for an approved quote. Older links for it stop working. */
-export async function createQuoteLink(
+/**
+ * Create a link for an approved quote, inside a caller's transaction.
+ *
+ * Split out from the founder-facing wrapper so the office can create a link
+ * for a quote it issued itself, in the same transaction that records the
+ * action — no nested advisory lock, no half-written notice.
+ */
+async function createQuoteLinkTx(
+  tx: Sql,
   documentId: string,
+  options: { actor: string; revokeExisting: boolean },
 ): Promise<{ ok: true; token: string; expiresAt: string } | { ok: false; error: string }> {
-  const sql = await getSql();
-  const company = await loadCompany();
-  if (company.halted) return { ok: false, error: "Office is halted." };
-
-  const quote = await sql<Record<string, unknown>>`
+  const quote = await tx<Record<string, unknown>>`
     select d.*, o.stage as opportunity_stage, o.company_name as opportunity_company
     from documents d
     left join opportunities o on o.id = d.related_id
     where d.id = ${documentId} and d.kind = 'quote'
   `.then((rows) => rows[0]);
   if (!quote || String(quote.status) !== "approved_unsent" || !quote.related_id) {
-    return { ok: false, error: "Only an approved quote that is waiting on the customer can get a link." };
+    return {
+      ok: false,
+      error: "Only an approved quote that is waiting on the customer can get a link.",
+    };
   }
   const stage = String(quote.opportunity_stage ?? "");
   if (stage === "won" || stage === "lost") {
@@ -1650,28 +2805,45 @@ export async function createQuoteLink(
 
   const token = randomBytes(32).toString("base64url");
   const expiresAt = linkExpiry().toISOString();
-  await withChain(async (tx) => {
+  if (options.revokeExisting) {
     await tx`
       update quote_links set revoked_at = now()
       where document_id = ${String(quote.id)} and revoked_at is null and answered_at is null
     `;
-    await tx`
-      insert into quote_links (id, token_hash, document_id, opportunity_id, expires_at)
-      values (${randomUUID()}, ${tokenHash(token)}, ${String(quote.id)}, ${opportunityId}, ${expiresAt})
-    `;
-    await appendAuditTx(
-      tx,
-      "quote_link_created",
-      opportunityCompany,
-      `Customer quote link created, valid until ${expiresAt.slice(0, 10)}. Any earlier link for this quote was revoked. Nothing was emailed.`,
-      "founder",
-    );
-  });
+  }
+  await tx`
+    insert into quote_links (id, token_hash, document_id, opportunity_id, expires_at)
+    values (${randomUUID()}, ${tokenHash(token)}, ${String(quote.id)}, ${opportunityId}, ${expiresAt})
+  `;
+  await appendAuditTx(
+    tx,
+    "quote_link_created",
+    opportunityCompany,
+    `Customer quote link created, valid until ${expiresAt.slice(0, 10)}. ${
+      options.revokeExisting
+        ? "Any earlier link for this quote was revoked."
+        : "Earlier links for this quote were left in place."
+    } Nothing was emailed by this action alone.`,
+    options.actor,
+  );
   return { ok: true, token, expiresAt };
 }
 
+/** Founder: create a fresh link for an approved quote. Older links for it stop working. */
+export async function createQuoteLink(
+  documentId: string,
+): Promise<{ ok: true; token: string; expiresAt: string } | { ok: false; error: string }> {
+  const company = await loadCompany();
+  if (company.halted) return { ok: false, error: "Office is halted." };
+  return withChain((tx) =>
+    createQuoteLinkTx(tx, documentId, { actor: "founder", revokeExisting: true }),
+  );
+}
+
 /** Founder: stop every open link for a quote. */
-export async function revokeQuoteLinks(documentId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function revokeQuoteLinks(
+  documentId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const sql = await getSql();
   const rows = await sql<{ id: string }>`
     update quote_links set revoked_at = now()
@@ -1679,8 +2851,9 @@ export async function revokeQuoteLinks(documentId: string): Promise<{ ok: true }
     returning id
   `;
   if (rows.length === 0) return { ok: false, error: "There is no open link for this quote." };
-  const quote = await sql<{ title: string }>`select title from documents where id = ${documentId}`
-    .then((found) => found[0]);
+  const quote = await sql<{
+    title: string;
+  }>`select title from documents where id = ${documentId}`.then((found) => found[0]);
   await appendAudit(
     "quote_link_revoked",
     quote?.title ?? "Quote",
@@ -1759,7 +2932,8 @@ export async function readPublicQuote(token: string, countView = true): Promise<
     where d.id = ${String(link.document_id)}
     limit 1
   `.then((rows) => rows[0]);
-  if (!joined) return { ok: false, error: "This quote is no longer on file. Ask us for a new one." };
+  if (!joined)
+    return { ok: false, error: "This quote is no longer on file. Ask us for a new one." };
 
   const record = {
     expiresAt: iso(link.expires_at),
@@ -1768,7 +2942,10 @@ export async function readPublicQuote(token: string, countView = true): Promise<
   };
   const state = linkState(record, String(joined.document_status));
   if (state === "revoked") {
-    return { ok: false, error: "This quote link was replaced or withdrawn. Ask us for the current one." };
+    return {
+      ok: false,
+      error: "This quote link was replaced or withdrawn. Ask us for the current one.",
+    };
   }
   if (countView && state === "open") {
     await sql`
@@ -1865,7 +3042,8 @@ export async function raiseQuoteInvoice(
   const existing = await sql<{ id: string }>`
     select id from ledger_entries where kind = 'invoice' and related_id = ${opportunityId} limit 1
   `;
-  if (existing.length) return { ok: false, error: "An invoice is already on the books for this job." };
+  if (existing.length)
+    return { ok: false, error: "An invoice is already on the books for this job." };
 
   const result = await applyProposedAction(
     "ledger",
@@ -1923,7 +3101,8 @@ export async function recordInvoiceReceipt(
   const already = await sql<{ id: string }>`
     select id from ledger_entries where kind = 'receipt' and related_id = ${invoiceId} limit 1
   `;
-  if (already.length) return { ok: false, error: "A receipt is already recorded for this invoice." };
+  if (already.length)
+    return { ok: false, error: "A receipt is already recorded for this invoice." };
 
   const result = await applyProposedAction(
     "ledger",
@@ -1978,7 +3157,12 @@ export async function setTicketStatus(
     next === "resolved"
       ? "Founder marked the work resolved. The customer was not emailed."
       : "Founder started the work. The customer was not emailed.";
-  await appendAudit(next === "resolved" ? "ticket_resolved" : "ticket_started", String(record.title), note, "founder");
+  await appendAudit(
+    next === "resolved" ? "ticket_resolved" : "ticket_started",
+    String(record.title),
+    note,
+    "founder",
+  );
   return { ok: true };
 }
 
@@ -1997,7 +3181,9 @@ export async function savePaymentInstructions(
   await appendAudit(
     "payment_instructions",
     "Payment instructions",
-    note ? "Founder set how customers should pay. Nothing was emailed." : "Founder cleared the payment instructions.",
+    note
+      ? "Founder set how customers should pay. Nothing was emailed."
+      : "Founder cleared the payment instructions.",
     "founder",
   );
   return { ok: true };
@@ -2041,9 +3227,9 @@ export async function restoreBackupJson(
     return { ok: false, error: "That file is not valid JSON." };
   }
   const sql = await getSql();
-  const names = Object.keys((parsed as { tables?: Record<string, unknown> } | null)?.tables ?? {}).filter((n) =>
-    /^[a-z_]+$/.test(n),
-  );
+  const names = Object.keys(
+    (parsed as { tables?: Record<string, unknown> } | null)?.tables ?? {},
+  ).filter((n) => /^[a-z_]+$/.test(n));
   const columnsByTable = await Promise.all(
     names.map(async (name) => {
       const rows = await sql<{ column_name: string }>`
@@ -2080,12 +3266,347 @@ export async function restoreBackupJson(
       tx,
       "backup_restored",
       "Backup restored",
-      `Add-only restore applied. Tables and rows added: ${Object.entries(added)
-        .filter(([, n]) => n > 0)
-        .map(([name, n]) => `${name} ${n}`)
-        .join(", ") || "nothing (everything already existed)"}. Nothing was deleted or overwritten.`,
+      `Add-only restore applied. Tables and rows added: ${
+        Object.entries(added)
+          .filter(([, n]) => n > 0)
+          .map(([name, n]) => `${name} ${n}`)
+          .join(", ") || "nothing (everything already existed)"
+      }. Nothing was deleted or overwritten.`,
       "founder",
     );
   });
   return { ok: true, added };
+}
+
+// ── Subscriptions and recurring revenue ───────────────────────────────────────
+
+function mapSubscription(row: Record<string, unknown>): SubscriptionRow {
+  return {
+    id: String(row.id),
+    companyName: String(row.company_name),
+    contactName: row.contact_name ? String(row.contact_name) : null,
+    contactEmail: row.contact_email ? String(row.contact_email) : null,
+    planId: String(row.plan_id),
+    rateId: String(row.rate_id),
+    cycle: String(row.cycle),
+    priceCents: num(row.price_cents),
+    status: (String(row.status) as SubscriptionRow["status"]) || "active",
+    opportunityId: row.opportunity_id ? String(row.opportunity_id) : null,
+    quoteDocumentId: row.quote_document_id ? String(row.quote_document_id) : null,
+    startedAt: iso(row.started_at),
+    nextBillingAt: iso(row.next_billing_at),
+    cancelledAt: row.cancelled_at ? iso(row.cancelled_at) : null,
+    cancellationReason: row.cancellation_reason ? String(row.cancellation_reason) : null,
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+  };
+}
+
+function mapBillingCycle(row: Record<string, unknown>): BillingCycleRow {
+  return {
+    id: String(row.id),
+    subscriptionId: String(row.subscription_id),
+    companyName: String(row.company_name),
+    planId: String(row.plan_id),
+    rateId: String(row.rate_id),
+    periodStart: iso(row.period_start),
+    periodEnd: iso(row.period_end),
+    amountCents: num(row.amount_cents),
+    status: (String(row.status) as BillingCycleRow["status"]) || "pending",
+    invoiceId: row.invoice_id ? String(row.invoice_id) : null,
+    documentId: row.document_id ? String(row.document_id) : null,
+    reportDocumentId: row.report_document_id ? String(row.report_document_id) : null,
+    noticeDocumentId: row.notice_document_id ? String(row.notice_document_id) : null,
+    createdAt: iso(row.created_at),
+    fulfilledAt: row.fulfilled_at ? iso(row.fulfilled_at) : null,
+    notifiedAt: row.notified_at ? iso(row.notified_at) : null,
+    paidAt: row.paid_at ? iso(row.paid_at) : null,
+  };
+}
+
+/** The recurring-revenue book. */
+export async function listSubscriptions(): Promise<SubscriptionRow[]> {
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from subscriptions order by created_at desc limit 200
+  `;
+  return rows.map(mapSubscription);
+}
+
+/** The billing ledger: one row per period of every subscription. */
+export async function listBillingCycles(limit = 120): Promise<BillingCycleRow[]> {
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from billing_cycles order by created_at desc limit ${Math.max(1, Math.min(limit, 500))}
+  `;
+  return rows.map(mapBillingCycle);
+}
+
+/**
+ * The recurring-revenue picture.
+ *
+ * MRR is the sum of the monthly value of every active subscription. A
+ * quarterly plan contributes a third of its price, because that is what it
+ * earns in a month. One-off work is not recurring revenue and is reported
+ * separately.
+ */
+export async function revenueMetrics(): Promise<RevenueMetrics> {
+  const sql = await getSql();
+  const subs = await sql<Record<string, unknown>>`
+    select plan_id, cycle, price_cents, status from subscriptions
+  `;
+  const active = subs.filter((row) => String(row.status) === "active");
+  const paused = subs.filter((row) => String(row.status) === "paused");
+  const cancelled = subs.filter((row) => String(row.status) === "cancelled");
+
+  let monthly = 0;
+  let annual = 0;
+  const mix = new Map<string, { subscriptions: number; monthlyCents: number }>();
+  for (const row of active) {
+    const price = num(row.price_cents);
+    const cycle = String(row.cycle);
+    const months = cycle === "quarterly" ? 3 : cycle === "monthly" ? 1 : 0;
+    const monthlyCents = months === 0 ? 0 : Math.round(price / months);
+    monthly += monthlyCents;
+    annual += months === 0 ? 0 : Math.round((price * 12) / months);
+    const key = String(row.plan_id);
+    const entry = mix.get(key) ?? { subscriptions: 0, monthlyCents: 0 };
+    entry.subscriptions += 1;
+    entry.monthlyCents += monthlyCents;
+    mix.set(key, entry);
+  }
+
+  const month = new Date().toISOString().slice(0, 7);
+  const billed = await sql<{ cents: number }>`
+    select coalesce(sum(amount_cents), 0)::int as cents
+    from ledger_entries
+    where kind = 'invoice' and to_char(created_at, 'YYYY-MM') = ${month}
+  `.then((rows) => num(rows[0]?.cents));
+  const collected = await sql<{ cents: number }>`
+    select coalesce(sum(amount_cents), 0)::int as cents
+    from ledger_entries
+    where kind = 'receipt' and to_char(created_at, 'YYYY-MM') = ${month}
+  `.then((rows) => num(rows[0]?.cents));
+
+  const outstanding = await sql<{ cents: number }>`
+    select coalesce(sum(l.amount_cents), 0)::int as cents
+    from ledger_entries l
+    where l.kind = 'invoice' and l.status = 'issued'
+  `.then((rows) => num(rows[0]?.cents));
+  const overdue = await sql<{ cents: number }>`
+    select coalesce(sum(amount_cents), 0)::int as cents
+    from ledger_entries
+    where kind = 'invoice' and status = 'issued' and created_at < now() - interval '7 days'
+  `.then((rows) => num(rows[0]?.cents));
+
+  const churn = await sql<{ n: number }>`
+    select count(*)::int as n from subscriptions
+    where status = 'active' and next_billing_at < now() - interval '14 days'
+  `.then((rows) => num(rows[0]?.n));
+
+  const oneOff = await sql<{ cents: number }>`
+    select coalesce(sum(value_cents), 0)::int as cents
+    from opportunities
+    where stage = 'proposal'
+  `.then((rows) => num(rows[0]?.cents));
+
+  return {
+    activeSubscriptions: active.length,
+    pausedSubscriptions: paused.length,
+    cancelledSubscriptions: cancelled.length,
+    monthlyRecurringCents: monthly,
+    annualRecurringCents: annual,
+    oneOffPipelineCents: oneOff,
+    billedThisMonthCents: billed,
+    collectedThisMonthCents: collected,
+    outstandingCents: outstanding,
+    overdueCents: overdue,
+    churnRiskCount: churn,
+    planMix: [...mix.entries()].map(([planId, entry]) => {
+      const plan = planById(planId);
+      return {
+        planId,
+        title: plan?.title ?? planId,
+        subscriptions: entry.subscriptions,
+        monthlyCents: entry.monthlyCents,
+      };
+    }),
+  };
+}
+
+/** An invoice the office can match a payment notice against. */
+export type MatchedInvoice = {
+  id: string;
+  amountCents: number;
+  companyName: string;
+  relatedId: string | null;
+};
+
+/**
+ * Find the invoice a payment notice refers to.
+ *
+ * The reference on a notice is the document reference the customer was given
+ * (`VA-…`). Only an invoice that is still issued, and that matches the
+ * reference exactly, can be matched. The whole table is searched: a windowed
+ * read would miss an old invoice and quietly stop reconciling.
+ */
+export async function findInvoiceForReference(reference: string): Promise<MatchedInvoice | null> {
+  const sql = await getSql();
+  const rows = await sql<{
+    id: string;
+    amount_cents: number;
+    counterparty: string;
+    related_id: string;
+  }>`
+    select l.id, l.amount_cents, l.counterparty, l.related_id
+    from ledger_entries l
+    join documents d on d.related_id = l.related_id and d.kind = 'invoice'
+    where l.kind = 'invoice' and l.status = 'issued'
+      and d.summary like ${`%${reference}%`}
+    limit 5
+  `;
+  if (rows.length !== 1) return null;
+  const row = rows[0];
+  return {
+    id: String(row.id),
+    amountCents: num(row.amount_cents),
+    companyName: String(row.counterparty),
+    relatedId: row.related_id ? String(row.related_id) : null,
+  };
+}
+
+/** Mark a billing cycle as paid, once the receipt is on the books. */
+export async function markCyclePaid(relatedId: string): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    update billing_cycles
+    set status = 'paid', paid_at = now()
+    where (id = ${relatedId} or invoice_id = ${relatedId}) and status <> 'paid'
+  `;
+}
+
+/**
+ * Start a subscription on the founder's instruction.
+ *
+ * The first period was the quote the customer accepted. The subscription
+ * starts the period after it, so nobody is billed twice for the same month.
+ */
+export async function startSubscriptionForOpportunity(
+  opportunityId: string,
+  planId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sql = await getSql();
+  const opportunity = await sql<{ id: string; company_name: string; stage: string }>`
+    select id, company_name, stage from opportunities where id = ${opportunityId} limit 1
+  `.then((rows) => rows[0]);
+  if (!opportunity) return { ok: false, error: "That opportunity is not on the pipeline." };
+  if (opportunity.stage !== "won") {
+    return { ok: false, error: "Only a job the customer has won can start a subscription." };
+  }
+  const plan = planById(planId);
+  if (!plan) return { ok: false, error: "That is not a productised service." };
+  const existing = await sql<{ id: string }>`
+    select id from subscriptions
+    where opportunity_id = ${opportunityId} and status <> 'cancelled'
+    limit 1
+  `;
+  if (existing.length) return { ok: false, error: "That job already has a subscription." };
+
+  const quote = await sql<{ id: string; created_at: string }>`
+    select id, created_at from documents
+    where kind = 'quote' and status = 'accepted' and related_id = ${opportunityId}
+    order by created_at desc limit 1
+  `.then((rows) => rows[0]);
+  const acceptedAt = quote?.created_at ? iso(quote.created_at) : new Date().toISOString();
+  const periodStart = nextCycleStart(acceptedAt, plan.cycle);
+  const { email, name } = await resolveRecipient(sql, String(opportunity.company_name));
+
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "start_subscription",
+      title: `Subscription · ${opportunity.company_name} · ${plan.title}`,
+      rationale: `The founder started the ${plan.title} for ${opportunity.company_name}, billing from ${periodStart.slice(0, 10)}.`,
+      confidence: 0.98,
+      amountCents: 0,
+      companyName: String(opportunity.company_name),
+      relatedId: opportunityId,
+      payload: {
+        planId: plan.id,
+        rateId: plan.rateId,
+        cycle: plan.cycle,
+        priceCents: plan.priceCents,
+        periodStart,
+        opportunityId,
+        quoteDocumentId: quote?.id ?? null,
+        contactEmail: email ?? null,
+        contactName: name ?? null,
+      },
+    },
+    { source: "founder" },
+  );
+  if (result.status === "executed") return { ok: true };
+  return { ok: false, error: `The subscription was not started: ${result.status}.` };
+}
+
+/** End a subscription. A customer outcome is a founder decision. */
+export async function cancelSubscriptionById(
+  subscriptionId: string,
+  reason: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const sql = await getSql();
+  const sub = await sql<{ id: string; company_name: string; status: string }>`
+    select id, company_name, status from subscriptions where id = ${subscriptionId} limit 1
+  `.then((rows) => rows[0]);
+  if (!sub) return { ok: false, error: "That subscription is not on file." };
+  if (sub.status === "cancelled")
+    return { ok: false, error: "That subscription is already ended." };
+  const result = await applyProposedAction(
+    "desk",
+    {
+      kind: "cancel_subscription",
+      title: `End subscription · ${sub.company_name}`,
+      rationale: reason.replace(/\s+/g, " ").trim().slice(0, 400) || "Ended by the founder.",
+      confidence: 0.98,
+      amountCents: 0,
+      companyName: String(sub.company_name),
+      relatedId: subscriptionId,
+      payload: { reason: reason.replace(/\s+/g, " ").trim().slice(0, 400) },
+    },
+    { source: "founder" },
+  );
+  if (result.status === "executed") return { ok: true };
+  return { ok: false, error: `The subscription was not ended: ${result.status}.` };
+}
+
+/** Every customer email the office has prepared or sent. */
+export async function listCustomerNotices(): Promise<
+  {
+    id: string;
+    companyName: string | null;
+    template: string;
+    recipient: string;
+    subject: string;
+    status: string;
+    detail: string | null;
+    createdAt: string;
+    sentAt: string | null;
+  }[]
+> {
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select id, company_name, template, recipient, subject, status, detail, created_at, sent_at
+    from customer_notices order by created_at desc limit 200
+  `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    companyName: row.company_name ? String(row.company_name) : null,
+    template: String(row.template),
+    recipient: String(row.recipient),
+    subject: String(row.subject),
+    status: String(row.status),
+    detail: row.detail ? String(row.detail) : null,
+    createdAt: iso(row.created_at),
+    sentAt: row.sent_at ? iso(row.sent_at) : null,
+  }));
 }

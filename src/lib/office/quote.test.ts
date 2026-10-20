@@ -27,6 +27,9 @@ describe("published quotes", () => {
 
   it("refuses a retainer and a ranged estimate", () => {
     assert.equal(priceQuote({ rateId: "retainer", location: "remote", quantity: 1 }).ok, false);
-    assert.equal(priceQuote({ rateId: "network-setup", location: "remote", quantity: 1 }).ok, false);
+    assert.equal(
+      priceQuote({ rateId: "network-setup", location: "remote", quantity: 1 }).ok,
+      false,
+    );
   });
 });

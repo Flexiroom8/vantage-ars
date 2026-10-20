@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { clientKey, createRateLimiter, str, validEmail } from "./guard.ts";
 
-const headers = (map: Record<string, string>) => ({ get: (name: string) => map[name.toLowerCase()] ?? null });
+const headers = (map: Record<string, string>) => ({
+  get: (name: string) => map[name.toLowerCase()] ?? null,
+});
 
 describe("guard", () => {
   it("never throws on non-string input", () => {
@@ -13,8 +15,14 @@ describe("guard", () => {
   });
 
   it("prefers edge headers and ignores a spoofed first forwarded hop", () => {
-    assert.equal(clientKey(headers({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9" })), "1.2.3.4");
-    assert.equal(clientKey(headers({ "x-forwarded-for": "6.6.6.6, 10.0.0.1, 5.5.5.5" })), "5.5.5.5");
+    assert.equal(
+      clientKey(headers({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9" })),
+      "1.2.3.4",
+    );
+    assert.equal(
+      clientKey(headers({ "x-forwarded-for": "6.6.6.6, 10.0.0.1, 5.5.5.5" })),
+      "5.5.5.5",
+    );
     assert.equal(clientKey(undefined), "local");
     assert.equal(clientKey(headers({})), "local");
   });

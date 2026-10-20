@@ -92,7 +92,10 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
         const failure = authFailure(result);
         if (failure) throw new Error(messageOf(failure, "Founder account setup failed."));
       } else {
-        const result = await authClient.signIn.email({ email: email.trim().toLowerCase(), password });
+        const result = await authClient.signIn.email({
+          email: email.trim().toLowerCase(),
+          password,
+        });
         const failure = authFailure(result);
         if (failure) throw new Error(messageOf(failure, "Sign-in failed."));
       }
@@ -154,8 +157,12 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
               <div className="flex items-center gap-3">
                 <WatchtowerMark className="h-8 w-8" />
                 <div>
-                  <div className="font-mono text-xs font-semibold tracking-[0.18em]">VANTAGE-ARS</div>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Private operations</div>
+                  <div className="font-mono text-xs font-semibold tracking-[0.18em]">
+                    VANTAGE-ARS
+                  </div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+                    Private operations
+                  </div>
                 </div>
               </div>
               <span className="live-dot" />
@@ -166,12 +173,14 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
             </h1>
             <p className="mt-3 text-sm leading-6 text-muted">
               {devFallback
-                ? "Auth is disabled in this environment, so the server never issues a founder session. Sign in needs VITE_AUTH_ENABLED unset (or \"true\") and a configured founder account."
+                ? 'Auth is disabled in this environment, so the server never issues a founder session. Sign in needs VITE_AUTH_ENABLED unset (or "true") and a configured founder account.'
                 : `This browser holds a session for ${user.primaryEmail ?? "an account"}, but the server did not accept it as the founder of ${COMPANY.legalName}. Sign out and sign in again with the founder address.`}
             </p>
 
             <div className="mt-8 flex gap-3">
-              <Link to="/" className="cta-ghost flex-1 justify-center">Public site</Link>
+              <Link to="/" className="cta-ghost flex-1 justify-center">
+                Public site
+              </Link>
               {devFallback ? null : (
                 <Button
                   type="button"
@@ -205,9 +214,13 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
             <div className="flex items-center gap-3">
               <span className="live-dot" />
-              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">VANTAGE-ARS · PRIVATE OPERATIONS</span>
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+                VANTAGE-ARS · PRIVATE OPERATIONS
+              </span>
             </div>
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Founder access</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+              Founder access
+            </span>
           </div>
         </div>
 
@@ -217,10 +230,14 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
               <WatchtowerMark className="h-10 w-10" />
               <div>
                 <div className="font-mono text-sm font-semibold tracking-[0.22em]">VANTAGE-ARS</div>
-                <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">Network operations desk</div>
+                <div className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-muted">
+                  Network operations desk
+                </div>
               </div>
             </div>
-            <Link to="/" className="cta-ghost hidden sm:inline-flex">Public site</Link>
+            <Link to="/" className="cta-ghost hidden sm:inline-flex">
+              Public site
+            </Link>
           </div>
         </header>
 
@@ -239,9 +256,13 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                       <span className="live-dot" />
                       Private operations
                     </div>
-                    <h1 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">{setupMode ? "Set up the founder account." : "Command centre access."}</h1>
+                    <h1 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">
+                      {setupMode ? "Set up the founder account." : "Command centre access."}
+                    </h1>
                     <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-                      {setupMode ? "Create the primary founder identity for the Vantage-ARS operations desk." : "Authenticated access is required before entering the private operations environment."}
+                      {setupMode
+                        ? "Create the primary founder identity for the Vantage-ARS operations desk."
+                        : "Authenticated access is required before entering the private operations environment."}
                     </p>
                   </div>
                   <SignalBars className="hidden h-10 w-10 shrink-0 text-accent sm:block" />
@@ -249,24 +270,60 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
               </div>
 
               <div className="p-7 sm:p-9">
-                {error ? <div role="alert" className="mb-6 border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300">{error}</div> : null}
+                {error ? (
+                  <div
+                    role="alert"
+                    className="mb-6 border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-300"
+                  >
+                    {error}
+                  </div>
+                ) : null}
 
                 <form onSubmit={handleEmailSubmit} className="space-y-5">
                   {setupMode ? (
                     <div className="space-y-2">
                       <Label htmlFor="name">Founder name</Label>
-                      <Input id="name" name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required disabled={submitting} placeholder="Founder" />
+                      <Input
+                        id="name"
+                        name="name"
+                        autoComplete="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                        disabled={submitting}
+                        placeholder="Founder"
+                      />
                     </div>
                   ) : null}
 
                   <div className="space-y-2">
                     <Label htmlFor="email">Email address</Label>
-                    <Input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={submitting} placeholder="founder@vantage-ars.co.za" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={submitting}
+                      placeholder="founder@vantage-ars.co.za"
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <Input id="password" name="password" type="password" autoComplete={setupMode ? "new-password" : "current-password"} value={password} onChange={(e) => setPassword(e.target.value)} required disabled={submitting} placeholder="••••••••••••" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      autoComplete={setupMode ? "new-password" : "current-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={submitting}
+                      placeholder="••••••••••••"
+                    />
                   </div>
 
                   {!setupMode ? (
@@ -284,25 +341,61 @@ export function PrivateDoor({ user }: PrivateDoorProps) {
                   {setupMode ? (
                     <div className="space-y-2">
                       <Label htmlFor="founder-token">Founder setup token</Label>
-                      <Input id="founder-token" name="founder-token" type="password" autoComplete="off" value={founderToken} onChange={(e) => setFounderToken(e.target.value)} required disabled={submitting} placeholder="Enter setup token" />
+                      <Input
+                        id="founder-token"
+                        name="founder-token"
+                        type="password"
+                        autoComplete="off"
+                        value={founderToken}
+                        onChange={(e) => setFounderToken(e.target.value)}
+                        required
+                        disabled={submitting}
+                        placeholder="Enter setup token"
+                      />
                     </div>
                   ) : null}
 
-                  <Button type="submit" className="cta w-full justify-center" disabled={submitting}>{submitting ? "Authenticating…" : setupMode ? "Create founder account" : "Enter command centre"}</Button>
+                  <Button type="submit" className="cta w-full justify-center" disabled={submitting}>
+                    {submitting
+                      ? "Authenticating…"
+                      : setupMode
+                        ? "Create founder account"
+                        : "Enter command centre"}
+                  </Button>
                 </form>
 
                 {options?.setupOpen ? (
                   <div className="mt-6 border-t border-border/60 pt-6">
-                    <button type="button" className="w-full text-center font-mono text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-fg" onClick={() => { setError(""); setSetupMode(v => !v); }}>{setupMode ? "Return to sign in" : "First-time founder setup"}</button>
+                    <button
+                      type="button"
+                      className="w-full text-center font-mono text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-fg"
+                      onClick={() => {
+                        setError("");
+                        setSetupMode((v) => !v);
+                      }}
+                    >
+                      {setupMode ? "Return to sign in" : "First-time founder setup"}
+                    </button>
                   </div>
                 ) : null}
 
                 {providers.length > 0 ? (
                   <div className="mt-7 border-t border-border/60 pt-7">
-                    <div className="mb-4 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-muted">Federated access</div>
+                    <div className="mb-4 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+                      Federated access
+                    </div>
                     <div className="grid gap-3">
                       {providers.map((provider) => (
-                        <Button key={provider.providerId} type="button" variant="outline" disabled={submitting} onClick={() => handleOAuth(provider.providerId)} className="w-full justify-center">{provider.label ?? provider.providerId}</Button>
+                        <Button
+                          key={provider.providerId}
+                          type="button"
+                          variant="outline"
+                          disabled={submitting}
+                          onClick={() => handleOAuth(provider.providerId)}
+                          className="w-full justify-center"
+                        >
+                          {provider.label ?? provider.providerId}
+                        </Button>
                       ))}
                     </div>
                   </div>

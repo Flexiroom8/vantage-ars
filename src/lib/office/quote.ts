@@ -11,9 +11,13 @@ type QuoteSpec = {
   min: number;
   step: number;
   note: string;
+  /** How the quantity reads in the priced detail. Defaults to a unit phrase. */
+  measure?: string;
+  /** The line that closes the priced detail. */
+  footer?: string;
 };
 
-/** Single published figures only. Ranges, retainers, and supplier prices are refused. */
+/** Single published figures only. Ranges, travel, and supplier prices are refused. */
 export const QUOTE_SPECS: QuoteSpec[] = [
   {
     rateId: "remote-support",
@@ -175,6 +179,92 @@ export const QUOTE_SPECS: QuoteSpec[] = [
     step: 0.25,
     note: "Hourly labour. Hardware, licences, and travel are not included.",
   },
+  {
+    rateId: "managed-support",
+    location: "remote",
+    title: "Managed support plan",
+    unit: "flat",
+    cents: 275000,
+    min: 1,
+    step: 1,
+    note: "One month of the managed support plan, including eight remote support hours and the monthly service report.",
+    measure: "One month of managed support",
+    footer:
+      "This is a remote managed service. It is billed for one period at a time and the period renews monthly.",
+  },
+  {
+    rateId: "health-watch",
+    location: "remote",
+    title: "Remote health and spend watch",
+    unit: "flat",
+    cents: 99000,
+    min: 1,
+    step: 1,
+    note: "One month of the watch, compiled from our own records.",
+    measure: "One month of the watch",
+    footer: "This is a remote managed service. It renews monthly.",
+  },
+  {
+    rateId: "service-report",
+    location: "remote",
+    title: "Service report",
+    unit: "flat",
+    cents: 69000,
+    min: 1,
+    step: 1,
+    note: "One written report of the work recorded in the period.",
+    measure: "One report",
+    footer: "This is a one-off report. It covers work already recorded; it includes no new work.",
+  },
+  {
+    rateId: "billing-audit",
+    location: "remote",
+    title: "Billing and rate compliance audit",
+    unit: "flat",
+    cents: 115000,
+    min: 1,
+    step: 1,
+    note: "One audit of the invoices issued in the period, checked against the published rate card.",
+    measure: "One audit",
+    footer: "This is a one-off audit. Nothing is adjusted without your agreement.",
+  },
+  {
+    rateId: "handover-pack",
+    location: "remote",
+    title: "Infrastructure documentation and handover pack",
+    unit: "flat",
+    cents: 138000,
+    min: 1,
+    step: 1,
+    note: "One handover pack, built from the work we have recorded for you.",
+    measure: "One pack",
+    footer: "This is a one-off pack. It is not a site survey.",
+  },
+  {
+    rateId: "continuity-plan",
+    location: "remote",
+    title: "Business continuity plan",
+    unit: "flat",
+    cents: 172500,
+    min: 1,
+    step: 1,
+    note: "One plan, built from your recorded fault history.",
+    measure: "One plan",
+    footer: "This is a one-off plan. It is not a formal disaster recovery plan.",
+  },
+  {
+    rateId: "sla-review",
+    location: "remote",
+    title: "Service level and response review",
+    unit: "flat",
+    cents: 69000,
+    min: 1,
+    step: 1,
+    note: "One review of how the faults in the period were handled, measured against our own targets.",
+    measure: "One review",
+    footer:
+      "This is a one-off review. Our response targets are working targets, not a contractual service level.",
+  },
 ];
 
 export type QuotePrice =
@@ -186,11 +276,14 @@ export function priceQuote(input: {
   location: QuoteLocation;
   quantity: number;
 }): QuotePrice {
-  const spec = QUOTE_SPECS.find((item) => item.rateId === input.rateId && item.location === input.location);
+  const spec = QUOTE_SPECS.find(
+    (item) => item.rateId === input.rateId && item.location === input.location,
+  );
   if (!spec) {
     return {
       ok: false,
-      error: "That line has no single published figure. Ranges, retainers, travel, and supplier prices are not quoted here.",
+      error:
+        "That line has no single published figure. Ranges, travel, and supplier prices are not quoted here.",
     };
   }
   if (spec.unit === "flat") {
@@ -213,13 +306,18 @@ export function priceQuote(input: {
 function okPrice(spec: QuoteSpec, quantity: number, cents: number): QuotePrice {
   const amount = formatZar(cents);
   const measure =
-    spec.unit === "flat" ? "One assessment" : spec.unit === "point" ? `${quantity} point(s)` : `${quantity} hour(s)`;
+    spec.measure ??
+    (spec.unit === "flat"
+      ? "One assessment"
+      : spec.unit === "point"
+        ? `${quantity} point(s)`
+        : `${quantity} hour(s)`);
   const detail = `${spec.title}. ${measure}. ${spec.note} Labour ${amount}.`;
   const body = [
     "INTERNAL QUOTE DRAFT. This has not been sent.",
     detail,
     "VAT treatment is not decided here.",
-    "Managed support is not offered.",
+    spec.footer ?? "Scope and exclusions are stated on the written quote before work starts.",
   ].join(" ");
   return { ok: true, cents, title: spec.title, detail, body };
 }
@@ -264,13 +362,17 @@ export function acceptedScopeLines(lines: unknown, publishedCents: number): stri
     if (PROMISE_PATTERNS.some((pattern) => pattern.test(line))) continue;
     const figures = line.match(FIGURE) ?? [];
     // A money figure is only allowed if it is exactly the published figure.
-    if (figures.some((figure) => figure.replace(/\s/g, "").toLowerCase() !== published.toLowerCase())) continue;
+    if (
+      figures.some((figure) => figure.replace(/\s/g, "").toLowerCase() !== published.toLowerCase())
+    )
+      continue;
     accepted.push(line);
   }
   return accepted;
 }
 
-export type QuoteDocument = { ok: true; body: string; cents: number; title: string } | { ok: false; error: string };
+export type QuoteDocument =
+  { ok: true; body: string; cents: number; title: string } | { ok: false; error: string };
 
 /**
  * Build the stored quote document. The customer-visible text is generated here

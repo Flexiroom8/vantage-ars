@@ -29,7 +29,11 @@ export function linkExpiry(from: Date = new Date(), days = QUOTE_LINK_DAYS): Dat
  * Where the link stands. `documentStatus` is the quote document's own status:
  * when the founder has already recorded an answer the link is closed.
  */
-export function linkState(link: QuoteLinkRecord, documentStatus: string, now: Date = new Date()): QuoteLinkState {
+export function linkState(
+  link: QuoteLinkRecord,
+  documentStatus: string,
+  now: Date = new Date(),
+): QuoteLinkState {
   if (link.answer === "accepted") return "accepted";
   if (link.answer === "declined") return "declined";
   if (link.revokedAt) return "revoked";
@@ -45,10 +49,17 @@ export type CustomerAnswer =
   | { ok: false; error: string };
 
 /** Validate what the customer typed before anything is recorded. */
-export function parseCustomerAnswer(input: { outcome?: unknown; name?: unknown; note?: unknown; agree?: unknown }): CustomerAnswer {
-  const outcome = input.outcome === "accepted" ? "accepted" : input.outcome === "declined" ? "declined" : null;
+export function parseCustomerAnswer(input: {
+  outcome?: unknown;
+  name?: unknown;
+  note?: unknown;
+  agree?: unknown;
+}): CustomerAnswer {
+  const outcome =
+    input.outcome === "accepted" ? "accepted" : input.outcome === "declined" ? "declined" : null;
   if (!outcome) return { ok: false, error: "Choose accept or decline." };
-  const name = typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 160) : "";
+  const name =
+    typeof input.name === "string" ? input.name.replace(/\s+/g, " ").trim().slice(0, 160) : "";
   if (name.length < 2) return { ok: false, error: "Type your full name." };
   const note = typeof input.note === "string" ? input.note.trim().slice(0, 1000) : "";
   if (outcome === "accepted" && input.agree !== true) {

@@ -21,6 +21,10 @@ const ALL: ActionKind[] = [
   "draft_document",
   "notify_operator",
   "escalate_account_risk",
+  "fulfil_service",
+  "start_subscription",
+  "cancel_subscription",
+  "send_customer_mail",
 ];
 
 export const AGENT_DEFS: AgentDef[] = [
@@ -60,7 +64,13 @@ export const AGENT_DEFS: AgentDef[] = [
     autonomyLevel: "A3",
     summary:
       "Takes inbound from every channel, classifies intent, and routes to the correct department. Does not sell, quote, or spend.",
-    allowedActions: ["route_inbound", "draft_reply", "create_lead", "notify_operator", "open_ticket"],
+    allowedActions: [
+      "route_inbound",
+      "draft_reply",
+      "create_lead",
+      "notify_operator",
+      "open_ticket",
+    ],
     bindings: ["ART-1", "ART-4", "ART-7", "ART-11", "ART-12"],
     authority: {
       maySpend: false,
@@ -115,6 +125,7 @@ export const AGENT_DEFS: AgentDef[] = [
       "issue_quote",
       "propose_close_won",
       "propose_close_lost",
+      "send_customer_mail",
       "notify_operator",
     ],
     bindings: ["ART-2", "ART-4", "ART-6", "ART-7", "ART-11", "ART-12"],
@@ -141,10 +152,12 @@ export const AGENT_DEFS: AgentDef[] = [
       "issue_invoice",
       "record_expense",
       "record_inbound_payment",
+      "start_subscription",
+      "send_customer_mail",
       "notify_operator",
       "draft_document",
     ],
-    bindings: ["ART-1", "ART-2", "ART-5", "ART-12"],
+    bindings: ["ART-1", "ART-2", "ART-5", "ART-12", "ART-13"],
     authority: {
       maySpend: false,
       mayContactMarket: false,
@@ -205,15 +218,18 @@ export const AGENT_DEFS: AgentDef[] = [
     spiffeId: "spiffe://vantage-ars.co.za/ns/office/service",
     autonomyLevel: "A3",
     summary:
-      "Owns the conversation after reception: status, faults, and complaints. Drafts replies and does not send them. Cannot sell, quote, spend, or concede a refund or cancellation.",
+      "Owns the conversation after reception: status, faults, and complaints. Delivers the productised services and tells the customer about them, but only under a founder delegation. Cannot sell, quote, spend, or concede a refund or cancellation.",
     allowedActions: [
       "draft_reply",
       "open_ticket",
       "update_ticket",
       "notify_operator",
       "escalate_account_risk",
+      "fulfil_service",
+      "cancel_subscription",
+      "send_customer_mail",
     ],
-    bindings: ["ART-4", "ART-7", "ART-11", "ART-12"],
+    bindings: ["ART-4", "ART-7", "ART-11", "ART-12", "ART-13"],
     authority: {
       maySpend: false,
       mayContactMarket: true,

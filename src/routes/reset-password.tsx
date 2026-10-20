@@ -4,10 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth/client";
-import {
-  MIN_FOUNDER_PASSWORD,
-  passwordProblem,
-} from "@/lib/auth/founder-password";
+import { MIN_FOUNDER_PASSWORD, passwordProblem } from "@/lib/auth/founder-password";
 
 function messageOf(value: unknown, fallback: string): string {
   if (typeof value === "string" && value.trim()) return value.trim();
@@ -95,8 +92,8 @@ function ResetPasswordPage() {
         {complete ? (
           <>
             <p className="mt-4 text-sm leading-6 text-muted">
-              Your password has been changed and every existing session has been
-              revoked. Sign in with the new password.
+              Your password has been changed and every existing session has been revoked. Sign in
+              with the new password.
             </p>
             <Link to="/login" className="cta mt-7 flex justify-center">
               Sign in
@@ -105,22 +102,34 @@ function ResetPasswordPage() {
         ) : (
           <form onSubmit={submit} className="mt-7 space-y-5">
             {linkError ? (
-              <div role="alert" className="border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+              <div
+                role="alert"
+                className="border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
+              >
                 {linkError}
               </div>
             ) : null}
 
             {error ? (
-              <div role="alert" className="border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+              <div
+                role="alert"
+                className="border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
+              >
                 {error}
               </div>
             ) : null}
 
             {!token ? (
-              <div role="status" className="border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn">
-                This reset link does not carry a token. It may have expired or already
-                been used.{" "}
-                <Link to="/forgot-password" search={{ email: "" }} className="underline underline-offset-2">
+              <div
+                role="status"
+                className="border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn"
+              >
+                This reset link does not carry a token. It may have expired or already been used.{" "}
+                <Link
+                  to="/forgot-password"
+                  search={{ email: "" }}
+                  className="underline underline-offset-2"
+                >
                   Request a new link
                 </Link>
                 .

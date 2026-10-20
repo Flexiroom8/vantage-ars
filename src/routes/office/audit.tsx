@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
 import { TraceList } from "@/components/office/trace-list";
@@ -13,7 +13,6 @@ import { formatDateTime } from "../../lib/office/money";
 export const Route = createFileRoute("/office/audit")({
   component: AuditPage,
 });
-
 
 async function saveBackup() {
   try {
@@ -43,7 +42,9 @@ async function loadBackup(file: File | undefined) {
       return;
     }
     const total = Object.values(result.added).reduce((sum, n) => sum + n, 0);
-    toast.success(`Restore finished. ${total} missing record${total === 1 ? "" : "s"} added; nothing was deleted or overwritten.`);
+    toast.success(
+      `Restore finished. ${total} missing record${total === 1 ? "" : "s"} added; nothing was deleted or overwritten.`,
+    );
   } catch {
     toast.error("The backup could not be restored.");
   }
@@ -72,7 +73,8 @@ function AuditPage() {
           Download verified backup
         </Button>
         <p className="mt-2 text-xs text-muted">
-          JSON with a checksum. Includes customers, ledger and audit records. Never includes sign-in credentials.
+          JSON with a checksum. Includes customers, ledger and audit records. Never includes sign-in
+          credentials.
         </p>
         <label className="mt-4 block text-sm">
           Restore from a backup file
@@ -87,25 +89,33 @@ function AuditPage() {
           />
         </label>
         <p className="mt-1 text-xs text-muted">
-          Checks the checksum first. Only adds records that are missing; it never deletes or overwrites current data.
+          Checks the checksum first. Only adds records that are missing; it never deletes or
+          overwrites current data.
         </p>
       </div>
 
       <section className="mb-10">
         <h2 className="mb-3 font-serif text-2xl">Ledger events</h2>
         {snapshot.audit.length === 0 ? (
-          <EmptyState title="Chain not yet grown" body="Opening the office writes the genesis event." />
+          <EmptyState
+            title="Chain not yet grown"
+            body="Opening the office writes the genesis event."
+          />
         ) : (
           <ol className="space-y-2">
             {snapshot.audit.map((event) => (
-              <li key={event.id} className="rounded-xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]">
+              <li
+                key={event.id}
+                className="rounded-xl bg-surface px-4 py-3 shadow-[var(--shadow-border)]"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm">{event.title}</p>
                   <Badge>{event.kind.replaceAll("_", " ")}</Badge>
                 </div>
                 <p className="mt-1 text-sm text-muted">{event.body}</p>
                 <p className="mt-2 font-mono text-[11px] text-subtle">
-                  {event.actor} · {formatDateTime(event.createdAt)} · {event.recordHash.slice(0, 16)}
+                  {event.actor} · {formatDateTime(event.createdAt)} ·{" "}
+                  {event.recordHash.slice(0, 16)}
                 </p>
               </li>
             ))}
@@ -116,16 +126,23 @@ function AuditPage() {
       <section>
         <h2 className="mb-3 font-serif text-2xl">Decision records</h2>
         {snapshot.decisions.length === 0 ? (
-          <EmptyState title="No decisions" body="Dispatch an agent to write the first constitutional trace." />
+          <EmptyState
+            title="No decisions"
+            body="Dispatch an agent to write the first constitutional trace."
+          />
         ) : (
           <ol className="space-y-3">
             {snapshot.decisions.map((decision) => (
-              <li key={decision.id} className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+              <li
+                key={decision.id}
+                className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]"
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm">{decision.title}</p>
                     <p className="text-xs text-muted">
-                      {decision.agentId} · {decision.actionKind} · {formatDateTime(decision.createdAt)}
+                      {decision.agentId} · {decision.actionKind} ·{" "}
+                      {formatDateTime(decision.createdAt)}
                     </p>
                   </div>
                   <Badge
@@ -142,8 +159,8 @@ function AuditPage() {
                 </div>
                 <p className="mt-2 text-sm text-muted">{decision.rationale}</p>
                 <p className="mt-2 font-mono text-[11px] text-subtle">
-                  conf {decision.confidence.toFixed(2)} · {decision.reversibility.replaceAll("_", " ")} ·{" "}
-                  {decision.recordHash.slice(0, 16)}
+                  conf {decision.confidence.toFixed(2)} ·{" "}
+                  {decision.reversibility.replaceAll("_", " ")} · {decision.recordHash.slice(0, 16)}
                 </p>
                 <div className="mt-3">
                   <TraceList trace={decision.constitutionalTrace} />

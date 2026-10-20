@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
@@ -11,10 +11,11 @@ export const Route = createFileRoute("/office/marketing")({
   component: MarketingPage,
 });
 
-
 function MarketingPage() {
   const snapshot = useOfficeSnapshot();
-  const ready = snapshot.leads.filter((l) => l.stage === "ready_for_sales" || l.stage === "in_sales");
+  const ready = snapshot.leads.filter(
+    (l) => l.stage === "ready_for_sales" || l.stage === "in_sales",
+  );
 
   return (
     <div className="enter-up mx-auto max-w-5xl">
@@ -41,7 +42,10 @@ function MarketingPage() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Campaigns</h2>
         {snapshot.campaigns.length === 0 ? (
-          <EmptyState title="No campaigns" body="Brief SIGNAL. Organic work can run. Paid media cannot." />
+          <EmptyState
+            title="No campaigns"
+            body="Brief SIGNAL. Organic work can run. Paid media cannot."
+          />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {snapshot.campaigns.map((c) => (
@@ -63,18 +67,26 @@ function MarketingPage() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Leads</h2>
         {snapshot.leads.length === 0 ? (
-          <EmptyState title="No leads" body="Inbound and campaigns feed this list. Nothing is invented." />
+          <EmptyState
+            title="No leads"
+            body="Inbound and campaigns feed this list. Nothing is invented."
+          />
         ) : (
           <ul className="divide-y divide-border rounded-xl bg-surface shadow-[var(--shadow-border)]">
             {snapshot.leads.map((lead) => (
-              <li key={lead.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <li
+                key={lead.id}
+                className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
                 <div>
                   <p className="text-sm">{lead.companyName}</p>
                   <p className="text-xs text-muted">{lead.summary}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs tabular-nums text-muted">{lead.score}</span>
-                  <Badge variant={ready.some((r) => r.id === lead.id) ? "warn" : "default"}>{lead.stage}</Badge>
+                  <Badge variant={ready.some((r) => r.id === lead.id) ? "warn" : "default"}>
+                    {lead.stage}
+                  </Badge>
                 </div>
               </li>
             ))}

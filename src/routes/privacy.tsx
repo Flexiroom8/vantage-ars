@@ -58,10 +58,7 @@ function PrivacyPage() {
         </p>
         <div className="mt-10 space-y-4">
           {POINTS.map((point) => (
-            <section
-              key={point.title}
-              className="panel panel-hover rounded-2xl p-6"
-            >
+            <section key={point.title} className="panel panel-hover rounded-2xl p-6">
               <h2 className="font-serif text-2xl">{point.title}</h2>
               <p className="mt-2 text-sm leading-relaxed text-muted">{point.body}</p>
             </section>

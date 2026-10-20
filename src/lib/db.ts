@@ -5,10 +5,8 @@ export type DbSource = "neon" | "pglite";
 
 // An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
 // "unset" — otherwise production would silently run on the PGLite fallback.
-const rawDatabaseUrl =
-  typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
-const databaseUrl =
-  rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
+const rawDatabaseUrl = typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
+const databaseUrl = rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 /**
  * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
@@ -27,19 +25,10 @@ export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
  *   const rows2 = await sql.query("select * from todos where id = $1", [id]);
  */
 export interface Sql {
-  <T = Record<string, unknown>>(
-    strings: TemplateStringsArray,
-    ...values: unknown[]
-  ): Promise<T[]>;
-  query<T = Record<string, unknown>>(
-    text: string,
-    params?: unknown[],
-  ): Promise<T[]>;
+  <T = Record<string, unknown>>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]>;
+  query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T[]>;
   /** One row, or `null`. Never throws on "not found". */
-  one<T = Record<string, unknown>>(
-    text: string,
-    params?: unknown[],
-  ): Promise<T | null>;
+  one<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<T | null>;
   /** Rows affected by a write. `-1` when the driver does not report a count. */
   count(text: string, params?: unknown[]): Promise<number>;
   /**
@@ -139,8 +128,7 @@ function toSql(run: Run): Sql {
   // Safe defaults so a plain `Sql` is a complete implementation even on a
   // backend without transaction support. Neon and PGLite both override these.
   sql.transaction = async <T>(body: (tx: Sql) => Promise<T>): Promise<T> => body(sql);
-  sql.advisory = async <T>(_key: string, body: (tx: Sql) => Promise<T>): Promise<T> =>
-    body(sql);
+  sql.advisory = async <T>(_key: string, body: (tx: Sql) => Promise<T>): Promise<T> => body(sql);
 
   return sql;
 }
@@ -308,9 +296,7 @@ async function createPgliteSql(): Promise<Sql> {
   // ordering, so the schema is identical either way.
   const migrations = await loadMigrationSources();
   const migrate = async (): Promise<void> => {
-    const doneRows = await pg.query<{ name: string }>(
-      "select name from _migrations",
-    );
+    const doneRows = await pg.query<{ name: string }>("select name from _migrations");
     const done = doneRows.rows.map((r) => r.name);
     for (const { name, path } of pendingMigrations(Object.keys(migrations), done)) {
       // Apply + record atomically (parity with scripts/migrate.mjs) so a failed
@@ -450,18 +436,19 @@ export async function databaseHealth(): Promise<{
           'company_state','constitution_provisions','agents','inbound_items','leads',
           'opportunities','campaigns','ledger_entries','tickets','documents',
           'approvals','decisions','audit_events','founder_notices','chat_threads',
-          'chat_messages','rate_hits','quote_links','work_items','agent_runs','office_state'
+          'chat_messages','rate_hits','quote_links','work_items','agent_runs','office_state',
+          'delegations','delegation_usage','subscriptions','billing_cycles'
         )
     `;
     const present = Number(rows[0]?.present ?? 0);
-    const ok = present >= 21;
+    const ok = present >= 25;
     return {
       ok,
       source: dbSource,
       latencyMs: Date.now() - startedAt,
       detail: ok
         ? `Schema present (${present} office tables).`
-        : `Only ${present} of 21 office tables exist. Run migrations.`,
+        : `Only ${present} of 25 office tables exist. Run migrations.`,
     };
   } catch (err) {
     return {

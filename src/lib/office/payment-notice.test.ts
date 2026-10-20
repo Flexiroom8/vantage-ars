@@ -4,7 +4,11 @@ import { parsePaymentNotice } from "./payment-notice.ts";
 
 describe("payment notice", () => {
   it("records a claim without treating it as a receipt", () => {
-    const notice = parsePaymentNotice({ name: "Harbour Co", reference: "va-abc12345", amount: "690,00" });
+    const notice = parsePaymentNotice({
+      name: "Harbour Co",
+      reference: "va-abc12345",
+      amount: "690,00",
+    });
     assert.equal(notice.ok, true);
     if (!notice.ok) return;
     assert.equal(notice.reference, "VA-ABC12345");
@@ -13,7 +17,13 @@ describe("payment notice", () => {
   });
 
   it("rejects a missing reference or a zero amount", () => {
-    assert.equal(parsePaymentNotice({ name: "Harbour", reference: "invoice", amount: "690" }).ok, false);
-    assert.equal(parsePaymentNotice({ name: "Harbour", reference: "VA-ABC12345", amount: "0" }).ok, false);
+    assert.equal(
+      parsePaymentNotice({ name: "Harbour", reference: "invoice", amount: "690" }).ok,
+      false,
+    );
+    assert.equal(
+      parsePaymentNotice({ name: "Harbour", reference: "VA-ABC12345", amount: "0" }).ok,
+      false,
+    );
   });
 });

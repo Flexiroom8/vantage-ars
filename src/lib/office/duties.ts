@@ -11,6 +11,7 @@
  * say so honestly rather than manufacture activity to look busy.
  */
 import { PUBLISHED_RATES } from "./catalogue";
+import { planForRate } from "./plans";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -64,6 +65,8 @@ export type QuoteView = {
   status: string;
   relatedId: string | null;
   createdAt: string;
+  /** The published rate line the quote came from, when it is known. */
+  rateId?: string | null;
 };
 
 export type TicketView = {
@@ -133,6 +136,47 @@ export type QuoteLinkView = {
   lastViewedAt: string | null;
 };
 
+export type SubscriptionView = {
+  id: string;
+  companyName: string;
+  planId: string;
+  rateId: string;
+  cycle: string;
+  priceCents: number;
+  status: string;
+  nextBillingAt: string;
+  startedAt: string;
+  contactEmail: string | null;
+};
+
+export type BillingCycleView = {
+  id: string;
+  subscriptionId: string;
+  companyName: string;
+  planId: string;
+  amountCents: number;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+  invoiceId: string | null;
+  documentId: string | null;
+  reportDocumentId: string | null;
+  notifiedAt: string | null;
+};
+
+export type DelegationView = {
+  id: string;
+  label: string;
+  status: string;
+  maxAmountCents: number;
+  maxActionsPerDay: number;
+  maxActionsPerMonth: number;
+  allowedActions: string[];
+  allowCustomerMail: boolean;
+  allowAutoReconcile: boolean;
+  requireAcceptedQuote: boolean;
+};
+
 export type DutyView = {
   now: string;
   halted: boolean;
@@ -144,11 +188,20 @@ export type DutyView = {
   ledger: LedgerView[];
   documents: DocumentView[];
   campaigns: CampaignView[];
-  approvalsPending: { id: string; kind: string; title: string; companyName: string | null; createdAt: string }[];
+  approvalsPending: {
+    id: string;
+    kind: string;
+    title: string;
+    companyName: string | null;
+    createdAt: string;
+  }[];
   agents: AgentView[];
   siteEvents: SiteEventView[];
   chatThreads: ChatThreadView[];
   quoteLinks: QuoteLinkView[];
+  subscriptions: SubscriptionView[];
+  billingCycles: BillingCycleView[];
+  delegation: DelegationView | null;
   treasuryCents: number;
   receivableCents: number;
   payableCents: number;
@@ -195,7 +248,14 @@ export type DutyId =
   | "ledger_payables"
   | "keep_records"
   | "seal_chain_verify"
-  | "seal_scope_audit";
+  | "seal_scope_audit"
+  | "ledger_subscription_billing"
+  | "ledger_dunning"
+  | "desk_service_fulfilment"
+  | "desk_service_notice"
+  | "close_quote_notice"
+  | "ledger_start_subscription"
+  | "keep_subscription_review";
 
 export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   vantage_liveness: 30,
@@ -224,6 +284,13 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   keep_records: 720,
   seal_chain_verify: 720,
   seal_scope_audit: 1440,
+  ledger_subscription_billing: 60,
+  ledger_dunning: 240,
+  desk_service_fulfilment: 60,
+  desk_service_notice: 60,
+  close_quote_notice: 120,
+  ledger_start_subscription: 240,
+  keep_subscription_review: 10080,
 };
 
 export const DUTY_OWNER: Record<DutyId, string> = {
@@ -253,6 +320,13 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   keep_records: "keep",
   seal_chain_verify: "seal",
   seal_scope_audit: "seal",
+  ledger_subscription_billing: "ledger",
+  ledger_dunning: "ledger",
+  desk_service_fulfilment: "desk",
+  desk_service_notice: "desk",
+  close_quote_notice: "close",
+  ledger_start_subscription: "ledger",
+  keep_subscription_review: "keep",
 };
 
 export const DUTY_TITLES: Record<DutyId, string> = {
@@ -282,6 +356,13 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   keep_records: "Check the filing is complete",
   seal_chain_verify: "Verify the audit chain",
   seal_scope_audit: "Audit agents against their roles",
+  ledger_subscription_billing: "Bill the subscriptions that are due",
+  ledger_dunning: "Chase overdue invoices",
+  desk_service_fulfilment: "Deliver the productised services",
+  desk_service_notice: "Send the customer their report and invoice",
+  close_quote_notice: "Send the customer their quote",
+  ledger_start_subscription: "Start the subscriptions that were sold",
+  keep_subscription_review: "Review the recurring-revenue book",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -355,14 +436,23 @@ const SPAM_SIGNALS = [
 ];
 
 /** Deterministic, explainable lead scoring. Returns points and the reasons. */
-export function scoreLead(text: string, from: string): { score: number; reasons: string[]; demand: number; support: number; spam: boolean } {
+export function scoreLead(
+  text: string,
+  from: string,
+): { score: number; reasons: string[]; demand: number; support: number; spam: boolean } {
   const haystack = `${text} ${from}`.toLowerCase();
   const reasons: string[] = [];
   let score = 0;
 
   const spam = SPAM_SIGNALS.filter((needle) => haystack.includes(needle));
   if (spam.length) {
-    return { score: -100, reasons: [`Reads as unsolicited outreach: ${spam.join(", ")}`], demand: 0, support: 0, spam: true };
+    return {
+      score: -100,
+      reasons: [`Reads as unsolicited outreach: ${spam.join(", ")}`],
+      demand: 0,
+      support: 0,
+      spam: true,
+    };
   }
 
   const demand = DEMAND_SIGNALS.filter((needle) => haystack.includes(needle));
@@ -370,7 +460,8 @@ export function scoreLead(text: string, from: string): { score: number; reasons:
   score += Math.min(40, demand.length * 10);
   score += Math.min(30, support.length * 8);
   if (demand.length) reasons.push(`Asks about buying: ${demand.slice(0, 4).join(", ")}`);
-  if (support.length) reasons.push(`Reports a fault or need help: ${support.slice(0, 4).join(", ")}`);
+  if (support.length)
+    reasons.push(`Reports a fault or need help: ${support.slice(0, 4).join(", ")}`);
 
   const length = text.trim().length;
   if (length >= 120) {
@@ -394,7 +485,13 @@ export function scoreLead(text: string, from: string): { score: number; reasons:
     reasons.push("Sounds like an organisation rather than a one-off.");
   }
 
-  return { score: Math.max(0, Math.min(100, score)), reasons, demand: demand.length, support: support.length, spam: false };
+  return {
+    score: Math.max(0, Math.min(100, score)),
+    reasons,
+    demand: demand.length,
+    support: support.length,
+    spam: false,
+  };
 }
 
 // ── Duties ────────────────────────────────────────────────────────────────────
@@ -458,6 +555,20 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planChainVerify(view);
     case "seal_scope_audit":
       return planScopeAudit(view);
+    case "ledger_subscription_billing":
+      return planSubscriptionBilling(view);
+    case "ledger_dunning":
+      return planDunning(view);
+    case "desk_service_fulfilment":
+      return planServiceFulfilment(view);
+    case "desk_service_notice":
+      return planServiceNotice(view);
+    case "close_quote_notice":
+      return planQuoteNotice(view);
+    case "ledger_start_subscription":
+      return planStartSubscription(view);
+    case "keep_subscription_review":
+      return planSubscriptionReview(view);
     default:
       return [];
   }
@@ -480,9 +591,19 @@ function planBacklog(view: DutyView): PlannedWork[] {
     work.push({
       agentId: "vantage",
       kind: "report_stuck_backlog",
-      reason: `${stuck.length} work items have been waiting more than four hours: ${stuck.slice(0, 5).map((i) => `${i.agentId}/${i.kind}`).join(", ")}.`,
+      reason: `${stuck.length} work items have been waiting more than four hours: ${stuck
+        .slice(0, 5)
+        .map((i) => `${i.agentId}/${i.kind}`)
+        .join(", ")}.`,
       priority: 9,
-      payload: { stuck: stuck.slice(0, 20).map((item) => ({ id: item.id, agentId: item.agentId, kind: item.kind, attempts: item.attempts })) },
+      payload: {
+        stuck: stuck.slice(0, 20).map((item) => ({
+          id: item.id,
+          agentId: item.agentId,
+          kind: item.kind,
+          attempts: item.attempts,
+        })),
+      },
       dedupeKey: `stuck-backlog:${Math.floor(view.work.length / 5)}`,
     });
   }
@@ -493,7 +614,15 @@ function planBacklog(view: DutyView): PlannedWork[] {
       kind: "report_abandoned_work",
       reason: `${abandoned.length} work item(s) exhausted their retries and were abandoned. Last error: ${abandoned[0].lastError ?? "unknown"}.`,
       priority: 7,
-      payload: { abandoned: abandoned.slice(0, 20).map((item) => ({ id: item.id, agentId: item.agentId, kind: item.kind, attempts: item.attempts, lastError: item.lastError })) },
+      payload: {
+        abandoned: abandoned.slice(0, 20).map((item) => ({
+          id: item.id,
+          agentId: item.agentId,
+          kind: item.kind,
+          attempts: item.attempts,
+          lastError: item.lastError,
+        })),
+      },
       dedupeKey: `abandoned:${new Date(view.now).toISOString().slice(0, 10)}`,
     });
   }
@@ -528,7 +657,8 @@ function planBriefing(view: DutyView): PlannedWork[] {
     {
       agentId: "vantage",
       kind: "report_daily_briefing",
-      reason: "The office has real work on the books. One factual summary a day, from records only.",
+      reason:
+        "The office has real work on the books. One factual summary a day, from records only.",
       priority: 70,
       payload: { date },
       dedupeKey: `briefing:${date}`,
@@ -604,7 +734,11 @@ function planFoyerStaleIntake(view: DutyView): PlannedWork[] {
       kind: "escalate_stale_enquiry",
       reason: `${item.companyName} wrote ${Math.floor(age / 60)}h ago about "${item.subject}" and nobody has answered.`,
       priority: 8,
-      payload: { inboundId: item.id, companyName: item.companyName, ageHours: Math.floor(age / 60) },
+      payload: {
+        inboundId: item.id,
+        companyName: item.companyName,
+        ageHours: Math.floor(age / 60),
+      },
       dedupeKey: `stale-intake:${item.id}:${Math.floor(age / (24 * HOUR))}`,
     });
   }
@@ -621,9 +755,11 @@ function planSiteSignals(view: DutyView): PlannedWork[] {
     {
       agentId: "signal",
       kind: "analyse_site_signals",
-      reason: `${view.siteEvents.length} real visits recorded. ${
-        [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([p, n]) => `${p} (${n})`).join(", ")
-      }`,
+      reason: `${view.siteEvents.length} real visits recorded. ${[...byPath.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([p, n]) => `${p} (${n})`)
+        .join(", ")}`,
       priority: 40,
       payload: { paths: [...byPath.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10) },
       dedupeKey: `site-signals:${view.siteEvents[view.siteEvents.length - 1]?.occurredAt.slice(0, 10) ?? "none"}`,
@@ -654,10 +790,17 @@ function planContentBrief(view: DutyView): PlannedWork[] {
 
 /** Paths whose repeated, anonymous visits are real buying interest, not crawling. */
 const BUYING_PATHS = ["/rates", "/quote"];
-const SERVICE_PATHS = ["/services/voip", "/services/networking", "/services/it-infrastructure", "/work"];
+const SERVICE_PATHS = [
+  "/services/voip",
+  "/services/networking",
+  "/services/it-infrastructure",
+  "/work",
+];
 
 function isBuyingPath(path: string): boolean {
-  return BUYING_PATHS.includes(path) || SERVICE_PATHS.includes(path) || path.startsWith("/services/");
+  return (
+    BUYING_PATHS.includes(path) || SERVICE_PATHS.includes(path) || path.startsWith("/services/")
+  );
 }
 
 function planProspect(view: DutyView): PlannedWork[] {
@@ -678,7 +821,10 @@ function planProspect(view: DutyView): PlannedWork[] {
     if ((highIntent ? count >= 1 : count >= 2) === false) continue;
     const name = `Prospect · ${path}`;
     if (already.has(name)) continue;
-    const scored = scoreLead(`${count} recorded visit(s) to ${path} with no enquiry filed yet.`, name);
+    const scored = scoreLead(
+      `${count} recorded visit(s) to ${path} with no enquiry filed yet.`,
+      name,
+    );
     work.push({
       agentId: "signal",
       kind: "prospect_from_site_signals",
@@ -707,7 +853,9 @@ function planDraftCampaign(view: DutyView): PlannedWork[] {
     const isOpenDemand = lead.stage === "nurture" || lead.stage === "qualified";
     const alreadyInPipeline = lead.stage === "in_sales" || lead.stage === "lost";
     const hasPendingHandoff = view.approvalsPending.some(
-      (approval) => approval.kind === "sales_handoff" && (approval.companyName ?? "").toLowerCase() === lead.companyName.toLowerCase(),
+      (approval) =>
+        approval.kind === "sales_handoff" &&
+        (approval.companyName ?? "").toLowerCase() === lead.companyName.toLowerCase(),
     );
     return isOpenDemand && !alreadyInPipeline && !hasPendingHandoff;
   });
@@ -748,7 +896,15 @@ function planQualifyLeads(view: DutyView): PlannedWork[] {
         kind: "qualify_lead",
         reason: `${lead.companyName} (stage ${lead.stage}) scores ${scored.score} from what they actually wrote.`,
         priority: 30 - Math.min(25, Math.round(scored.score / 4)),
-        payload: { leadId: lead.id, companyName: lead.companyName, score: scored.score, reasons: scored.reasons, demand: scored.demand, support: scored.support, spam: scored.spam },
+        payload: {
+          leadId: lead.id,
+          companyName: lead.companyName,
+          score: scored.score,
+          reasons: scored.reasons,
+          demand: scored.demand,
+          support: scored.support,
+          spam: scored.spam,
+        },
         dedupeKey: `qualify:${lead.id}`,
       };
     });
@@ -766,10 +922,14 @@ function planHandoff(view: DutyView): PlannedWork[] {
   // Marketing stops at marketing. Anything that reads as genuine buying intent
   // and is not already in sales becomes a founder-gated handoff proposal.
   const pendingHandoff = new Set(
-    view.approvalsPending.filter((a) => a.kind === "sales_handoff").map((a) => (a.companyName ?? "").toLowerCase()),
+    view.approvalsPending
+      .filter((a) => a.kind === "sales_handoff")
+      .map((a) => (a.companyName ?? "").toLowerCase()),
   );
   const inSales = new Set(
-    view.leads.filter((lead) => lead.stage === "in_sales" || lead.stage === "ready_for_sales").map((lead) => lead.companyName.toLowerCase()),
+    view.leads
+      .filter((lead) => lead.stage === "in_sales" || lead.stage === "ready_for_sales")
+      .map((lead) => lead.companyName.toLowerCase()),
   );
   const work: PlannedWork[] = [];
   for (const lead of view.leads) {
@@ -782,7 +942,12 @@ function planHandoff(view: DutyView): PlannedWork[] {
       kind: "propose_sales_handoff",
       reason: `${lead.companyName}: ${scored.reasons.slice(0, 2).join("; ") || "reads as buying intent"}.`,
       priority: 12,
-      payload: { leadId: lead.id, companyName: lead.companyName, score: scored.score, reasons: scored.reasons },
+      payload: {
+        leadId: lead.id,
+        companyName: lead.companyName,
+        score: scored.score,
+        reasons: scored.reasons,
+      },
       dedupeKey: `handoff:${lead.id}`,
     });
   }
@@ -857,9 +1022,13 @@ function planStaleProposal(view: DutyView): PlannedWork[] {
 }
 
 function planWinHandoff(view: DutyView): PlannedWork[] {
-  const delivery = new Set(view.tickets.map((ticket) => ticket.relatedId).filter(Boolean) as string[]);
+  const delivery = new Set(
+    view.tickets.map((ticket) => ticket.relatedId).filter(Boolean) as string[],
+  );
   const invoiced = new Set(
-    view.ledger.filter((row) => row.kind === "invoice" && row.relatedId).map((row) => row.relatedId as string),
+    view.ledger
+      .filter((row) => row.kind === "invoice" && row.relatedId)
+      .map((row) => row.relatedId as string),
   );
   const work: PlannedWork[] = [];
   for (const opp of view.opportunities) {
@@ -881,11 +1050,16 @@ function planWinHandoff(view: DutyView): PlannedWork[] {
 function planAcknowledge(view: DutyView): PlannedWork[] {
   const acked = new Set(
     view.documents
-      .filter((doc) => (doc.kind === "service_ack" || doc.kind === "correspondence") && doc.relatedId)
+      .filter(
+        (doc) => (doc.kind === "service_ack" || doc.kind === "correspondence") && doc.relatedId,
+      )
       .map((doc) => doc.relatedId as string),
   );
   return view.tickets
-    .filter((ticket) => ticket.ownerAgent === "desk" && ticket.status !== "resolved" && !acked.has(ticket.id))
+    .filter(
+      (ticket) =>
+        ticket.ownerAgent === "desk" && ticket.status !== "resolved" && !acked.has(ticket.id),
+    )
     .map((ticket) => ({
       agentId: "desk",
       kind: "acknowledge_ticket",
@@ -917,7 +1091,9 @@ function planSlaWatch(view: DutyView): PlannedWork[] {
 function planChatReply(view: DutyView): PlannedWork[] {
   return view.chatThreads
     .filter((thread) => thread.status === "open" && thread.unansweredCount > 0)
-    .filter((thread) => (thread.lastMessageAt ? ageMinutes(thread.lastMessageAt, view.now) : 0) > 20)
+    .filter(
+      (thread) => (thread.lastMessageAt ? ageMinutes(thread.lastMessageAt, view.now) : 0) > 20,
+    )
     .map((thread) => ({
       agentId: "desk",
       kind: "draft_chat_reply",
@@ -938,13 +1114,20 @@ function planDiagnose(view: DutyView): PlannedWork[] {
       kind: "diagnose_ticket",
       reason: `${ticket.title}: ${ticket.summary.slice(0, 160)}`,
       priority: ticket.severity === "p1" ? 3 : 28,
-      payload: { ticketId: ticket.id, title: ticket.title, severity: ticket.severity, summary: ticket.summary },
+      payload: {
+        ticketId: ticket.id,
+        title: ticket.title,
+        severity: ticket.severity,
+        summary: ticket.summary,
+      },
       dedupeKey: `diagnose:${ticket.id}`,
     }));
 }
 
 function planKnowledge(view: DutyView): PlannedWork[] {
-  const written = new Set(view.documents.filter((doc) => doc.kind === "knowledge").map((doc) => doc.relatedId));
+  const written = new Set(
+    view.documents.filter((doc) => doc.kind === "knowledge").map((doc) => doc.relatedId),
+  );
   return view.tickets
     .filter((ticket) => ticket.status === "resolved" && ticket.summary.startsWith("FORGE:"))
     .filter((ticket) => !written.has(ticket.id))
@@ -1004,7 +1187,9 @@ function planRecords(view: DutyView): PlannedWork[] {
   for (const opp of view.opportunities) {
     if (opp.stage !== "won") continue;
     const hasDocuments = view.documents.some(
-      (doc) => doc.relatedId === opp.id && (doc.kind === "quote" || doc.kind === "invoice" || doc.kind === "receipt"),
+      (doc) =>
+        doc.relatedId === opp.id &&
+        (doc.kind === "quote" || doc.kind === "invoice" || doc.kind === "receipt"),
     );
     if (hasDocuments) continue;
     work.push({
@@ -1025,7 +1210,8 @@ function planChainVerify(view: DutyView): PlannedWork[] {
     {
       agentId: "seal",
       kind: "halt_broken_chain",
-      reason: "The audit hash chain does not verify. Autonomous actions are stopped until the founder looks.",
+      reason:
+        "The audit hash chain does not verify. Autonomous actions are stopped until the founder looks.",
       priority: 0,
       maxAttempts: 1,
       payload: {},
@@ -1045,10 +1231,231 @@ function planScopeAudit(view: DutyView): PlannedWork[] {
       kind: "report_scope_drift",
       reason: `${rogue.length} escalation(s) were filed on confidence rather than a constitutional gate. An agent may be uncertain about its role.`,
       priority: 33,
-      payload: { approvals: rogue.slice(0, 10).map((a) => ({ id: a.id, title: a.title, agent: a.kind })) },
+      payload: {
+        approvals: rogue.slice(0, 10).map((a) => ({ id: a.id, title: a.title, agent: a.kind })),
+      },
       dedupeKey: `scope-drift:${new Date(view.now).toISOString().slice(0, 10)}`,
     },
   ];
+}
+
+// ── Recurring revenue and productised services ────────────────────────────────
+
+/**
+ * The billing duty.
+ *
+ * It plans one work item per subscription that is due. The period boundaries
+ * come from the subscription's own next billing instant, so the office never
+ * invents a date: the period is the one the contract says.
+ */
+function planSubscriptionBilling(view: DutyView): PlannedWork[] {
+  return view.subscriptions
+    .filter((sub) => sub.status === "active")
+    .filter((sub) => Date.parse(sub.nextBillingAt) <= Date.parse(view.now))
+    .map((sub) => ({
+      agentId: "ledger",
+      kind: "bill_subscription_cycle",
+      reason: `${sub.companyName} is due for ${sub.planId} billing (R${(sub.priceCents / 100).toFixed(2)}) on ${sub.nextBillingAt.slice(0, 10)}.`,
+      priority: 18,
+      payload: {
+        subscriptionId: sub.id,
+        companyName: sub.companyName,
+        planId: sub.planId,
+        rateId: sub.rateId,
+        priceCents: sub.priceCents,
+        cycle: sub.cycle,
+        periodStart: sub.nextBillingAt,
+      },
+      dedupeKey: `bill:${sub.id}:${sub.nextBillingAt}`,
+    }));
+}
+
+/**
+ * The fulfilment duty.
+ *
+ * A cycle that has been invoiced but not yet delivered is a promise the office
+ * has made and not kept. This plans the work that closes that gap.
+ */
+function planServiceFulfilment(view: DutyView): PlannedWork[] {
+  return view.billingCycles
+    .filter((cycle) => cycle.status === "invoiced")
+    .filter((cycle) => !cycle.reportDocumentId)
+    .map((cycle) => ({
+      agentId: "desk",
+      kind: "fulfil_service_cycle",
+      reason: `${cycle.companyName} has been invoiced for ${cycle.planId} and the deliverable has not been produced.`,
+      priority: 20,
+      payload: {
+        cycleId: cycle.id,
+        subscriptionId: cycle.subscriptionId,
+        companyName: cycle.companyName,
+        planId: cycle.planId,
+        amountCents: cycle.amountCents,
+        periodStart: cycle.periodStart,
+        periodEnd: cycle.periodEnd,
+      },
+      dedupeKey: `fulfil:${cycle.id}`,
+    }));
+}
+
+/**
+ * The notice duty.
+ *
+ * The deliverable exists and the customer has not been told. This plans the
+ * email that closes the loop.
+ */
+function planServiceNotice(view: DutyView): PlannedWork[] {
+  return view.billingCycles
+    .filter((cycle) => cycle.status === "fulfilled")
+    .filter((cycle) => !cycle.notifiedAt)
+    .map((cycle) => ({
+      agentId: "desk",
+      kind: "send_service_notice",
+      reason: `${cycle.companyName} has a delivered ${cycle.planId} report that has not been sent.`,
+      priority: 22,
+      payload: {
+        cycleId: cycle.id,
+        subscriptionId: cycle.subscriptionId,
+        companyName: cycle.companyName,
+        planId: cycle.planId,
+        amountCents: cycle.amountCents,
+        periodStart: cycle.periodStart,
+        periodEnd: cycle.periodEnd,
+      },
+      dedupeKey: `notice:${cycle.id}`,
+    }));
+}
+
+/**
+ * The dunning duty.
+ *
+ * Only plans a reminder when the office is allowed to email a customer, and
+ * only between one and nine weeks after the invoice was raised. Past that the
+ * matter goes back to the founder, because a customer who has been chased for
+ * two months needs a person, not another email.
+ */
+function planDunning(view: DutyView): PlannedWork[] {
+  if (!view.delegation || view.delegation.status !== "active") return [];
+  if (!view.delegation.allowCustomerMail) return [];
+  if (!view.delegation.allowedActions.includes("send_customer_mail")) return [];
+  return view.ledger
+    .filter((row) => row.kind === "invoice" && row.status === "issued")
+    .filter((row) => {
+      const days = ageMinutes(row.createdAt, view.now) / DAY;
+      return days >= 7 && days < 63;
+    })
+    .map((row) => ({
+      agentId: "ledger",
+      kind: "send_payment_reminder",
+      reason: `Invoice for ${row.counterparty} (R${(row.amountCents / 100).toFixed(2)}) has been open for ${Math.floor(ageMinutes(row.createdAt, view.now) / DAY)} days.`,
+      priority: 27,
+      payload: { invoiceId: row.id, counterparty: row.counterparty, amountCents: row.amountCents },
+      dedupeKey: `dunning:${row.id}:${Math.floor(ageMinutes(row.createdAt, view.now) / (7 * DAY))}`,
+    }));
+}
+
+/**
+ * The quote-notice duty.
+ *
+ * A quote the customer has not received is not a quote. This plans the email
+ * that carries it, with a link they can accept on.
+ */
+function planQuoteNotice(view: DutyView): PlannedWork[] {
+  if (!view.delegation || view.delegation.status !== "active") return [];
+  if (!view.delegation.allowCustomerMail) return [];
+  if (!view.delegation.allowedActions.includes("send_customer_mail")) return [];
+  if (!view.delegation.allowedActions.includes("issue_quote")) return [];
+  const linked = new Set(
+    view.quoteLinks.filter((link) => link.state === "open").map((link) => link.documentId),
+  );
+  return view.quotes
+    .filter((quote) => quote.status === "approved_unsent")
+    .filter((quote) => !linked.has(quote.id))
+    .map((quote) => ({
+      agentId: "close",
+      kind: "send_quote_notice",
+      reason: `A quote is approved and waiting on the customer: ${quote.title}.`,
+      priority: 25,
+      payload: { documentId: quote.id },
+      dedupeKey: `quote-notice:${quote.id}`,
+    }));
+}
+
+/**
+ * The subscription-starts duty.
+ *
+ * A customer who accepted a quote for a recurring plan has bought a
+ * subscription, not a one-off job. This plans the work that records it, so
+ * the office starts billing them on the schedule they agreed to.
+ */
+function planStartSubscription(view: DutyView): PlannedWork[] {
+  const subscribed = new Set(view.subscriptions.map((sub) => sub.companyName.trim().toLowerCase()));
+  const accepted = view.quotes.filter((quote) => quote.status === "accepted");
+  const work: PlannedWork[] = [];
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "won" || opp.valueCents <= 0) continue;
+    if (subscribed.has(opp.companyName.trim().toLowerCase())) continue;
+    const quote = accepted.find((item) => item.relatedId === opp.id);
+    const plan = quote?.rateId ? planForRate(quote.rateId) : undefined;
+    if (!plan || plan.cycle === "once") continue;
+    work.push({
+      agentId: "ledger",
+      kind: "start_subscription_cycle",
+      reason: `${opp.companyName} accepted a ${plan.title} quote and the subscription has not been started.`,
+      priority: 17,
+      payload: {
+        opportunityId: opp.id,
+        companyName: opp.companyName,
+        planId: plan.id,
+        rateId: plan.rateId,
+        cycle: plan.cycle,
+        priceCents: plan.priceCents,
+        quoteDocumentId: quote?.id ?? null,
+        acceptedAt: quote?.createdAt ?? opp.updatedAt,
+      },
+      dedupeKey: `start-subscription:${opp.id}`,
+    });
+  }
+  return work;
+}
+
+/**
+ * The recurring-revenue review.
+ *
+ * Weekly, and only worth running when there is something recurring to review.
+ * It checks the health of the book and whether the published prices still
+ * match the plans the office is selling.
+ */
+function planSubscriptionReview(view: DutyView): PlannedWork[] {
+  if (!view.subscriptions.length) return [];
+  const stale = view.subscriptions.filter(
+    (sub) =>
+      sub.status === "active" &&
+      Date.parse(sub.nextBillingAt) < Date.parse(view.now) - 7 * DAY * 60_000,
+  );
+  const review = planRateCardIntegrity();
+  if (!stale.length && review.ok) return [];
+  return [
+    {
+      agentId: "keep",
+      kind: "review_subscription_health",
+      reason: stale.length
+        ? `${stale.length} subscription(s) are past their billing date and were not billed.`
+        : review.detail,
+      priority: 34,
+      payload: {
+        stale: stale.map((sub) => ({ id: sub.id, companyName: sub.companyName })),
+        rateCardOk: review.ok,
+        rateCardDetail: review.detail,
+      },
+      dedupeKey: `subscription-review:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
+}
+
+/** The published price card must still match the plans the office sells. */
+export function planRateCardIntegrity(): { ok: boolean; detail: string } {
+  return rateCardIntegrity();
 }
 
 // ── Published rate integrity ──────────────────────────────────────────────────
@@ -1088,8 +1495,11 @@ export const PRICE_GUIDE: PriceGuideEntry[] = PUBLISHED_RATES.map((rate) => ({
  * quoting something else.
  */
 export function rateCardIntegrity(): { ok: boolean; detail: string } {
-  const hourly = PUBLISHED_RATES.filter((rate) => rate.offered && /per hour|\/ hour/.test(rate.price));
-  if (hourly.length < 2) return { ok: false, detail: "The published rate card no longer exposes hourly labour." };
+  const hourly = PUBLISHED_RATES.filter(
+    (rate) => rate.offered && /per hour|\/ hour/.test(rate.price),
+  );
+  if (hourly.length < 2)
+    return { ok: false, detail: "The published rate card no longer exposes hourly labour." };
   // Only labour lines must carry a single readable figure. Travel and supplier
   // costs are deliberately quoted per job, so they are not expected to parse.
   const unparsed = PRICE_GUIDE.filter(

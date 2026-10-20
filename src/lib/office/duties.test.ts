@@ -30,6 +30,9 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     leads: [],
     opportunities: [],
     quotes: [],
+    subscriptions: [],
+    billingCycles: [],
+    delegation: null,
     tickets: [],
     ledger: [],
     documents: [],
@@ -97,7 +100,21 @@ describe("duties never invent work", () => {
     assert.equal(planDuty("signal_content_brief", view()).length, 1);
     const today = new Date(Date.parse(NOW) - 3 * 3_600_000).toISOString();
     assert.deepEqual(
-      planDuty("signal_content_brief", view({ documents: [{ id: "d1", title: "brief", kind: "content_brief", status: "draft", relatedId: null, createdAt: today }] })),
+      planDuty(
+        "signal_content_brief",
+        view({
+          documents: [
+            {
+              id: "d1",
+              title: "brief",
+              kind: "content_brief",
+              status: "draft",
+              relatedId: null,
+              createdAt: today,
+            },
+          ],
+        }),
+      ),
       [],
     );
   });
@@ -179,7 +196,10 @@ describe("duties never invent work", () => {
     for (const duty of ALL_DUTIES) {
       for (const item of planDuty(duty, busy)) {
         assert.equal(item.agentId, DUTY_OWNER[duty], `${duty} filed work for ${item.agentId}`);
-        assert.ok(item.dedupeKey && item.dedupeKey.length > 3, `${duty} filed work with no dedupe key`);
+        assert.ok(
+          item.dedupeKey && item.dedupeKey.length > 3,
+          `${duty} filed work with no dedupe key`,
+        );
         assert.ok(item.reason.trim().length > 8, `${duty} filed work with no reason`);
       }
     }
@@ -200,12 +220,18 @@ describe("lead scoring", () => {
   });
 
   it("scores a support report as support, not as buying intent", () => {
-    const fault = scoreLead("Our internet is down and the phones have no dial tone since this morning.", "Acme");
+    const fault = scoreLead(
+      "Our internet is down and the phones have no dial tone since this morning.",
+      "Acme",
+    );
     assert.ok(fault.support > 0);
   });
 
   it("rejects unsolicited outreach outright", () => {
-    const spam = scoreLead("We offer SEO services and backlinks for your site, dear sir or madam.", "Spammy Co");
+    const spam = scoreLead(
+      "We offer SEO services and backlinks for your site, dear sir or madam.",
+      "Spammy Co",
+    );
     assert.equal(spam.spam, true);
     assert.equal(spam.score, -100);
   });
@@ -297,7 +323,11 @@ describe("foyer intake", () => {
       createdAt: hoursAgo(1),
     };
     assert.deepEqual(planDuty("foyer_stale_intake", view({ inbound: [fresh] })), []);
-    assert.equal(planDuty("foyer_stale_intake", view({ inbound: [{ ...fresh, createdAt: hoursAgo(30) }] })).length, 1);
+    assert.equal(
+      planDuty("foyer_stale_intake", view({ inbound: [{ ...fresh, createdAt: hoursAgo(30) }] }))
+        .length,
+      1,
+    );
   });
 });
 
@@ -360,28 +390,77 @@ describe("marketing duties", () => {
       companyName: "Acme",
       stage: "engaged",
       score: 70,
-      summary: "We need a quote for a network switch, cabling and 20 phone extensions for our office.",
+      summary:
+        "We need a quote for a network switch, cabling and 20 phone extensions for our office.",
       inboundId: null,
       updatedAt: hoursAgo(1),
     };
-    assert.deepEqual(planDuty("signal_handoff", view({ leads: [lead], approvalsPending: [{ id: "a1", kind: "sales_handoff", title: "x", companyName: "acme", createdAt: NOW }] })), []);
-    assert.deepEqual(planDuty("signal_handoff", view({ leads: [{ ...lead, stage: "in_sales" }] })), []);
+    assert.deepEqual(
+      planDuty(
+        "signal_handoff",
+        view({
+          leads: [lead],
+          approvalsPending: [
+            { id: "a1", kind: "sales_handoff", title: "x", companyName: "acme", createdAt: NOW },
+          ],
+        }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      planDuty("signal_handoff", view({ leads: [{ ...lead, stage: "in_sales" }] })),
+      [],
+    );
   });
 
   it("only briefs content when there is a real gap, at most daily", () => {
     assert.equal(
-      planDuty("signal_content_brief", view({ documents: [{ id: "d1", title: "brief", kind: "content_brief", status: "draft", relatedId: null, createdAt: hoursAgo(3) }] })).length,
+      planDuty(
+        "signal_content_brief",
+        view({
+          documents: [
+            {
+              id: "d1",
+              title: "brief",
+              kind: "content_brief",
+              status: "draft",
+              relatedId: null,
+              createdAt: hoursAgo(3),
+            },
+          ],
+        }),
+      ).length,
       0,
     );
     assert.equal(
-      planDuty("signal_content_brief", view({ documents: [{ id: "d1", title: "brief", kind: "content_brief", status: "draft", relatedId: null, createdAt: daysAgo(3) }] })).length,
+      planDuty(
+        "signal_content_brief",
+        view({
+          documents: [
+            {
+              id: "d1",
+              title: "brief",
+              kind: "content_brief",
+              status: "draft",
+              relatedId: null,
+              createdAt: daysAgo(3),
+            },
+          ],
+        }),
+      ).length,
       1,
     );
   });
 
   it("reports no site signals when nobody has visited", () => {
     assert.deepEqual(planDuty("signal_site_signals", view()), []);
-    assert.equal(planDuty("signal_site_signals", view({ siteEvents: [{ kind: "page_view", path: "/", occurredAt: hoursAgo(1) }] })).length, 1);
+    assert.equal(
+      planDuty(
+        "signal_site_signals",
+        view({ siteEvents: [{ kind: "page_view", path: "/", occurredAt: hoursAgo(1) }] }),
+      ).length,
+      1,
+    );
   });
 });
 
@@ -403,8 +482,17 @@ describe("sales duties", () => {
       relatedId: "op1",
       createdAt,
     });
-    assert.deepEqual(planDuty("close_quote_followup", view({ opportunities: [opportunity], quotes: [quote(daysAgo(0))] })), []);
-    const due = planDuty("close_quote_followup", view({ opportunities: [opportunity], quotes: [quote(daysAgo(4))] }));
+    assert.deepEqual(
+      planDuty(
+        "close_quote_followup",
+        view({ opportunities: [opportunity], quotes: [quote(daysAgo(0))] }),
+      ),
+      [],
+    );
+    const due = planDuty(
+      "close_quote_followup",
+      view({ opportunities: [opportunity], quotes: [quote(daysAgo(4))] }),
+    );
     assert.equal(due.length, 1);
     assert.equal(due[0].kind, "draft_quote_followup");
     assert.equal(due[0].payload?.daysWaiting, 4);
@@ -415,12 +503,34 @@ describe("sales duties", () => {
       "close_quote_followup",
       view({
         opportunities: [
-          { id: "op1", companyName: "Acme", stage: "proposal", valueCents: 100000, summary: "x", updatedAt: daysAgo(5) },
+          {
+            id: "op1",
+            companyName: "Acme",
+            stage: "proposal",
+            valueCents: 100000,
+            summary: "x",
+            updatedAt: daysAgo(5),
+          },
         ],
         quotes: [
-          { id: "q1", title: "Quote", kind: "quote", status: "approved_unsent", relatedId: "op1", createdAt: daysAgo(4) },
+          {
+            id: "q1",
+            title: "Quote",
+            kind: "quote",
+            status: "approved_unsent",
+            relatedId: "op1",
+            createdAt: daysAgo(4),
+          },
         ],
-        quoteLinks: [{ documentId: "q1", state: "open", viewCount: 3, createdAt: daysAgo(4), lastViewedAt: daysAgo(1) }],
+        quoteLinks: [
+          {
+            documentId: "q1",
+            state: "open",
+            viewCount: 3,
+            createdAt: daysAgo(4),
+            lastViewedAt: daysAgo(1),
+          },
+        ],
       }),
     );
     assert.equal(work[0].payload?.views, 3);
@@ -429,10 +539,25 @@ describe("sales duties", () => {
 
   it("does not follow up on a proposal with no quote behind it", () => {
     assert.deepEqual(
-      planDuty("close_quote_followup", view({
-        opportunities: [{ id: "op1", companyName: "Acme", stage: "proposal", valueCents: 100000, summary: "x", updatedAt: daysAgo(30) }],
-        quotes: [],
-      })),
+      planDuty(
+        "close_quote_followup",
+        view({
+          opportunities: [
+            {
+              id: "op1",
+              companyName: "Acme",
+              stage: "proposal",
+              valueCents: 100000,
+              summary: "x",
+              updatedAt: daysAgo(30),
+            },
+          ],
+          quotes: [],
+          subscriptions: [],
+          billingCycles: [],
+          delegation: null,
+        }),
+      ),
       [],
     );
   });
@@ -441,7 +566,16 @@ describe("sales duties", () => {
     const work = planDuty(
       "close_stale_proposal",
       view({
-        opportunities: [{ id: "op1", companyName: "Acme", stage: "proposal", valueCents: 100000, summary: "x", updatedAt: daysAgo(21) }],
+        opportunities: [
+          {
+            id: "op1",
+            companyName: "Acme",
+            stage: "proposal",
+            valueCents: 100000,
+            summary: "x",
+            updatedAt: daysAgo(21),
+          },
+        ],
       }),
     );
     assert.equal(work.length, 1);
@@ -450,13 +584,31 @@ describe("sales duties", () => {
   });
 
   it("nudges for an invoice only after delivery is actually open", () => {
-    const won = { id: "op1", companyName: "Acme", stage: "won", valueCents: 100000, summary: "x", updatedAt: daysAgo(3) };
+    const won = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 100000,
+      summary: "x",
+      updatedAt: daysAgo(3),
+    };
     assert.deepEqual(planDuty("close_win_handoff", view({ opportunities: [won] })), []);
     const withTicket = planDuty(
       "close_win_handoff",
       view({
         opportunities: [won],
-        tickets: [{ id: "tk1", title: "Job", severity: "p3", status: "open", ownerAgent: "forge", summary: "x", relatedId: "op1", updatedAt: daysAgo(3) }],
+        tickets: [
+          {
+            id: "tk1",
+            title: "Job",
+            severity: "p3",
+            status: "open",
+            ownerAgent: "forge",
+            summary: "x",
+            relatedId: "op1",
+            updatedAt: daysAgo(3),
+          },
+        ],
       }),
     );
     assert.equal(withTicket.length, 1);
@@ -464,8 +616,29 @@ describe("sales duties", () => {
       "close_win_handoff",
       view({
         opportunities: [won],
-        tickets: [{ id: "tk1", title: "Job", severity: "p3", status: "open", ownerAgent: "forge", summary: "x", relatedId: "op1", updatedAt: daysAgo(3) }],
-        ledger: [{ id: "lg1", kind: "invoice", counterparty: "Acme", amountCents: 100000, status: "issued", relatedId: "op1", createdAt: daysAgo(2) }],
+        tickets: [
+          {
+            id: "tk1",
+            title: "Job",
+            severity: "p3",
+            status: "open",
+            ownerAgent: "forge",
+            summary: "x",
+            relatedId: "op1",
+            updatedAt: daysAgo(3),
+          },
+        ],
+        ledger: [
+          {
+            id: "lg1",
+            kind: "invoice",
+            counterparty: "Acme",
+            amountCents: 100000,
+            status: "issued",
+            relatedId: "op1",
+            createdAt: daysAgo(2),
+          },
+        ],
       }),
     );
     assert.deepEqual(invoiced, []);
@@ -490,7 +663,16 @@ describe("service and technical duties", () => {
         "desk_acknowledge",
         view({
           tickets: [ticket],
-          documents: [{ id: "d1", title: "ack", kind: "service_ack", status: "draft", relatedId: "tk1", createdAt: hoursAgo(1) }],
+          documents: [
+            {
+              id: "d1",
+              title: "ack",
+              kind: "service_ack",
+              status: "draft",
+              relatedId: "tk1",
+              createdAt: hoursAgo(1),
+            },
+          ],
         }),
       ),
       [],
@@ -511,7 +693,10 @@ describe("service and technical duties", () => {
     assert.deepEqual(planDuty("desk_sla_watch", view({ tickets: [aged("p3", 100)] })), []);
     assert.equal(planDuty("desk_sla_watch", view({ tickets: [aged("p1", 100)] })).length, 1);
     assert.equal(planDuty("desk_sla_watch", view({ tickets: [aged("p1", 100)] }))[0].priority, 1);
-    assert.deepEqual(planDuty("desk_sla_watch", view({ tickets: [{ ...aged("p1", 100), status: "resolved" }] })), []);
+    assert.deepEqual(
+      planDuty("desk_sla_watch", view({ tickets: [{ ...aged("p1", 100), status: "resolved" }] })),
+      [],
+    );
   });
 
   it("diagnoses an open ticket exactly once", () => {
@@ -526,8 +711,17 @@ describe("service and technical duties", () => {
       updatedAt: hoursAgo(1),
     };
     assert.equal(planDuty("forge_diagnose", view({ tickets: [ticket] })).length, 1);
-    assert.deepEqual(planDuty("forge_diagnose", view({ tickets: [{ ...ticket, summary: "FORGE: already done" }] })), []);
-    assert.deepEqual(planDuty("forge_diagnose", view({ tickets: [{ ...ticket, status: "in_progress" }] })), []);
+    assert.deepEqual(
+      planDuty(
+        "forge_diagnose",
+        view({ tickets: [{ ...ticket, summary: "FORGE: already done" }] }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      planDuty("forge_diagnose", view({ tickets: [{ ...ticket, status: "in_progress" }] })),
+      [],
+    );
   });
 
   it("only records knowledge from resolved tickets that have a procedure", () => {
@@ -543,7 +737,22 @@ describe("service and technical duties", () => {
     };
     assert.equal(planDuty("forge_knowledge", view({ tickets: [resolved] })).length, 1);
     assert.deepEqual(
-      planDuty("forge_knowledge", view({ tickets: [resolved], documents: [{ id: "d1", title: "k", kind: "knowledge", status: "recorded", relatedId: "tk1", createdAt: daysAgo(1) }] })),
+      planDuty(
+        "forge_knowledge",
+        view({
+          tickets: [resolved],
+          documents: [
+            {
+              id: "d1",
+              title: "k",
+              kind: "knowledge",
+              status: "recorded",
+              relatedId: "tk1",
+              createdAt: daysAgo(1),
+            },
+          ],
+        }),
+      ),
       [],
     );
   });
@@ -562,7 +771,10 @@ describe("finance duties", () => {
     });
     assert.deepEqual(planDuty("ledger_chase_invoice", view({ ledger: [invoice(2)] })), []);
     assert.equal(planDuty("ledger_chase_invoice", view({ ledger: [invoice(30)] })).length, 1);
-    assert.deepEqual(planDuty("ledger_chase_invoice", view({ ledger: [{ ...invoice(30), status: "paid" }] })), []);
+    assert.deepEqual(
+      planDuty("ledger_chase_invoice", view({ ledger: [{ ...invoice(30), status: "paid" }] })),
+      [],
+    );
   });
 
   it("never books a receipt on its own; it only asks the founder to confirm", () => {
@@ -570,8 +782,26 @@ describe("finance duties", () => {
       "ledger_payment_notices",
       view({
         inbound: [
-          { id: "in1", channel: "web", companyName: "Acme", subject: "Payment", summary: "x", intent: "payment_notice", status: "received", createdAt: hoursAgo(1) },
-          { id: "in2", channel: "web", companyName: "Beta", subject: "Payment", summary: "x", intent: "payment_notice", status: "filed", createdAt: hoursAgo(1) },
+          {
+            id: "in1",
+            channel: "web",
+            companyName: "Acme",
+            subject: "Payment",
+            summary: "x",
+            intent: "payment_notice",
+            status: "received",
+            createdAt: hoursAgo(1),
+          },
+          {
+            id: "in2",
+            channel: "web",
+            companyName: "Beta",
+            subject: "Payment",
+            summary: "x",
+            intent: "payment_notice",
+            status: "filed",
+            createdAt: hoursAgo(1),
+          },
         ],
       }),
     );
@@ -601,7 +831,14 @@ describe("compliance duties", () => {
 
   it("reports confidence escalations as possible role drift", () => {
     assert.deepEqual(planDuty("seal_scope_audit", view()), []);
-    const work = planDuty("seal_scope_audit", view({ approvalsPending: [{ id: "a1", kind: "constraint_margin", title: "x", companyName: null, createdAt: NOW }] }));
+    const work = planDuty(
+      "seal_scope_audit",
+      view({
+        approvalsPending: [
+          { id: "a1", kind: "constraint_margin", title: "x", companyName: null, createdAt: NOW },
+        ],
+      }),
+    );
     assert.equal(work.length, 1);
     assert.equal(work[0].kind, "report_scope_drift");
   });
@@ -673,7 +910,10 @@ describe("liveness", () => {
   });
 
   it("reports an agent that has never recorded a heartbeat", () => {
-    const work = planDuty("vantage_liveness", view({ agents: [{ id: "keep", callsign: "KEEP", status: "idle", lastHeartbeat: null }] }));
+    const work = planDuty(
+      "vantage_liveness",
+      view({ agents: [{ id: "keep", callsign: "KEEP", status: "idle", lastHeartbeat: null }] }),
+    );
     assert.equal(work.length, 1);
     assert.equal(work[0].priority, 4, "an agent that never ran is more urgent than a slow one");
   });
@@ -718,13 +958,16 @@ describe("prospect duty", () => {
   });
 
   it("flags repeat visits to a buying path as a lead, not a customer", () => {
-    const work = planDuty("signal_prospect", view({
-      siteEvents: [
-        { kind: "page_view", path: "/rates", occurredAt: hoursAgo(1) },
-        { kind: "page_view", path: "/rates", occurredAt: hoursAgo(5) },
-        { kind: "page_view", path: "/quote", occurredAt: hoursAgo(2) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_prospect",
+      view({
+        siteEvents: [
+          { kind: "page_view", path: "/rates", occurredAt: hoursAgo(1) },
+          { kind: "page_view", path: "/rates", occurredAt: hoursAgo(5) },
+          { kind: "page_view", path: "/quote", occurredAt: hoursAgo(2) },
+        ],
+      }),
+    );
     assert.equal(work.length, 2);
     for (const item of work) {
       assert.equal(item.agentId, "signal");
@@ -742,28 +985,37 @@ describe("prospect duty", () => {
   });
 
   it("ignores pages that are not buying signals", () => {
-    const work = planDuty("signal_prospect", view({
-      siteEvents: [
-        { kind: "page_view", path: "/", occurredAt: hoursAgo(1) },
-        { kind: "page_view", path: "/", occurredAt: hoursAgo(2) },
-        { kind: "page_view", path: "/privacy", occurredAt: hoursAgo(3) },
-        { kind: "page_view", path: "/terms", occurredAt: hoursAgo(4) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_prospect",
+      view({
+        siteEvents: [
+          { kind: "page_view", path: "/", occurredAt: hoursAgo(1) },
+          { kind: "page_view", path: "/", occurredAt: hoursAgo(2) },
+          { kind: "page_view", path: "/privacy", occurredAt: hoursAgo(3) },
+          { kind: "page_view", path: "/terms", occurredAt: hoursAgo(4) },
+        ],
+      }),
+    );
     assert.deepEqual(work, []);
   });
 
   it("needs repeat visits to a service page before flagging it", () => {
-    const once = planDuty("signal_prospect", view({
-      siteEvents: [{ kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) }],
-    }));
+    const once = planDuty(
+      "signal_prospect",
+      view({
+        siteEvents: [{ kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) }],
+      }),
+    );
     assert.deepEqual(once, []);
-    const twice = planDuty("signal_prospect", view({
-      siteEvents: [
-        { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) },
-        { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(10) },
-      ],
-    }));
+    const twice = planDuty(
+      "signal_prospect",
+      view({
+        siteEvents: [
+          { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(1) },
+          { kind: "page_view", path: "/services/voip", occurredAt: hoursAgo(10) },
+        ],
+      }),
+    );
     assert.equal(twice.length, 1);
     assert.equal(twice[0].payload?.path, "/services/voip");
     assert.equal(twice[0].payload?.visitCount, 2);
@@ -773,11 +1025,22 @@ describe("prospect duty", () => {
 
 describe("qualify duty", () => {
   it("scores a fresh lead once, while it is still engaged", () => {
-    const work = planDuty("signal_qualify_leads", view({
-      leads: [
-        { id: "ld1", companyName: "Acme", stage: "engaged", score: 40, summary: "We need a quote for 20 extensions.", inboundId: null, updatedAt: hoursAgo(1) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_qualify_leads",
+      view({
+        leads: [
+          {
+            id: "ld1",
+            companyName: "Acme",
+            stage: "engaged",
+            score: 40,
+            summary: "We need a quote for 20 extensions.",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+        ],
+      }),
+    );
     assert.equal(work.length, 1);
     assert.equal(work[0].agentId, "signal");
     assert.equal(work[0].kind, "qualify_lead");
@@ -788,12 +1051,30 @@ describe("qualify duty", () => {
   it("never re-scores a lead that already has a stage", () => {
     // Scoring runs every three hours. If it kept working on decided leads it
     // would re-decide the same lead forever and churn the decision chain.
-    for (const stage of ["nurture", "qualified", "disqualified", "ready_for_sales", "in_sales", "lost"]) {
-      const work = planDuty("signal_qualify_leads", view({
-        leads: [
-          { id: "ld1", companyName: "Acme", stage, score: 40, summary: "We need a quote.", inboundId: null, updatedAt: hoursAgo(1) },
-        ],
-      }));
+    for (const stage of [
+      "nurture",
+      "qualified",
+      "disqualified",
+      "ready_for_sales",
+      "in_sales",
+      "lost",
+    ]) {
+      const work = planDuty(
+        "signal_qualify_leads",
+        view({
+          leads: [
+            {
+              id: "ld1",
+              companyName: "Acme",
+              stage,
+              score: 40,
+              summary: "We need a quote.",
+              inboundId: null,
+              updatedAt: hoursAgo(1),
+            },
+          ],
+        }),
+      );
       assert.deepEqual(work, [], `re-planned a ${stage} lead`);
     }
   });
@@ -814,9 +1095,43 @@ describe("briefing duty", () => {
 
   it("is triggered by any real record, not just money", () => {
     for (const patch of [
-      { approvalsPending: [{ id: "ap1", kind: "sales_handoff", title: "Handoff", companyName: "Acme", createdAt: hoursAgo(1) }] },
-      { campaigns: [{ id: "c1", name: "Weekly", channel: "owned", status: "draft", budgetCents: 0, spendCents: 0, summary: "draft", createdAt: hoursAgo(1) }] },
-      { documents: [{ id: "d1", title: "Brief", kind: "content_brief", status: "draft", relatedId: null, createdAt: hoursAgo(1) }] },
+      {
+        approvalsPending: [
+          {
+            id: "ap1",
+            kind: "sales_handoff",
+            title: "Handoff",
+            companyName: "Acme",
+            createdAt: hoursAgo(1),
+          },
+        ],
+      },
+      {
+        campaigns: [
+          {
+            id: "c1",
+            name: "Weekly",
+            channel: "owned",
+            status: "draft",
+            budgetCents: 0,
+            spendCents: 0,
+            summary: "draft",
+            createdAt: hoursAgo(1),
+          },
+        ],
+      },
+      {
+        documents: [
+          {
+            id: "d1",
+            title: "Brief",
+            kind: "content_brief",
+            status: "draft",
+            relatedId: null,
+            createdAt: hoursAgo(1),
+          },
+        ],
+      },
     ]) {
       assert.equal(planDuty("vantage_briefing", view(patch)).length, 1, JSON.stringify(patch));
     }
@@ -829,23 +1144,69 @@ describe("draft campaign duty", () => {
   });
 
   it("plans nothing when there is no nurtured demand", () => {
-    const work = planDuty("signal_draft_campaign", view({
-      leads: [
-        { id: "ld1", companyName: "Acme", stage: "engaged", score: 40, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-        { id: "ld2", companyName: "Lost Co", stage: "lost", score: 90, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-        { id: "ld3", companyName: "In Sales", stage: "in_sales", score: 80, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_draft_campaign",
+      view({
+        leads: [
+          {
+            id: "ld1",
+            companyName: "Acme",
+            stage: "engaged",
+            score: 40,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+          {
+            id: "ld2",
+            companyName: "Lost Co",
+            stage: "lost",
+            score: 90,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+          {
+            id: "ld3",
+            companyName: "In Sales",
+            stage: "in_sales",
+            score: 80,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+        ],
+      }),
+    );
     assert.deepEqual(work, []);
   });
 
   it("drafts one campaign for nurtured leads not yet in sales", () => {
-    const work = planDuty("signal_draft_campaign", view({
-      leads: [
-        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-        { id: "ld2", companyName: "Beta", stage: "qualified", score: 70, summary: "x", inboundId: null, updatedAt: hoursAgo(2) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_draft_campaign",
+      view({
+        leads: [
+          {
+            id: "ld1",
+            companyName: "Acme",
+            stage: "nurture",
+            score: 30,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+          {
+            id: "ld2",
+            companyName: "Beta",
+            stage: "qualified",
+            score: 70,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(2),
+          },
+        ],
+      }),
+    );
     assert.equal(work.length, 1);
     assert.equal(work[0].agentId, "signal");
     assert.equal(work[0].kind, "draft_campaign");
@@ -853,29 +1214,71 @@ describe("draft campaign duty", () => {
     assert.equal(work[0].payload?.budgetCents, 0);
     assert.equal(work[0].payload?.channel, "owned");
     const leads = work[0].payload?.leads as { companyName: string }[] | undefined;
-    assert.deepEqual(leads?.map((lead) => lead.companyName), ["Acme", "Beta"]);
+    assert.deepEqual(
+      leads?.map((lead) => lead.companyName),
+      ["Acme", "Beta"],
+    );
   });
 
   it("does not draft for a lead that already has a pending sales handoff", () => {
-    const work = planDuty("signal_draft_campaign", view({
-      leads: [
-        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-      ],
-      approvalsPending: [
-        { id: "ap1", kind: "sales_handoff", title: "Handoff", companyName: "Acme", createdAt: hoursAgo(1) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_draft_campaign",
+      view({
+        leads: [
+          {
+            id: "ld1",
+            companyName: "Acme",
+            stage: "nurture",
+            score: 30,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+        ],
+        approvalsPending: [
+          {
+            id: "ap1",
+            kind: "sales_handoff",
+            title: "Handoff",
+            companyName: "Acme",
+            createdAt: hoursAgo(1),
+          },
+        ],
+      }),
+    );
     assert.deepEqual(work, []);
   });
 
   it("does not re-draft within the same week", () => {
     const weekStart = NOW.slice(0, 10);
-    const work = planDuty("signal_draft_campaign", view({
-      campaigns: [{ id: "c1", name: "Weekly", channel: "owned", status: "draft", budgetCents: 0, spendCents: 0, summary: "draft", createdAt: weekStart }],
-      leads: [
-        { id: "ld1", companyName: "Acme", stage: "nurture", score: 30, summary: "x", inboundId: null, updatedAt: hoursAgo(1) },
-      ],
-    }));
+    const work = planDuty(
+      "signal_draft_campaign",
+      view({
+        campaigns: [
+          {
+            id: "c1",
+            name: "Weekly",
+            channel: "owned",
+            status: "draft",
+            budgetCents: 0,
+            spendCents: 0,
+            summary: "draft",
+            createdAt: weekStart,
+          },
+        ],
+        leads: [
+          {
+            id: "ld1",
+            companyName: "Acme",
+            stage: "nurture",
+            score: 30,
+            summary: "x",
+            inboundId: null,
+            updatedAt: hoursAgo(1),
+          },
+        ],
+      }),
+    );
     assert.deepEqual(work, []);
   });
 });

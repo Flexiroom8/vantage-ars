@@ -16,13 +16,15 @@ const paper = rgb(0.96, 0.95, 0.91);
 const olive = rgb(0.29, 0.33, 0.18);
 
 function pdfText(value: string): string {
-  return value
-    .replace(/\u202F/g, " ")
-    .replace(/\u00A0/g, " ")
-    // Keep tab, newline, carriage return and Latin-1; the standard PDF fonts cannot draw anything else.
-    // eslint-disable-next-line no-control-regex
-    .replace(/[^\x09\x0A\x0D\x20-\xFF]/g, "")
-    .trim();
+  return (
+    value
+      .replace(/\u202F/g, " ")
+      .replace(/\u00A0/g, " ")
+      // Keep tab, newline, carriage return and Latin-1; the standard PDF fonts cannot draw anything else.
+      // eslint-disable-next-line no-control-regex
+      .replace(/[^\x09\x0A\x0D\x20-\xFF]/g, "")
+      .trim()
+  );
 }
 
 function wrap(value: string, width: number): string[] {
@@ -46,7 +48,11 @@ export function quoteReference(body: string): string | null {
   return body.match(/Reference:\s*(VA-[A-Z0-9]+)/)?.[1] ?? null;
 }
 
-export function quotePdfName(companyName: string, body: string, kind: OfficePdfKind = "quote"): string {
+export function quotePdfName(
+  companyName: string,
+  body: string,
+  kind: OfficePdfKind = "quote",
+): string {
   const ref = quoteReference(body) ?? kind;
   const slug = companyName
     .toLowerCase()

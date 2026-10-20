@@ -8,12 +8,7 @@ export function AccordionItem({
   className,
   ...props
 }: ComponentProps<typeof AccordionPrimitive.Item>) {
-  return (
-    <AccordionPrimitive.Item
-      className={cn("border-b border-border", className)}
-      {...props}
-    />
-  );
+  return <AccordionPrimitive.Item className={cn("border-b border-border", className)} {...props} />;
 }
 
 export function AccordionTrigger({

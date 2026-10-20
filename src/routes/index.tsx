@@ -23,11 +23,34 @@ import { submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
 import type { PaymentMethod } from "@/lib/office/invoice";
 import { allMethodsAwaitBankDetails } from "@/lib/office/invoice";
 import { SERVICE_PAGES } from "@/lib/site/services";
-import { SERVICE_LINES, publicRateRows } from "@/lib/office/catalogue";
+import { PUBLISHED_RATES, SERVICE_LINES, publicRateRows, ratesByIds } from "@/lib/office/catalogue";
 import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 import { COMPANY } from "@/lib/office/company";
 
-const LINE_ICONS = [VoipIcon, NetworkIcon, InfraIcon] as const;
+const LINE_ICONS = [VoipIcon, NetworkIcon, InfraIcon, SignalBars] as const;
+
+/** Every service line, paired with the page that explains it. */
+const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
+  const page = SERVICE_PAGES.find((item) => item.title === line.title);
+  return page ? [{ line, page, Icon: LINE_ICONS[index] ?? VoipIcon }] : [];
+});
+
+/** The published amount for a rate, read from the catalogue and never typed out here. */
+function zarAmount(rateId: string): number {
+  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+  const match = rate?.price.replace(/,/g, "").match(/R\s*([\d.]+)/);
+  return match ? Math.round(Number(match[1])) : 0;
+}
+
+const MANAGED_RATE_IDS = [
+  "managed-support",
+  "health-watch",
+  "service-report",
+  "billing-audit",
+  "handover-pack",
+  "continuity-plan",
+  "sla-review",
+];
 
 const STEPS = [
   {
@@ -48,11 +71,21 @@ const STEPS = [
 ] as const;
 
 const STATS = [
-  { value: 690, prefix: "R", suffix: " / hr", label: "Remote support, from" },
-  { value: 805, prefix: "R", suffix: " / hr", label: "On-site, by arrangement" },
-  { value: 3, label: "Departments on this desk" },
-  { value: 0, label: "Retainers and SLA promises" },
-] as const;
+  {
+    value: zarAmount("remote-support"),
+    prefix: "R",
+    suffix: " / hr",
+    label: "Remote support, from",
+  },
+  {
+    value: zarAmount("onsite-support"),
+    prefix: "R",
+    suffix: " / hr",
+    label: "On-site, by arrangement",
+  },
+  { value: SERVICE_PAGES.length, label: "Departments on this desk" },
+  { value: 0, label: "Contractual service levels sold" },
+];
 
 // One source of truth for the FAQ: rendered on the page (search engines only
 // surface FAQ rich results for content that is visible to users) and emitted
@@ -68,7 +101,7 @@ const FAQS = [
   },
   {
     q: "Do you offer managed support?",
-    a: "No. There is no retainer or SLA — you pay for agreed work.",
+    a: "Yes. There is a monthly managed support plan at a fixed published price, remote only, with a written report every month. There is no live monitoring of your estate, no uptime promise and no contractual service level.",
   },
 ];
 
@@ -105,6 +138,7 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const payment = Route.useLoaderData();
   const rates = publicRateRows();
+  const managedRates = ratesByIds(MANAGED_RATE_IDS);
 
   return (
     <PublicFrame>
@@ -173,34 +207,29 @@ function HomePage() {
             </div>
 
             <ul className="divide-y divide-border">
-              {SERVICE_LINES.map((line, index) => {
-                const Icon = LINE_ICONS[index] ?? VoipIcon;
-                const page = SERVICE_PAGES[index];
+              {DEPARTMENTS.map(({ line, page, Icon }) => (
+                <li key={line.number}>
+                  <Link
+                    to="/services/$slug"
+                    params={{ slug: page.slug }}
+                    className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-raised/60"
+                  >
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-raised">
+                      <Icon className="size-5 text-accent" aria-hidden="true" />
+                    </span>
 
-                return (
-                  <li key={line.number}>
-                    <Link
-                      to="/services/$slug"
-                      params={{ slug: page.slug }}
-                      className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-raised/60"
-                    >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-raised">
-                        <Icon className="size-5 text-accent" aria-hidden="true" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold text-fg group-hover:text-accent">
+                        {line.title}
                       </span>
 
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold text-fg group-hover:text-accent">
-                          {line.title}
-                        </span>
+                      <span className="mt-0.5 block text-sm text-muted">{line.price}</span>
+                    </span>
 
-                        <span className="mt-0.5 block text-sm text-muted">{line.price}</span>
-                      </span>
-
-                      <SignalBars className="size-4 shrink-0 text-ok" aria-hidden="true" />
-                    </Link>
-                  </li>
-                );
-              })}
+                    <SignalBars className="size-4 shrink-0 text-ok" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
             </ul>
 
             <div className="border-t border-border px-6 py-4">
@@ -245,7 +274,7 @@ function HomePage() {
 
       <section id="services" className="border-b border-border py-16" aria-label="Departments">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">Three departments, one desk</h2>
+          <h2 className="text-4xl sm:text-5xl">Four departments, one desk</h2>
 
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
             Pick what stopped
@@ -253,47 +282,39 @@ function HomePage() {
         </div>
 
         <div className="mt-8 border-t border-border">
-          {SERVICE_PAGES.map((page, index) => {
-            const Icon = LINE_ICONS[index] ?? VoipIcon;
+          {DEPARTMENTS.map(({ line, page, Icon }) => (
+            <Link
+              key={page.slug}
+              to="/services/$slug"
+              params={{ slug: page.slug }}
+              className="group grid gap-3 border-b border-border px-2 py-6 transition-colors hover:bg-raised/50 sm:grid-cols-[3rem_1fr_10rem_2rem] sm:items-center sm:gap-6 sm:px-4"
+            >
+              <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
+                <Icon className="size-6 text-accent" aria-hidden="true" />
+              </span>
 
-            return (
-              <Link
-                key={page.slug}
-                to="/services/$slug"
-                params={{ slug: page.slug }}
-                className="group grid gap-3 border-b border-border px-2 py-6 transition-colors hover:bg-raised/50 sm:grid-cols-[3rem_1fr_10rem_2rem] sm:items-center sm:gap-6 sm:px-4"
+              <span>
+                <span className="flex items-baseline gap-3">
+                  <span className="font-mono text-xs text-subtle">{page.number}</span>
+
+                  <span className="text-2xl group-hover:text-accent sm:text-3xl">{page.title}</span>
+                </span>
+
+                <span className="mt-2 block max-w-xl text-sm leading-relaxed text-muted">
+                  {page.description}
+                </span>
+              </span>
+
+              <span className="font-mono text-sm text-accent sm:text-right">{line.price}</span>
+
+              <span
+                aria-hidden
+                className="hidden text-subtle transition-transform group-hover:translate-x-1 group-hover:text-accent sm:block"
               >
-                <span className="flex size-11 items-center justify-center rounded-xl border border-border bg-raised">
-                  <Icon className="size-6 text-accent" aria-hidden="true" />
-                </span>
-
-                <span>
-                  <span className="flex items-baseline gap-3">
-                    <span className="font-mono text-xs text-subtle">{page.number}</span>
-
-                    <span className="text-2xl group-hover:text-accent sm:text-3xl">
-                      {page.title}
-                    </span>
-                  </span>
-
-                  <span className="mt-2 block max-w-xl text-sm leading-relaxed text-muted">
-                    {page.description}
-                  </span>
-                </span>
-
-                <span className="font-mono text-sm text-accent sm:text-right">
-                  {SERVICE_LINES[index]?.price ?? "From R690 / hour"}
-                </span>
-
-                <span
-                  aria-hidden
-                  className="hidden text-subtle transition-transform group-hover:translate-x-1 group-hover:text-accent sm:block"
-                >
-                  &#8594;
-                </span>
-              </Link>
-            );
-          })}
+                &#8594;
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -365,6 +386,65 @@ function HomePage() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section
+        id="managed-services"
+        className="border-t border-border py-16"
+        aria-labelledby="managed-services-heading"
+      >
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 id="managed-services-heading" className="text-4xl sm:text-5xl">
+            Managed services
+          </h2>
+
+          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
+            Fixed scope, fixed price
+          </p>
+        </div>
+
+        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
+          Not every job should need a ticket and a chase. The managed plan gives you remote support
+          time each month, a written report on what we have actually done, and a quarterly look at
+          the setup. Everything below is remote only and produced from our own records, so there is
+          no live monitoring of your estate, no uptime promise and no contractual service level.
+        </p>
+
+        <ul className="mt-8 border-t border-border">
+          {managedRates.map((rate) => (
+            <li
+              key={rate.id}
+              className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_10rem] sm:gap-8"
+            >
+              <div>
+                <h3 className="text-base font-semibold text-fg">{rate.title}</h3>
+
+                <p className="mt-1 text-sm text-muted">{rate.scope}</p>
+              </div>
+
+              <p className="font-mono text-sm font-medium text-accent sm:text-right">
+                {rate.price}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          <Link
+            to="/services/$slug"
+            params={{ slug: "managed-support" }}
+            className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
+          >
+            Managed services in detail
+          </Link>
+
+          <Link
+            to="/rates"
+            className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
+          >
+            See published rates
+          </Link>
+        </div>
       </section>
 
       <section className="border-t border-border py-16" aria-label="Forms">

@@ -2,14 +2,25 @@ export type FounderWork = {
   id: string;
   title: string;
   detail: string;
-  href: "/office/approvals" | "/office/sales" | "/office/ledger" | "/office/technical" | "/office/service";
+  href:
+    | "/office/approvals"
+    | "/office/sales"
+    | "/office/ledger"
+    | "/office/technical"
+    | "/office/service";
 };
 
 type WorkInput = {
   approvals: { id: string; status: string; title: string }[];
   documents: { id: string; kind: string; status: string; title: string }[];
   opportunities: { id: string; stage: string; companyName: string }[];
-  ledger: { id: string; kind: string; status: string; relatedId: string | null; counterparty: string }[];
+  ledger: {
+    id: string;
+    kind: string;
+    status: string;
+    relatedId: string | null;
+    counterparty: string;
+  }[];
   tickets: { id: string; status: string; ownerAgent: string; title: string }[];
   inbound?: { id: string; intent: string; status: string; subject: string }[];
 };
@@ -44,7 +55,9 @@ export function founderWork(input: WorkInput): FounderWork[] {
     });
   }
   const invoiced = new Set(
-    input.ledger.filter((row) => row.kind === "invoice" && row.relatedId).map((row) => row.relatedId),
+    input.ledger
+      .filter((row) => row.kind === "invoice" && row.relatedId)
+      .map((row) => row.relatedId),
   );
   for (const opportunity of input.opportunities) {
     if (opportunity.stage !== "won" || invoiced.has(opportunity.id)) continue;
@@ -72,7 +85,10 @@ export function founderWork(input: WorkInput): FounderWork[] {
     items.push({
       id: `ticket:${ticket.id}`,
       title: ticket.title,
-      detail: ticket.status === "open" ? "Start the work. The customer is not emailed." : "Finish the work. The customer is not emailed.",
+      detail:
+        ticket.status === "open"
+          ? "Start the work. The customer is not emailed."
+          : "Finish the work. The customer is not emailed.",
       href: service ? "/office/service" : "/office/technical",
     });
   }

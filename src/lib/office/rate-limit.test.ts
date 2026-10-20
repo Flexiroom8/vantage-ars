@@ -20,7 +20,8 @@ describe("durableAllow", () => {
   it("allows up to the limit then refuses inside one window", async () => {
     const sql = fakeSql();
     const results = [];
-    for (let i = 0; i < 4; i += 1) results.push(await durableAllow(sql, "enquiry", "1.2.3.4", 3, 1000, 100));
+    for (let i = 0; i < 4; i += 1)
+      results.push(await durableAllow(sql, "enquiry", "1.2.3.4", 3, 1000, 100));
     assert.deepEqual(results, [true, true, true, false]);
   });
   it("counts callers and buckets separately", async () => {

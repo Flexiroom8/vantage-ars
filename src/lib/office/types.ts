@@ -1,10 +1,8 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | Json[]
-  | { [key: string]: Json };
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+import type { DelegationPolicy } from "./delegation";
+
+export type { DelegationPolicy };
 
 export const ACTION_KINDS = [
   "route_inbound",
@@ -27,6 +25,10 @@ export const ACTION_KINDS = [
   "draft_document",
   "notify_operator",
   "escalate_account_risk",
+  "fulfil_service",
+  "start_subscription",
+  "cancel_subscription",
+  "send_customer_mail",
 ] as const;
 
 export type ActionKind = (typeof ACTION_KINDS)[number];
@@ -34,18 +36,11 @@ export type ActionKind = (typeof ACTION_KINDS)[number];
 export type AgentStatus = "idle" | "working" | "blocked" | "halted";
 export type AutonomyLevel = "A0" | "A1" | "A2" | "A3";
 export type ApprovalKind =
-  | "cost"
-  | "sales_handoff"
-  | "customer_win"
-  | "customer_loss"
-  | "constraint_margin";
+  "cost" | "sales_handoff" | "customer_win" | "customer_loss" | "constraint_margin";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type DecisionStatus = "authorized" | "executed" | "blocked" | "escalated";
 export type Reversibility =
-  | "fully_reversible"
-  | "costly_reversible"
-  | "partially_reversible"
-  | "irreversible";
+  "fully_reversible" | "costly_reversible" | "partially_reversible" | "irreversible";
 
 export type GovernorVerdict = "allow" | "review" | "deny";
 
@@ -83,6 +78,8 @@ export type AuthorizationDecision = {
   reversibility: Reversibility;
   trace: ProvisionCheck[];
   runtimeConstraints: string[];
+  /** Set when a founder delegation, rather than a founder click, authorised it. */
+  delegation: { id: string; label: string; check: string } | null;
 };
 
 export type AgentDef = {
@@ -314,6 +311,14 @@ export type OfficeSnapshot = {
   notices: NoticeRow[];
   mail: MailStatus;
   health: AutonomyHealth;
+  /** The founder's standing delegation, if there is one. */
+  delegation: DelegationPolicy | null;
+  /** How much of it has been used. */
+  delegationUsage: DelegationUsage;
+  /** The recurring-revenue book. */
+  subscriptions: SubscriptionRow[];
+  /** The money picture, including recurring revenue. */
+  revenue: RevenueMetrics;
 };
 
 export type NoticeRow = {
@@ -334,4 +339,72 @@ export type DispatchResult = {
   blocked: number;
   decisionIds: string[];
   approvalIds: string[];
+};
+
+export type SubscriptionStatus = "active" | "paused" | "cancelled" | "completed";
+
+export type SubscriptionRow = {
+  id: string;
+  companyName: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  planId: string;
+  rateId: string;
+  cycle: string;
+  priceCents: number;
+  status: SubscriptionStatus;
+  opportunityId: string | null;
+  quoteDocumentId: string | null;
+  startedAt: string;
+  nextBillingAt: string;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BillingCycleStatus =
+  "pending" | "invoiced" | "fulfilled" | "notified" | "paid" | "cancelled";
+
+export type BillingCycleRow = {
+  id: string;
+  subscriptionId: string;
+  companyName: string;
+  planId: string;
+  rateId: string;
+  periodStart: string;
+  periodEnd: string;
+  amountCents: number;
+  status: BillingCycleStatus;
+  invoiceId: string | null;
+  documentId: string | null;
+  reportDocumentId: string | null;
+  noticeDocumentId: string | null;
+  createdAt: string;
+  fulfilledAt: string | null;
+  notifiedAt: string | null;
+  paidAt: string | null;
+};
+
+export type DelegationUsage = {
+  usedToday: number;
+  usedThisMonth: number;
+  spentTodayCents: number;
+  spentThisMonthCents: number;
+};
+
+/** The recurring-revenue picture the office reports to itself. */
+export type RevenueMetrics = {
+  activeSubscriptions: number;
+  pausedSubscriptions: number;
+  cancelledSubscriptions: number;
+  monthlyRecurringCents: number;
+  annualRecurringCents: number;
+  oneOffPipelineCents: number;
+  billedThisMonthCents: number;
+  collectedThisMonthCents: number;
+  outstandingCents: number;
+  overdueCents: number;
+  churnRiskCount: number;
+  planMix: { planId: string; title: string; subscriptions: number; monthlyCents: number }[];
 };

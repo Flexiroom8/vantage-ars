@@ -4,13 +4,7 @@ import { formatZar } from "./money";
 export const FOUNDER_EMAIL = founderEmail();
 
 export type FounderNoticeKind =
-  | "enquiry"
-  | "approval"
-  | "payment"
-  | "chat"
-  | "quote"
-  | "briefing"
-  | "office_alert";
+  "enquiry" | "approval" | "payment" | "chat" | "quote" | "briefing" | "office_alert";
 
 export type FounderNotice = {
   kind: FounderNoticeKind;
@@ -19,7 +13,11 @@ export type FounderNotice = {
 };
 
 function oneLine(value: string, max: number): string {
-  return value.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+  return value
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
 }
 
 /**
@@ -55,7 +53,9 @@ export function founderOfficeAlertNotice(input: {
     subject: `VANTAGE-ARS · ${oneLine(input.title, 120)}`,
     body: [
       oneLine(input.detail, 1200),
-      input.where ? `See: https://vantage-ars.co.za${input.where}` : "Open the office at https://vantage-ars.co.za/office",
+      input.where
+        ? `See: https://vantage-ars.co.za${input.where}`
+        : "Open the office at https://vantage-ars.co.za/office",
     ].join("\n"),
   };
 }

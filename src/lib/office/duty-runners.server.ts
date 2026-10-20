@@ -14,12 +14,23 @@
  */
 import { randomUUID } from "node:crypto";
 import { getSql } from "../db";
-import { applyProposedAction, setOfficeHalt } from "./store.server";
+import {
+  applyProposedAction,
+  findInvoiceForReference,
+  markCyclePaid,
+  readDelegation,
+  setOfficeHalt,
+} from "./store.server";
 import { sendCustomerMail } from "./smtp.server";
 import { heartbeat } from "./office-view.server";
 import { formatZar } from "./money";
 import { PRICE_GUIDE, rateCardIntegrity } from "./duties";
 import { COMPANY } from "./company";
+import { planById } from "./plans";
+import { cycleWindow, nextCycleStart } from "./subscription";
+import { buildServiceReport, summariseService } from "./fulfilment";
+import { collectServiceFacts } from "./service-facts.server";
+import { resolveRecipient } from "./customer-notice.server";
 import type { WorkItem } from "./work-queue.server";
 import type { DutyView, PlannedWork } from "./duties";
 import { scoreLead } from "./duties";
@@ -58,6 +69,34 @@ function str(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+/**
+ * Read a rand figure the office itself wrote, in cents.
+ *
+ * `formatZar` renders "R 2 750,00" with a non-breaking space and a comma
+ * decimal point. The number is stripped of every space, the last separator is
+ * read as the decimal point, and the result is rounded to whole cents.
+ */
+function parseClaimedCents(value: string): number {
+  const cleaned = value
+    .replace(/[\s\u00a0\u202f]/g, "")
+    .replace(/[^\d.,]/g, "")
+    .replace(/[.,]+$/, "");
+  if (!cleaned) return 0;
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+  let normalised = cleaned;
+  if (lastComma > lastDot) {
+    normalised = `${cleaned.slice(0, lastComma).replace(/[.,]/g, "")}.${cleaned.slice(lastComma + 1)}`;
+  } else if (lastDot > lastComma) {
+    normalised = `${cleaned.slice(0, lastDot).replace(/[.,]/g, "")}.${cleaned.slice(lastDot + 1)}`;
+  } else {
+    normalised = cleaned.replace(/[.,]/g, "");
+  }
+  const amount = Number(normalised);
+  if (!Number.isFinite(amount) || amount <= 0) return 0;
+  return Math.round(amount * 100);
+}
+
 function intOf(value: unknown, fallback = 0): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -87,7 +126,9 @@ const reportSilentAgent: Runner = async (item) => {
 };
 
 const reportStuckBacklog: Runner = async (item) => {
-  const stuck = Array.isArray(item.payload.stuck) ? (item.payload.stuck as { agentId: string; kind: string }[]) : [];
+  const stuck = Array.isArray(item.payload.stuck)
+    ? (item.payload.stuck as { agentId: string; kind: string }[])
+    : [];
   const result = await applyProposedAction(
     "vantage",
     {
@@ -289,7 +330,9 @@ const classifyInbound: Runner = async (item) => {
 
   const looksLikeSupport =
     declared === "support" ||
-    /\b(fault|broken|not working|down|outage|no dial|no internet|dropping|intermittent)\b/i.test(summary);
+    /\b(fault|broken|not working|down|outage|no dial|no internet|dropping|intermittent)\b/i.test(
+      summary,
+    );
 
   const result = looksLikeSupport
     ? await applyProposedAction(
@@ -370,7 +413,10 @@ const analyseSiteSignals: Runner = async (item, view) => {
   const summary = [
     `Real site traffic over the last 30 days: ${total} recorded event(s) across ${ranked.length} path(s).`,
     ranked.length
-      ? `Top paths: ${ranked.slice(0, 6).map(([path, n]) => `${path} (${n})`).join(", ")}.`
+      ? `Top paths: ${ranked
+          .slice(0, 6)
+          .map(([path, n]) => `${path} (${n})`)
+          .join(", ")}.`
       : "No page views were recorded, so nothing can be said about which pages work.",
     inboundCount > 0
       ? `${inboundCount} real enquiry/payment item(s) reached the office from those visits (${conversion.toFixed(1)}% of recorded events).`
@@ -386,12 +432,15 @@ const analyseSiteSignals: Runner = async (item, view) => {
   });
   void id;
   return noop(`Recorded a site-signal note from ${total} real events.`);
-}
+};
 
 const prospectFromSiteSignals: Runner = async (item, _view) => {
   const path = str(item.payload.path);
   const count = intOf(item.payload.visitCount, 1);
-  const scored = scoreLead(`${count} recorded visit(s) to ${path} with no enquiry filed yet.`, `Prospect · ${path}`);
+  const scored = scoreLead(
+    `${count} recorded visit(s) to ${path} with no enquiry filed yet.`,
+    `Prospect · ${path}`,
+  );
   const result = await applyProposedAction(
     "signal",
     {
@@ -421,9 +470,14 @@ const prospectFromSiteSignals: Runner = async (item, _view) => {
 const writeContentBrief: Runner = async (item, view) => {
   const cheapest = [...PRICE_GUIDE].sort((a, b) => a.cents - b.cents)[0];
   const paths = new Set(view.siteEvents.map((event) => event.path));
-  const untouched = ["/rates", "/work", "/support", "/services/voip", "/services/networking", "/services/it-infrastructure"].filter(
-    (path) => !paths.has(path),
-  );
+  const untouched = [
+    "/rates",
+    "/work",
+    "/support",
+    "/services/voip",
+    "/services/networking",
+    "/services/it-infrastructure",
+  ].filter((path) => !paths.has(path));
   const summary = [
     `Brief for the next owned-site piece. Written because ${item.reason}`,
     "",
@@ -437,7 +491,11 @@ const writeContentBrief: Runner = async (item, view) => {
     "",
     "Publication is a founder decision. This brief is a draft until it is approved.",
   ].join("\n");
-  await fileDocument({ title: `Content brief · ${new Date().toISOString().slice(0, 10)}`, kind: "content_brief", summary });
+  await fileDocument({
+    title: `Content brief · ${new Date().toISOString().slice(0, 10)}`,
+    kind: "content_brief",
+    summary,
+  });
   return noop("Wrote a content brief for the founder to approve.");
 };
 
@@ -492,17 +550,19 @@ const proposeSalesHandoff: Runner = async (item) => {
     },
     { source: "scheduler", workItem: item.id },
   );
-    return {
-      outcome: `Handoff proposed for ${companyName}: ${result.status}`,
-      executed: result.status === "executed" ? 1 : 0,
-      escalated: result.status === "escalated" ? 1 : 0,
-      blocked: result.status === "blocked" ? 1 : 0,
-    };
-}
+  return {
+    outcome: `Handoff proposed for ${companyName}: ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
 
 const draftCampaign: Runner = async (item) => {
   const channel = str(item.payload.channel, "owned");
-  const leads = Array.isArray(item.payload.leads) ? (item.payload.leads as { id: string; companyName: string; stage: string; score: number }[]) : [];
+  const leads = Array.isArray(item.payload.leads)
+    ? (item.payload.leads as { id: string; companyName: string; stage: string; score: number }[])
+    : [];
   const result = await applyProposedAction(
     "signal",
     {
@@ -792,7 +852,10 @@ const recordKnowledge: Runner = async (item) => {
     select summary, title from tickets where id = ${str(item.payload.ticketId)}
   `.then((rows) => rows[0]);
   if (!ticket) return noop("Ticket no longer exists.");
-  const body = ticket.summary.replace(/^FORGE:\s*/, "").split("Customer equipment")[0].trim();
+  const body = ticket.summary
+    .replace(/^FORGE:\s*/, "")
+    .split("Customer equipment")[0]
+    .trim();
   await fileDocument({
     title: `Known fault · ${ticket.title}`,
     kind: "knowledge",
@@ -829,20 +892,85 @@ const draftInvoiceChase: Runner = async (item) => {
     summary: letter,
     relatedId: reference,
   });
-  return noop(`Drafted an invoice reminder for ${counterparty} (${formatZar(amount)}). Not emailed.`);
+  return noop(
+    `Drafted an invoice reminder for ${counterparty} (${formatZar(amount)}). Not emailed.`,
+  );
 };
 
+/**
+ * A payment notice.
+ *
+ * Normally this waits for the founder: cash only moves when a person confirms
+ * it arrived. But when the founder has delegated it, and the notice names an
+ * invoice that is still open by its exact reference and its exact amount, the
+ * office can match it on its own. Anything less than an exact match still goes
+ * to the founder.
+ */
 const verifyPaymentNotice: Runner = async (item) => {
+  const sql = await getSql();
+  const inboundId = str(item.payload.inboundId);
+  const companyName = str(item.payload.companyName);
+
+  const inbound = await sql<{ summary: string }>`
+    select summary from inbound_items where id = ${inboundId}
+  `.then((rows) => rows[0]);
+  const summary = String(inbound?.summary ?? "");
+  const reference = /Reference\s+(VA-[A-Z0-9]+)/i.exec(summary)?.[1]?.toUpperCase() ?? null;
+  // The office writes the figure with `formatZar`, which uses a non-breaking
+  // space as the thousands separator: "Claimed R 2 750,00". Stripping the
+  // spaces and reading the comma as the decimal point is the only way to read
+  // it back correctly.
+  const claimed = /Claimed\s*R\s*([\d\u00a0\u202f\s.,]*\d)/i.exec(summary)?.[1];
+  const claimedCents = claimed ? parseClaimedCents(claimed) : 0;
+
+  const delegation = await readDelegation();
+  const mayReconcile =
+    Boolean(delegation) &&
+    delegation?.status === "active" &&
+    delegation?.allowAutoReconcile === true &&
+    (delegation?.allowedActions ?? []).includes("record_inbound_payment");
+
+  if (mayReconcile && reference && claimedCents > 0) {
+    const invoice = await findInvoiceForReference(reference);
+    if (invoice && invoice.amountCents === claimedCents) {
+      const receipt = await applyProposedAction(
+        "ledger",
+        {
+          kind: "record_inbound_payment",
+          title: `Receipt · ${invoice.companyName} · ${reference}`,
+          rationale: `The customer paid ${formatZar(claimedCents)} against ${reference}, which matches an open invoice to the cent.`,
+          confidence: 0.96,
+          amountCents: claimedCents,
+          companyName: invoice.companyName,
+          relatedId: invoice.id,
+          payload: { reference, inboundId },
+        },
+        { source: "scheduler", workItem: item.id, autonomous: true },
+      );
+      if (receipt.status === "executed") {
+        await sql`update ledger_entries set status = 'paid' where id = ${invoice.id} and kind = 'invoice'`;
+        await sql`update inbound_items set status = 'filed' where id = ${inboundId}`;
+        await markCyclePaid(invoice.relatedId ?? invoice.id);
+        return {
+          outcome: `Matched ${formatZar(claimedCents)} to ${reference} and recorded the receipt.`,
+          executed: 1,
+          escalated: 0,
+          blocked: 0,
+        };
+      }
+    }
+  }
+
   const result = await applyProposedAction(
     "ledger",
     {
       kind: "notify_operator",
-      title: `Payment notice to confirm · ${str(item.payload.companyName)}`,
+      title: `Payment notice to confirm · ${companyName}`,
       rationale: `${item.reason} Treasury only moves when the founder confirms the money actually arrived, against an invoice that exists.`,
       confidence: 0.95,
       amountCents: 0,
-      companyName: str(item.payload.companyName),
-      relatedId: str(item.payload.inboundId),
+      companyName,
+      relatedId: inboundId,
       payload: {},
     },
     { source: "scheduler", workItem: item.id },
@@ -939,6 +1067,398 @@ const reportScopeDrift: Runner = async (item) => {
   };
 };
 
+// ── Recurring revenue ─────────────────────────────────────────────────────────
+
+/**
+ * Bill a subscription period.
+ *
+ * The billing cycle row is the idempotency key: the unique index on
+ * (subscription_id, period_start) means a retried tick, a restarted server or
+ * two concurrent ticks cannot bill the same month twice. The invoice itself
+ * goes through the governor, so the delegation caps and the money guards
+ * apply exactly as they do to a founder-raised invoice.
+ */
+const billSubscriptionCycle: Runner = async (item) => {
+  const sql = await getSql();
+  const subscriptionId = str(item.payload.subscriptionId);
+  const companyName = str(item.payload.companyName);
+  const planId = str(item.payload.planId);
+  const rateId = str(item.payload.rateId);
+  const cycle = str(item.payload.cycle, "monthly");
+  const priceCents = intOf(item.payload.priceCents);
+  const periodStart = str(item.payload.periodStart) || new Date().toISOString();
+  if (!subscriptionId || priceCents <= 0) {
+    return noop("The subscription could not be billed: no subscription id or price.");
+  }
+
+  const window = cycleWindow(periodStart, cycle as never);
+  const existing = await sql<{ id: string; status: string }>`
+    select id, status from billing_cycles
+    where subscription_id = ${subscriptionId} and period_start = ${periodStart}
+    limit 1
+  `;
+  if (existing.length) {
+    await advanceSubscription(sql, subscriptionId, window.end);
+    return noop(
+      `The ${planId} period starting ${periodStart.slice(0, 10)} was already billed (${existing[0].status}).`,
+    );
+  }
+
+  const cycleId = randomUUID();
+  await sql`
+    insert into billing_cycles (
+      id, subscription_id, company_name, plan_id, rate_id, period_start, period_end,
+      amount_cents, status, created_at
+    ) values (
+      ${cycleId}, ${subscriptionId}, ${companyName}, ${planId}, ${rateId},
+      ${periodStart}, ${window.end}, ${priceCents}, 'pending', now()
+    )
+    on conflict (subscription_id, period_start) do nothing
+  `;
+  const claimed = await sql<{ id: string }>`
+    select id from billing_cycles
+    where id = ${cycleId}
+  `;
+  if (!claimed.length) {
+    await advanceSubscription(sql, subscriptionId, window.end);
+    return noop(`The ${planId} period starting ${periodStart.slice(0, 10)} was already billed.`);
+  }
+
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "issue_invoice",
+      title: `Invoice · ${companyName} · ${planId}`,
+      rationale: `Recurring billing for the period starting ${periodStart.slice(0, 10)}.`,
+      confidence: 0.95,
+      amountCents: priceCents,
+      companyName,
+      relatedId: cycleId,
+      payload: { cycleId, subscriptionId, rateId, vatTreatment: "none" },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+
+  if (result.status === "executed") {
+    await advanceSubscription(sql, subscriptionId, window.end);
+    return {
+      outcome: `Billed ${companyName} ${formatZar(priceCents)} for the period from ${periodStart.slice(0, 10)}.`,
+      executed: 1,
+      escalated: 0,
+      blocked: 0,
+    };
+  }
+  if (result.status === "escalated") {
+    return {
+      outcome: `The ${companyName} invoice needs the founder: ${result.approvalId ?? "approval opened"}.`,
+      executed: 0,
+      escalated: 1,
+      blocked: 0,
+    };
+  }
+  return {
+    outcome: `The ${companyName} invoice was not raised: ${result.error ?? result.status}.`,
+    executed: 0,
+    escalated: 0,
+    blocked: 1,
+  };
+};
+
+async function advanceSubscription(
+  sql: Awaited<ReturnType<typeof getSql>>,
+  subscriptionId: string,
+  nextBillingAt: string,
+): Promise<void> {
+  await sql`
+    update subscriptions
+    set next_billing_at = ${nextBillingAt}, updated_at = now()
+    where id = ${subscriptionId}
+  `;
+}
+
+/**
+ * Produce the deliverable for a billing period.
+ *
+ * The report is assembled by the office from its own records and written down
+ * as a document. The agent never writes it.
+ */
+const fulfilServiceCycle: Runner = async (item) => {
+  const sql = await getSql();
+  const cycleId = str(item.payload.cycleId);
+  const companyName = str(item.payload.companyName);
+  const planId = str(item.payload.planId);
+  const periodStart = str(item.payload.periodStart);
+  const periodEnd = str(item.payload.periodEnd);
+  const plan = planById(planId);
+  if (!plan || !cycleId) {
+    return noop(`No productised service is called "${planId}", so nothing was delivered.`);
+  }
+
+  const facts = await collectServiceFacts(sql, {
+    companyName,
+    periodStart,
+    periodEnd,
+    plan,
+  });
+  const report = buildServiceReport(plan, facts);
+  const result = await applyProposedAction(
+    "desk",
+    {
+      kind: "fulfil_service",
+      title: `${plan.title} · ${companyName} · ${periodStart.slice(0, 10)}`,
+      rationale: summariseService(plan, facts),
+      confidence: 0.94,
+      amountCents: 0,
+      companyName,
+      relatedId: cycleId,
+      payload: { cycleId, planId, reportBody: report },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status === "executed") {
+    if (plan.cycle === "once") {
+      await sql`
+        update subscriptions
+        set status = 'completed', updated_at = now()
+        where id = ${str(item.payload.subscriptionId)} and status = 'active'
+      `;
+    }
+    return {
+      outcome: `Delivered the ${plan.title} to ${companyName}. ${summariseService(plan, facts)}`,
+      executed: 1,
+      escalated: 0,
+      blocked: 0,
+    };
+  }
+  return {
+    outcome: `The ${plan.title} for ${companyName} was not delivered: ${result.status}.`,
+    executed: 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
+/** Send the customer their report and their invoice. */
+const sendServiceNotice: Runner = async (item) => {
+  const sql = await getSql();
+  const cycleId = str(item.payload.cycleId);
+  const companyName = str(item.payload.companyName);
+  const result = await applyProposedAction(
+    "desk",
+    {
+      kind: "send_customer_mail",
+      title: `Service report and invoice · ${companyName}`,
+      rationale: `The ${str(item.payload.planId)} deliverable for this period is ready and the customer has not been told.`,
+      confidence: 0.93,
+      amountCents: 0,
+      companyName,
+      relatedId: cycleId,
+      payload: {
+        template: "service_report",
+        cycleId,
+        subscriptionId: str(item.payload.subscriptionId),
+        planId: str(item.payload.planId),
+      },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome:
+        `The ${companyName} notice was not sent: ${result.status}. ${result.error ?? ""}`.trim(),
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  await sql`
+    update billing_cycles
+    set status = 'notified', notified_at = now(), notice_document_id = ${result.documentId ?? null}
+    where id = ${cycleId} and status = 'fulfilled'
+  `;
+  // The office never claims to have emailed a customer it did not email. The
+  // notice is written down either way, but the record says which happened.
+  if (result.delivery?.ok) {
+    return {
+      outcome: `Sent ${companyName} their report and invoice.`,
+      executed: 1,
+      escalated: 0,
+      blocked: 0,
+    };
+  }
+  return {
+    outcome: `Prepared the ${companyName} notice and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}. The customer was not emailed.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
+/** Remind a customer about an invoice they have not paid. */
+const sendPaymentReminder: Runner = async (item) => {
+  const invoiceId = str(item.payload.invoiceId);
+  const counterparty = str(item.payload.counterparty);
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "send_customer_mail",
+      title: `Payment reminder · ${counterparty}`,
+      rationale: `The invoice has been open for more than a week and the customer has not been reminded.`,
+      confidence: 0.92,
+      amountCents: 0,
+      companyName: counterparty,
+      relatedId: invoiceId,
+      payload: { template: "payment_reminder", invoiceId },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome: `The reminder to ${counterparty} was not sent: ${result.status}.`,
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  return {
+    outcome: result.delivery?.ok
+      ? `Reminded ${counterparty} about an open invoice.`
+      : `Prepared the reminder to ${counterparty} and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}. The customer was not emailed.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
+/** Send a customer the quote they are waiting on. */
+const sendQuoteNotice: Runner = async (item) => {
+  const documentId = str(item.payload.documentId);
+  const sql = await getSql();
+  const quote = await sql<{ title: string; summary: string; company_name: string }>`
+    select d.title, d.summary, o.company_name
+    from documents d
+    left join opportunities o on o.id = d.related_id
+    where d.id = ${documentId} and d.kind = 'quote'
+  `.then((rows) => rows[0]);
+  if (!quote) return noop("That quote is no longer on file.");
+  const result = await applyProposedAction(
+    "close",
+    {
+      kind: "send_customer_mail",
+      title: `Quote · ${quote.company_name ?? "customer"}`,
+      rationale: "A quote is approved and the customer has not received it.",
+      confidence: 0.91,
+      amountCents: 0,
+      companyName: quote.company_name ?? "",
+      relatedId: documentId,
+      payload: { template: "quote", quoteDocumentId: documentId },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome: `The quote was not sent: ${result.status}.`,
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  return {
+    outcome: result.delivery?.ok
+      ? `Sent the quote to ${quote.company_name ?? "the customer"}.`
+      : `Prepared the quote for ${quote.company_name ?? "the customer"} and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}. The customer was not emailed.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
+/**
+ * Start the subscription a customer bought.
+ *
+ * The first period was the quote they accepted and paid for. The
+ * subscription starts the period after that, so nobody is billed twice for
+ * the same month.
+ */
+const startSubscriptionCycle: Runner = async (item) => {
+  const sql = await getSql();
+  const opportunityId = str(item.payload.opportunityId);
+  const companyName = str(item.payload.companyName);
+  const planId = str(item.payload.planId);
+  const rateId = str(item.payload.rateId);
+  const cycle = str(item.payload.cycle, "monthly");
+  const priceCents = intOf(item.payload.priceCents);
+  const acceptedAt = str(item.payload.acceptedAt) || new Date().toISOString();
+  const plan = planById(planId);
+  if (!plan) return noop(`No productised service is called "${planId}".`);
+  if (priceCents !== plan.priceCents) {
+    return noop(
+      `The ${plan.title} price on the quote does not match the published price, so no subscription was started.`,
+    );
+  }
+  const firstPeriodEnd = nextCycleStart(acceptedAt, cycle as never);
+  const { email, name } = await resolveRecipient(sql, companyName);
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "start_subscription",
+      title: `Subscription · ${companyName} · ${plan.title}`,
+      rationale: `The customer accepted the ${plan.title} quote, so the plan now recurs from ${firstPeriodEnd.slice(0, 10)}.`,
+      confidence: 0.94,
+      amountCents: 0,
+      companyName,
+      relatedId: opportunityId,
+      payload: {
+        planId,
+        rateId,
+        cycle,
+        priceCents,
+        periodStart: firstPeriodEnd,
+        opportunityId,
+        quoteDocumentId: str(item.payload.quoteDocumentId) || null,
+        contactEmail: email ?? null,
+        contactName: name ?? null,
+      },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  return {
+    outcome:
+      result.status === "executed"
+        ? `Started the ${plan.title} for ${companyName}, billing from ${firstPeriodEnd.slice(0, 10)}.`
+        : `The ${plan.title} subscription for ${companyName} was not started: ${result.status}.`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
+/** The weekly look at the recurring-revenue book. */
+const reviewSubscriptionHealth: Runner = async (item) => {
+  const result = await applyProposedAction(
+    "keep",
+    {
+      kind: "notify_operator",
+      title: "Recurring revenue review",
+      rationale: item.reason,
+      confidence: 0.9,
+      amountCents: 0,
+      payload: {
+        stale: Array.isArray(item.payload.stale) ? item.payload.stale : [],
+        rateCardOk: item.payload.rateCardOk === true,
+        rateCardDetail: str(item.payload.rateCardDetail),
+      },
+    },
+    { source: "scheduler", workItem: item.id },
+  );
+  return {
+    outcome: `Recurring revenue reviewed: ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 export const RUNNERS: Record<string, Runner> = {
@@ -970,6 +1490,13 @@ export const RUNNERS: Record<string, Runner> = {
   file_missing_records: fileMissingRecords,
   halt_broken_chain: haltBrokenChain,
   report_scope_drift: reportScopeDrift,
+  bill_subscription_cycle: billSubscriptionCycle,
+  fulfil_service_cycle: fulfilServiceCycle,
+  send_service_notice: sendServiceNotice,
+  send_payment_reminder: sendPaymentReminder,
+  send_quote_notice: sendQuoteNotice,
+  review_subscription_health: reviewSubscriptionHealth,
+  start_subscription_cycle: startSubscriptionCycle,
 };
 
 async function resolveCompany(relatedId: string | null): Promise<string> {

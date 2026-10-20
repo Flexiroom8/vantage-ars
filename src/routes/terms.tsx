@@ -2,6 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { pageHead, businessJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { QuoteIcon } from "@/components/public/motion-icons";
+import { PUBLISHED_RATES } from "@/lib/office/catalogue";
+
+/** The published amount for a rate, read from the catalogue and never typed out here. */
+function zarAmount(rateId: string): string {
+  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+  return rate?.price.match(/R[\d,]+/)?.[0] ?? "";
+}
 
 export const Route = createFileRoute("/terms")({
   head: () => {
@@ -22,10 +29,13 @@ export const Route = createFileRoute("/terms")({
 
 const RULES = [
   "An enquiry, chat, or service-desk message is not a contract and not a quote.",
-  "Published labour is R690 per hour remote and R805 per hour on-site, unless the quote changes it.",
+  `Published labour is ${zarAmount("remote-support")} an hour remote and ${zarAmount("onsite-support")} an hour on-site, unless the quote changes it.`,
   "VAT is added only when the written quote says so.",
   "Travel, hardware, licences, and third-party services are extra and itemised before they are agreed.",
-  "Monthly managed support is not offered. After-hours work is by appointment.",
+  `Monthly managed support is offered: the managed support plan is ${zarAmount("managed-support")} a month, and the remote health and spend watch is ${zarAmount("health-watch")} a month. Both are remote only.`,
+  `One-off written services can be ordered on their own: a service report ${zarAmount("service-report")}, a billing and rate compliance audit ${zarAmount("billing-audit")}, an infrastructure documentation and handover pack ${zarAmount("handover-pack")}, a business continuity plan ${zarAmount("continuity-plan")}, and a service level and response review ${zarAmount("sla-review")}.`,
+  "None of the managed services is live monitoring of your estate, an uptime promise, cover outside working hours, or a contractual service level. The reports are produced from our own records.",
+  "After-hours work is by appointment.",
   "Pay by EFT or international wire, using the reference on the quote or invoice. Card checkout is not available.",
 ] as const;
 
@@ -37,12 +47,15 @@ function TermsPage() {
           <QuoteIcon className="size-4" aria-hidden="true" />
           Before any work
         </p>
-        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-6xl">How work is agreed</h1>
+        <h1 className="mt-4 font-serif text-4xl tracking-[-0.03em] sm:text-6xl">
+          How work is agreed
+        </h1>
         <p className="mt-3 text-xs text-subtle">Last updated: October 2026.</p>
 
         <div className="panel mt-8 rounded-2xl p-6">
           <p className="text-sm leading-relaxed text-muted">
-            Work starts only from a written quote that names the scope, timing, and total price. This keeps the job clear before any paid work begins.
+            Work starts only from a written quote that names the scope, timing, and total price.
+            This keeps the job clear before any paid work begins.
           </p>
         </div>
 
@@ -62,7 +75,9 @@ function TermsPage() {
           />
           <h2 className="font-serif text-3xl tracking-[-0.03em]">In plain English</h2>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-            You ask for help, we explain what is involved, and you see the price in writing before anyone starts. If it is not on the quote, it is not part of the agreed work.
+            You ask for help, we explain what is involved, and you see the price in writing before
+            anyone starts. If it is not on the quote, it is not part of the agreed work. A monthly
+            plan is agreed in writing the same way, at a fixed published price.
           </p>
         </div>
       </article>

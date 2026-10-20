@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { PageHeader } from "@/components/office/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ import { CONSTITUTION_PREAMBLE } from "@/lib/office/constitution";
 export const Route = createFileRoute("/office/constitution")({
   component: ConstitutionPage,
 });
-
 
 function ConstitutionPage() {
   const snapshot = useOfficeSnapshot();

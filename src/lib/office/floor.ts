@@ -47,14 +47,30 @@ export function serviceAckLetter(companyName: string): string {
 
 export function technicalFix(report: string): string {
   const text = report.toLowerCase();
-  let steps = "Confirm the device, the site, and the last change. Test one path. Record what changed.";
-  if (text.includes("one-way") || text.includes("one way") || text.includes("rtp") || text.includes("no audio")) {
+  let steps =
+    "Confirm the device, the site, and the last change. Test one path. Record what changed.";
+  if (
+    text.includes("one-way") ||
+    text.includes("one way") ||
+    text.includes("rtp") ||
+    text.includes("no audio")
+  ) {
     steps =
       "On the PBX, confirm the RTP port range and that NAT rewrites the media address. On the router, disable SIP ALG. On the handset, match the codec to the trunk. Place one test call and check whether audio is now both ways.";
-  } else if (text.includes("dial tone") || text.includes("no dial") || text.includes("register") || text.includes("sip")) {
+  } else if (
+    text.includes("dial tone") ||
+    text.includes("no dial") ||
+    text.includes("register") ||
+    text.includes("sip")
+  ) {
     steps =
       "Check the handset registration, the SIP password, and that the PBX can reach the trunk. Restart registration once. Do not change the dial plan until registration is up.";
-  } else if (text.includes("wifi") || text.includes("wi-fi") || text.includes("access point") || text.includes("wireless")) {
+  } else if (
+    text.includes("wifi") ||
+    text.includes("wi-fi") ||
+    text.includes("access point") ||
+    text.includes("wireless")
+  ) {
     steps =
       "Check the access point power, the SSID, and the channel overlap. Reconnect one client. If that client stays up, the fault is not the whole site.";
   } else if (text.includes("vlan") || text.includes("switch") || text.includes("network")) {
@@ -69,10 +85,23 @@ export function technicalFix(report: string): string {
 
 export function planFloor(input: {
   campaigns: { status: string; budgetCents: number; channel: string }[];
-  leads: { id: string; companyName: string; stage: string; inboundId: string | null; summary: string }[];
+  leads: {
+    id: string;
+    companyName: string;
+    stage: string;
+    inboundId: string | null;
+    summary: string;
+  }[];
   inbound: { id: string; summary: string; companyName: string }[];
   documents: { kind: string; relatedId: string | null }[];
-  tickets: { id: string; title: string; summary: string; status: string; ownerAgent: string; relatedId: string | null }[];
+  tickets: {
+    id: string;
+    title: string;
+    summary: string;
+    status: string;
+    ownerAgent: string;
+    relatedId: string | null;
+  }[];
 }): FloorTask[] {
   const tasks: FloorTask[] = [];
   const organic = input.campaigns.some(
@@ -81,12 +110,18 @@ export function planFloor(input: {
   if (!organic) tasks.push({ kind: "organic_campaign" });
 
   const followed = new Set(
-    input.documents.filter((item) => item.kind === "follow_up" && item.relatedId).map((item) => item.relatedId),
+    input.documents
+      .filter((item) => item.kind === "follow_up" && item.relatedId)
+      .map((item) => item.relatedId),
   );
   const acked = new Set(
-    input.documents.filter((item) => item.kind === "service_ack" && item.relatedId).map((item) => item.relatedId),
+    input.documents
+      .filter((item) => item.kind === "service_ack" && item.relatedId)
+      .map((item) => item.relatedId),
   );
-  const leadInbound = new Set(input.leads.map((lead) => lead.inboundId).filter((id): id is string => Boolean(id)));
+  const leadInbound = new Set(
+    input.leads.map((lead) => lead.inboundId).filter((id): id is string => Boolean(id)),
+  );
   const inboundById = new Map(input.inbound.map((item) => [item.id, item]));
 
   for (const lead of input.leads) {
@@ -102,7 +137,8 @@ export function planFloor(input: {
   }
 
   for (const ticket of input.tickets) {
-    if (ticket.ownerAgent !== "desk" || ticket.status === "resolved" || acked.has(ticket.id)) continue;
+    if (ticket.ownerAgent !== "desk" || ticket.status === "resolved" || acked.has(ticket.id))
+      continue;
     if (ticket.relatedId && leadInbound.has(ticket.relatedId)) continue;
     const source = ticket.relatedId ? inboundById.get(ticket.relatedId) : undefined;
     tasks.push({
@@ -114,9 +150,15 @@ export function planFloor(input: {
   }
 
   for (const ticket of input.tickets) {
-    if ((ticket.ownerAgent !== "forge" && ticket.ownerAgent !== "keep") || ticket.status !== "open") continue;
+    if ((ticket.ownerAgent !== "forge" && ticket.ownerAgent !== "keep") || ticket.status !== "open")
+      continue;
     if (ticket.summary.startsWith("FORGE:")) continue;
-    tasks.push({ kind: "diagnose", ticketId: ticket.id, title: ticket.title, summary: ticket.summary });
+    tasks.push({
+      kind: "diagnose",
+      ticketId: ticket.id,
+      title: ticket.title,
+      summary: ticket.summary,
+    });
   }
 
   return tasks;

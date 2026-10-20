@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
@@ -11,7 +11,6 @@ import { formatDateTime } from "@/lib/office/money";
 export const Route = createFileRoute("/office/service")({
   component: ServicePage,
 });
-
 
 function ServicePage() {
   const snapshot = useOfficeSnapshot();
@@ -34,8 +33,8 @@ function ServicePage() {
           <p className="text-xs uppercase tracking-[0.16em] text-muted">Boundary</p>
           <h2 className="mt-2 font-serif text-2xl">ART-11 / ART-12</h2>
           <p className="mt-2 text-sm text-muted">
-            Reception files a fault or complaint to this desk. Marketing still owns a new sale.
-            DESK cannot move a company into Sales or book a concession.
+            Reception files a fault or complaint to this desk. Marketing still owns a new sale. DESK
+            cannot move a company into Sales or book a concession.
           </p>
         </Card>
       </div>
@@ -61,8 +60,12 @@ function ServicePage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={ticket.severity === "p2" ? "warn" : "default"}>{ticket.severity}</Badge>
-                  <Badge variant={ticket.status === "resolved" ? "ok" : "default"}>{ticket.status}</Badge>
+                  <Badge variant={ticket.severity === "p2" ? "warn" : "default"}>
+                    {ticket.severity}
+                  </Badge>
+                  <Badge variant={ticket.status === "resolved" ? "ok" : "default"}>
+                    {ticket.status}
+                  </Badge>
                   <TicketActions id={ticket.id} status={ticket.status} />
                 </div>
               </li>
@@ -74,7 +77,10 @@ function ServicePage() {
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Routed here</h2>
         {waiting.length === 0 ? (
-          <EmptyState title="No conversations" body="Reception has not filed a customer-service matter." />
+          <EmptyState
+            title="No conversations"
+            body="Reception has not filed a customer-service matter."
+          />
         ) : (
           <ul className="divide-y divide-border rounded-xl bg-surface shadow-[var(--shadow-border)]">
             {waiting.map((item) => (

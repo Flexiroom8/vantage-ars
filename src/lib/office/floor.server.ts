@@ -45,7 +45,10 @@ export async function operateFloor(
     }
     if (task.kind === "follow_up") {
       const letter = followUpLetter(task.companyName);
-      const sent = task.email && mail ? await sendCustomerMail(task.email, "Vantage-ARS has your enquiry", letter) : { ok: false };
+      const sent =
+        task.email && mail
+          ? await sendCustomerMail(task.email, "Vantage-ARS has your enquiry", letter)
+          : { ok: false };
       const sql = await getSql();
       await sql`
         insert into documents (id, title, kind, status, summary, related_id)
@@ -59,11 +62,18 @@ export async function operateFloor(
         )
       `;
       executed += 1;
-      notes.push(sent.ok ? `Follow-up sent to ${task.companyName}. It is not a quote.` : `Follow-up drafted for ${task.companyName}. It was not emailed.`);
+      notes.push(
+        sent.ok
+          ? `Follow-up sent to ${task.companyName}. It is not a quote.`
+          : `Follow-up drafted for ${task.companyName}. It was not emailed.`,
+      );
     }
     if (task.kind === "service_ack") {
       const letter = serviceAckLetter(task.companyName);
-      const sent = task.email && mail ? await sendCustomerMail(task.email, "Vantage-ARS has the service request", letter) : { ok: false };
+      const sent =
+        task.email && mail
+          ? await sendCustomerMail(task.email, "Vantage-ARS has the service request", letter)
+          : { ok: false };
       const sql = await getSql();
       await sql`
         insert into documents (id, title, kind, status, summary, related_id)
@@ -77,7 +87,11 @@ export async function operateFloor(
         )
       `;
       executed += 1;
-      notes.push(sent.ok ? `Service acknowledgement sent to ${task.companyName}.` : `Service acknowledgement drafted for ${task.companyName}. It was not emailed.`);
+      notes.push(
+        sent.ok
+          ? `Service acknowledgement sent to ${task.companyName}.`
+          : `Service acknowledgement drafted for ${task.companyName}. It was not emailed.`,
+      );
     }
     if (task.kind === "diagnose") {
       const sql = await getSql();

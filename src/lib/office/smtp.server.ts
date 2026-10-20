@@ -21,7 +21,8 @@ export function loadSmtpConfig(): SmtpConfig | null {
     const raw = readFileSync(join(process.cwd(), ".grok", "gmail-smtp.json"), "utf8");
     const parsed = JSON.parse(raw) as { user?: unknown; appPassword?: unknown };
     const user = typeof parsed.user === "string" ? parsed.user.trim() : "";
-    const password = typeof parsed.appPassword === "string" ? cleanPassword(parsed.appPassword) : "";
+    const password =
+      typeof parsed.appPassword === "string" ? cleanPassword(parsed.appPassword) : "";
     if (user.includes("@") && password.length >= 8) return { user, password };
   } catch {
     return null;
@@ -54,7 +55,10 @@ function publicError(error: unknown, password: string): string {
   return (text || "Gmail SMTP could not be reached.").slice(0, 180);
 }
 
-export async function sendFounderMail(subject: string, body: string): Promise<{ ok: boolean; error?: string }> {
+export async function sendFounderMail(
+  subject: string,
+  body: string,
+): Promise<{ ok: boolean; error?: string }> {
   return sendMail(FOUNDER_EMAIL, subject, body);
 }
 
@@ -69,9 +73,14 @@ export async function sendCustomerMail(
   return sendMail(to, subject, body);
 }
 
-async function sendMail(to: string, subject: string, body: string): Promise<{ ok: boolean; error?: string }> {
+async function sendMail(
+  to: string,
+  subject: string,
+  body: string,
+): Promise<{ ok: boolean; error?: string }> {
   const config = loadSmtpConfig();
-  if (!config) return { ok: false, error: "Gmail SMTP is not connected. The customer was not emailed." };
+  if (!config)
+    return { ok: false, error: "Gmail SMTP is not connected. The customer was not emailed." };
   const payload = smtpData({ from: config.user, to, subject, body });
   try {
     await smtpSend(config, to, payload);

@@ -67,3 +67,54 @@ CREATE TABLE IF NOT EXISTS branches (
   notes           TEXT,
   updated_at      TEXT
 );
+
+CREATE TABLE IF NOT EXISTS agent_state (
+  agent_id    TEXT PRIMARY KEY,
+  role        TEXT,
+  status      TEXT DEFAULT 'idle',
+  memory_json TEXT DEFAULT '{}',
+  updated_at  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS agent_tasks (
+  id                TEXT PRIMARY KEY,
+  parent_id         TEXT,
+  created_by        TEXT,
+  assigned_role     TEXT,
+  title             TEXT,
+  payload_json      TEXT,
+  status            TEXT DEFAULT 'queued',
+  priority          INTEGER DEFAULT 50,
+  approval_required INTEGER DEFAULT 0,
+  result_json       TEXT,
+  error_text        TEXT,
+  due_at            TEXT,
+  started_at        TEXT,
+  completed_at      TEXT,
+  created_at        TEXT,
+  updated_at        TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_due
+  ON agent_tasks (status, due_at, priority DESC, created_at);
+
+CREATE TABLE IF NOT EXISTS agent_task_events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  task_id    TEXT,
+  agent_id   TEXT,
+  event_type TEXT,
+  payload_json TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_task_events_task
+  ON agent_task_events (task_id, created_at);
+
+CREATE TABLE IF NOT EXISTS system_health (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  last_run         TEXT,
+  last_success     TEXT,
+  last_error       TEXT,
+  tasks_processed  INTEGER DEFAULT 0,
+  updated_at       TEXT
+);

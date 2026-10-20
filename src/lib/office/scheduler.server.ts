@@ -18,13 +18,7 @@
 import { randomUUID } from "node:crypto";
 import { databaseHealth, getSql } from "../db";
 import { COMPANY } from "./company";
-import {
-  DUTY_CADENCE_MINUTES,
-  DUTY_OWNER,
-  DUTY_TITLES,
-  planDuty,
-  type DutyId,
-} from "./duties";
+import { DUTY_CADENCE_MINUTES, DUTY_OWNER, DUTY_TITLES, planDuty, type DutyId } from "./duties";
 import { readDutyView } from "./office-view.server";
 import { RUNNERS } from "./duty-runners.server";
 import {
@@ -186,9 +180,18 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
       itemsRun += 1;
       const runner = RUNNERS[item.kind];
       if (!runner) {
-        await completeWork(item.id, `No runner for kind "${item.kind}". Left for the founder to inspect.`);
+        await completeWork(
+          item.id,
+          `No runner for kind "${item.kind}". Left for the founder to inspect.`,
+        );
         failed += 1;
-        ran.push({ duty: item.kind as DutyId, owner: agentId, filed: 0, ran: 1, note: `No runner is registered for kind "${item.kind}" — this duty planned work nothing can execute.` });
+        ran.push({
+          duty: item.kind as DutyId,
+          owner: agentId,
+          filed: 0,
+          ran: 1,
+          note: `No runner is registered for kind "${item.kind}" — this duty planned work nothing can execute.`,
+        });
         continue;
       }
 
@@ -209,7 +212,13 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
         executed += result.executed;
         escalated += result.escalated;
         blocked += result.blocked;
-        ran.push({ duty: item.kind as DutyId, owner: agentId, filed: 0, ran: 1, note: result.outcome });
+        ran.push({
+          duty: item.kind as DutyId,
+          owner: agentId,
+          filed: 0,
+          ran: 1,
+          note: result.outcome,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         await failWork(item.id, message, item.maxAttempts);
@@ -223,7 +232,13 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
           durationMs: Date.now() - startedAt,
         });
         failed += 1;
-        ran.push({ duty: item.kind as DutyId, owner: agentId, filed: 0, ran: 1, note: `Failed: ${message}` });
+        ran.push({
+          duty: item.kind as DutyId,
+          owner: agentId,
+          filed: 0,
+          ran: 1,
+          note: `Failed: ${message}`,
+        });
       }
     }
   }
@@ -237,9 +252,13 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
   const counts = await workCounts();
   const detail = [
     `Duties due and planned: ${planned} new item(s).`,
-    ran.length ? ran.map((entry) => `${entry.owner}: ${entry.note}`).join(" ") : "No duty found work to do.",
+    ran.length
+      ? ran.map((entry) => `${entry.owner}: ${entry.note}`).join(" ")
+      : "No duty found work to do.",
     counts.open ? `${counts.open} item(s) still queued.` : "Queue is clear.",
-    counts.abandoned ? `${counts.abandoned} item(s) abandoned after repeated failure — the founder should look.` : "",
+    counts.abandoned
+      ? `${counts.abandoned} item(s) abandoned after repeated failure — the founder should look.`
+      : "",
     reclaimed ? `Reclaimed ${reclaimed} item(s) left by an interrupted run.` : "",
     pruned ? `Pruned ${pruned} finished item(s) from the queue.` : "",
   ]
@@ -280,7 +299,13 @@ export type SchedulerStatus = {
   lastTickAt: string | null;
   consecutiveFailures: number;
   dutyState: Record<string, string>;
-  dueDuties: { duty: DutyId; owner: string; title: string; lastRunAt: string | null; dueInMinutes: number }[];
+  dueDuties: {
+    duty: DutyId;
+    owner: string;
+    title: string;
+    lastRunAt: string | null;
+    dueInMinutes: number;
+  }[];
   queue: { open: number; claimed: number; abandoned: number; done: number };
   recentRuns: {
     id: string;
@@ -350,12 +375,7 @@ export async function schedulerStatus(): Promise<SchedulerStatus> {
 export async function runNow(): Promise<TickResult> {
   const result = await tick();
   if (result.ok && result.planned + result.ran.length > 0) {
-    await appendAudit(
-      "office_tick",
-      "Autonomous run",
-      result.detail,
-      "vantage",
-    );
+    await appendAudit("office_tick", "Autonomous run", result.detail, "vantage");
   }
   return result;
 }

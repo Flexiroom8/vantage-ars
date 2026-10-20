@@ -92,9 +92,9 @@ function ForgotPasswordPage() {
         {sent ? (
           <>
             <p className="mt-4 text-sm leading-6 text-muted">
-              If this office has a founder account for that address, a reset link is
-              on its way. It expires in one hour and can be used once. Nothing is
-              disclosed about whether the address exists.
+              If this office has a founder account for that address, a reset link is on its way. It
+              expires in one hour and can be used once. Nothing is disclosed about whether the
+              address exists.
             </p>
             <Link to="/login" className="cta mt-7 flex justify-center">
               Return to sign in

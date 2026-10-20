@@ -6,6 +6,7 @@ import { formatNowClock } from "@/lib/office/money";
 import { LiveField } from "@/components/public/live-field";
 import { GlobeIcon, NoTiesIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
 import { SERVICE_PAGES } from "@/lib/site/services";
+import { PUBLISHED_RATES } from "@/lib/office/catalogue";
 
 const nav = [
   { to: "/", hash: "services", label: "Services" },
@@ -16,9 +17,15 @@ const nav = [
 
 const trustPills = [
   { label: "Written quote first", Icon: QuoteIcon },
-  { label: "No retainer", Icon: NoTiesIcon },
+  { label: "No uptime promise", Icon: NoTiesIcon },
   { label: "Remote support worldwide", Icon: GlobeIcon },
 ] as const;
+
+/** The published amount for a rate, read from the catalogue and never typed out here. */
+function zarAmount(rateId: string): string {
+  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+  return rate?.price.match(/R[\d,]+/)?.[0] ?? "";
+}
 
 export function PublicFrame({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -262,10 +269,14 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             {/* The year only ever differs across a New Year boundary; suppress
                 rather than blank it for a year to avoid a visible gap. */}
             <p suppressHydrationWarning>
-              © {new Date().getFullYear()} Vantage-ARS. Quoted work only — no retainer, no SLA.
+              © {new Date().getFullYear()} Vantage-ARS. Quoted work and monthly managed plans — no
+              uptime promise, no contractual service level.
             </p>
             <p className="flex items-center gap-3 font-mono">
-              <span>R690/hr remote · R805/hr on-site · VAT only where quoted</span>
+              <span>
+                {zarAmount("remote-support")}/hr remote · {zarAmount("onsite-support")}/hr on-site ·
+                VAT only where quoted
+              </span>
               {clock ? (
                 <>
                   <span className="hidden h-3 w-px bg-border sm:block" aria-hidden="true" />

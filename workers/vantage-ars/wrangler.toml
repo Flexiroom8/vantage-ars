@@ -44,6 +44,8 @@ class_name = "AgentTaskWorkflow"
 # Every 15 minutes
 # Autonomous operating/task scheduler
 #
+# Deploy-time default; override per environment in the Cloudflare dashboard.
+#
 
 [triggers]
 crons = [
@@ -51,6 +53,16 @@ crons = [
   "*/15 * * * *"
 ]
 
+
+# ============================================================
+# VERCEL FALLBACK (app routes the Worker does not own)
+# ============================================================
+#
+# Unknown paths are proxied to this origin so the content site and the Vercel
+# application coexist on the custom domains. Override per environment with the
+# VERCEL_ORIGIN Worker variable if the Vercel project lives elsewhere.
+[vars]
+VERCEL_ORIGIN = "https://vercel.vantage-ars.co.za"
 
 # ============================================================
 # CUSTOM DOMAINS

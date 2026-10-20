@@ -8,10 +8,7 @@ import { getOfficeSnapshot } from "@/lib/office/api";
 
 export const Route = createFileRoute("/office")({
   head: () => ({
-    meta: [
-      { title: "Sign in · Vantage-ARS" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Sign in · Vantage-ARS" }, { name: "robots", content: "noindex" }],
   }),
   loader: () => getOfficeSnapshot(),
   component: OfficeLayout,

@@ -14,15 +14,18 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     title: "Remote technical support",
     scope: "Troubleshoot one VoIP, network, or infrastructure issue and document findings.",
     price: "R690 / hour",
-    basis: "Worldwide remote. 30-minute minimum, then 15-minute increments. Final quote states VAT treatment.",
+    basis:
+      "Worldwide remote. 30-minute minimum, then 15-minute increments. Final quote states VAT treatment.",
     offered: true,
   },
   {
     id: "onsite-support",
     title: "On-site technical support",
-    scope: "Diagnose and resolve an in-scope VoIP, network, or infrastructure issue at the customer site.",
+    scope:
+      "Diagnose and resolve an in-scope VoIP, network, or infrastructure issue at the customer site.",
     price: "R805 / hour",
-    basis: "Worldwide by arrangement. Two-hour minimum. Travel and local costs quoted before booking.",
+    basis:
+      "Worldwide by arrangement. Two-hour minimum. Travel and local costs quoted before booking.",
     offered: true,
   },
   {
@@ -30,7 +33,8 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     title: "After-hours support",
     scope: "Work agreed outside the published normal-hours window.",
     price: "R1,035 / hour remote",
-    basis: "1.5× labour. On-site R1,207.50 / hour. By appointment. Not an emergency response guarantee.",
+    basis:
+      "1.5× labour. On-site R1,207.50 / hour. By appointment. Not an emergency response guarantee.",
     offered: true,
   },
   {
@@ -46,7 +50,8 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     title: "Site survey and written recommendation",
     scope: "On-site discovery, current-state notes, constraints, and a priced recommendation.",
     price: "R805 / hour",
-    basis: "Two-hour minimum plus approved travel. Drawings, certification, and third-party fees excluded unless listed.",
+    basis:
+      "Two-hour minimum plus approved travel. Drawings, certification, and third-party fees excluded unless listed.",
     offered: true,
   },
   {
@@ -54,21 +59,25 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     title: "Network setup or configuration",
     scope: "Router, switch, Wi-Fi, VLAN, addressing, or basic connectivity configuration.",
     price: "R1,380–R3,450",
-    basis: "Typical small-job estimate only. Fixed fee after device count, access, topology, and acceptance checks. Hardware and travel extra.",
+    basis:
+      "Typical small-job estimate only. Fixed fee after device count, access, topology, and acceptance checks. Hardware and travel extra.",
     offered: true,
   },
   {
     id: "network-point",
     title: "Structured network point",
-    scope: "Install and test one cable point, up to 20 m from the hub, where site conditions permit.",
+    scope:
+      "Install and test one cable point, up to 20 m from the hub, where site conditions permit.",
     price: "R805 / point",
-    basis: "Labour only. Cable, conduit, drilling, patch panel, ceiling access, and remedial building work quoted separately.",
+    basis:
+      "Labour only. Cable, conduit, drilling, patch panel, ceiling access, and remedial building work quoted separately.",
     offered: true,
   },
   {
     id: "voip-diagnosis",
     title: "VoIP fault diagnosis and call-quality review",
-    scope: "Check endpoint and network symptoms and the call-path information the customer can provide.",
+    scope:
+      "Check endpoint and network symptoms and the call-path information the customer can provide.",
     price: "R690 / hour remote",
     basis: "On-site R805 / hour. Labour only. No carrier access or restoration guarantee.",
     offered: true,
@@ -76,49 +85,119 @@ export const PUBLISHED_RATES: PublishedRate[] = [
   {
     id: "pbx-design",
     title: "Hosted PBX / SIP design and migration plan",
-    scope: "Requirements, extension and channel sizing, routing plan, number-porting checklist, and an implementation quote.",
+    scope:
+      "Requirements, extension and channel sizing, routing plan, number-porting checklist, and an implementation quote.",
     price: "R805 / hour",
-    basis: "Fixed scope after discovery. Carrier, licence, usage, numbers, handsets, and porting are third-party and itemised.",
+    basis:
+      "Fixed scope after discovery. Carrier, licence, usage, numbers, handsets, and porting are third-party and itemised.",
     offered: true,
   },
   {
     id: "pbx-install",
     title: "VoIP / PBX installation and configuration",
-    scope: "Configure a customer-approved hosted or on-premises phone system, extensions, routing, and agreed tests.",
+    scope:
+      "Configure a customer-approved hosted or on-premises phone system, extensions, routing, and agreed tests.",
     price: "From R690 / hour",
-    basis: "R805 / hour on-site or R690 / hour remote. Fixed project quote after survey. Unsupported platforms excluded.",
+    basis:
+      "R805 / hour on-site or R690 / hour remote. Fixed project quote after survey. Unsupported platforms excluded.",
     offered: true,
   },
   {
     id: "infra-assessment",
     title: "IT infrastructure assessment",
-    scope: "Review a defined set of existing network and IT components and provide a prioritised findings report.",
+    scope:
+      "Review a defined set of existing network and IT components and provide a prioritised findings report.",
     price: "From R690 / hour",
-    basis: "R805 / hour on-site or R690 / hour remote. Two-hour minimum on-site. Penetration testing and compliance certification excluded.",
+    basis:
+      "R805 / hour on-site or R690 / hour remote. Two-hour minimum on-site. Penetration testing and compliance certification excluded.",
     offered: true,
   },
   {
     id: "infra-change",
     title: "IT infrastructure implementation",
-    scope: "A defined server, network, connectivity, or infrastructure change with rollback and acceptance steps.",
+    scope:
+      "A defined server, network, connectivity, or infrastructure change with rollback and acceptance steps.",
     price: "R690–R805 / hour",
-    basis: "By work location. Fixed quote after discovery. Hardware, licences, vendor fees, and out-of-scope remediation separated.",
+    basis:
+      "By work location. Fixed quote after discovery. Hardware, licences, vendor fees, and out-of-scope remediation separated.",
     offered: true,
   },
   {
-    id: "retainer",
-    title: "Managed support retainer",
-    scope: "Recurring support, monitoring, maintenance, and reporting.",
-    price: "Not offered",
-    basis: "No recurring package, monitoring promise, or SLA is published.",
-    offered: false,
+    id: "managed-support",
+    title: "Managed support plan",
+    scope:
+      "Remote support on a monthly plan, with the triage, the reporting and the invoicing handled for you.",
+    price: "R2,750 / month",
+    basis:
+      "8 included remote hours a month, a managed service report every month, and a quarterly infrastructure review. On-site work, hardware and third-party costs are excluded. Not a 24/7 cover and not an uptime promise.",
+    offered: true,
+  },
+  {
+    id: "health-watch",
+    title: "Remote health and spend watch",
+    scope:
+      "A written watch over open faults, our measured response times, and everything invoiced to you, every month.",
+    price: "R990 / month",
+    basis:
+      "Delivered from our own records. Remote only. Covers the accounts and work we have recorded for you. Not a monitoring service and not a service-level agreement.",
+    offered: true,
+  },
+  {
+    id: "service-report",
+    title: "Service report",
+    scope: "A written account of the faults raised, quotes issued and invoices raised in a period.",
+    price: "R690",
+    basis:
+      "One report per order, compiled from our records. Reports on work already done; it does not include any new work.",
+    offered: true,
+  },
+  {
+    id: "billing-audit",
+    title: "Billing and rate compliance audit",
+    scope:
+      "Every invoice we issued you in a period, checked line by line against this published rate card.",
+    price: "R1,150",
+    basis:
+      "One audit per order. We report anything that does not reconcile; nothing is adjusted without your agreement. Supplier and carrier invoices are excluded.",
+    offered: true,
+  },
+  {
+    id: "handover-pack",
+    title: "Infrastructure documentation and handover pack",
+    scope:
+      "Your network and phone estate as we have recorded it: faults fixed, changes made, and what is still open.",
+    price: "R1,380",
+    basis:
+      "One pack per order, built from our records. Not a site survey, and it does not document equipment or cabling we have never seen.",
+    offered: true,
+  },
+  {
+    id: "continuity-plan",
+    title: "Business continuity plan",
+    scope:
+      "The failure points we have actually recorded for you, the order to recover them in, and the gaps we can see.",
+    price: "R1,725",
+    basis:
+      "One plan per order, built from your recorded fault history. Not a formal disaster recovery plan and not a compliance certification.",
+    offered: true,
+  },
+  {
+    id: "sla-review",
+    title: "Service level and response review",
+    scope:
+      "How the faults raised in a period were actually handled, measured against our own written response targets.",
+    price: "R690",
+    basis:
+      "One review per order. Our response targets are working targets we measure ourselves against, not a contractual service level, and we do not sell them as one.",
+    offered: true,
   },
   {
     id: "third-party",
     title: "Hardware, software, and carrier services",
     scope: "Third-party products or services needed for an approved job.",
     price: "Supplier quotation",
-    basis: "Not included in labour. Itemised in advance. Founder and customer approval precede commitment.",
+    basis:
+      "Not included in labour. Itemised in advance. Founder and customer approval precede commitment.",
     offered: true,
   },
   {
@@ -126,7 +205,8 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     title: "Travel",
     scope: "Travel to an approved site.",
     price: "Agreed cost",
-    basis: "Disclosed before booking. International travel, accommodation, visas, and local expenses quoted separately.",
+    basis:
+      "Disclosed before booking. International travel, accommodation, visas, and local expenses quoted separately.",
     offered: true,
   },
 ];
@@ -150,6 +230,12 @@ export const SERVICE_LINES = [
     summary: "Servers and the rest of the setup your business depends on.",
     price: "From R690 / hour",
   },
+  {
+    number: "04",
+    title: "Managed services",
+    summary: "Monthly plans and written reports, produced and billed without you chasing anyone.",
+    price: "From R690 / month",
+  },
 ] as const;
 
 export const PUBLIC_RATE_IDS = [
@@ -161,6 +247,9 @@ export const PUBLIC_RATE_IDS = [
   "survey",
   "pbx-install",
   "infra-assessment",
+  "managed-support",
+  "health-watch",
+  "service-report",
 ] as const;
 
 export function ratesByIds(ids: readonly string[]) {
@@ -182,11 +271,32 @@ export const RATE_GROUPS = [
   {
     title: "Quoted work",
     note: "A fixed figure only after the site, the devices, and the scope are known.",
-    ids: ["survey", "network-setup", "network-point", "pbx-design", "pbx-install", "infra-assessment", "infra-change"],
+    ids: [
+      "survey",
+      "network-setup",
+      "network-point",
+      "pbx-design",
+      "pbx-install",
+      "infra-assessment",
+      "infra-change",
+    ],
+  },
+  {
+    title: "Managed services",
+    note: "Fixed scope, fixed price, produced from our own records. Remote only.",
+    ids: [
+      "managed-support",
+      "health-watch",
+      "service-report",
+      "billing-audit",
+      "handover-pack",
+      "continuity-plan",
+      "sla-review",
+    ],
   },
   {
     title: "Outside the labour rate",
-    note: "These are not included in an hourly rate, and one of them is not offered at all.",
-    ids: ["retainer", "third-party", "travel"],
+    note: "These are not included in any rate above.",
+    ids: ["third-party", "travel"],
   },
 ] as const;

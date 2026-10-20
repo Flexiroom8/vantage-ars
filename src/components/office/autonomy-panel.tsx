@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { createServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { founderMiddleware } from "@/lib/office/founder-gate";
+import { redriveWork } from "@/lib/office/api";
 import { formatRelative } from "@/lib/office/format";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +32,20 @@ const readAutonomy = createServerFn({ method: "GET" })
       listWork(40),
       workCounts(),
     ]);
+    const described = items.map((item) => ({
+      id: item.id,
+      agentId: item.agentId,
+      kind: item.kind,
+      reason: item.reason,
+      status: item.status,
+      attempts: item.attempts,
+      maxAttempts: item.maxAttempts,
+      dueAt: item.dueAt,
+      lastError: item.lastError,
+    }));
+    const dead = described.filter(
+      (item) => item.status === "abandoned" || item.status === "failed",
+    );
     return {
       lastTickAt: status.lastTickAt,
       consecutiveFailures: status.consecutiveFailures,
@@ -44,16 +60,12 @@ const readAutonomy = createServerFn({ method: "GET" })
         startedAt: run.startedAt,
         durationMs: run.durationMs,
       })),
-      items: items.slice(0, 12).map((item) => ({
-        id: item.id,
-        agentId: item.agentId,
-        kind: item.kind,
-        reason: item.reason,
-        status: item.status,
-        attempts: item.attempts,
-        maxAttempts: item.maxAttempts,
-        dueAt: item.dueAt,
-      })),
+      // The dead-letter queue is listed on its own, because it is the one list
+      // the founder is meant to act on.
+      deadLetters: dead.slice(0, 8),
+      items: described
+        .filter((item) => item.status !== "abandoned" && item.status !== "failed")
+        .slice(0, 12),
       counts,
     };
   });
@@ -71,6 +83,7 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
   const [data, setData] = useState<Autonomy | null>(null);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
+  const [redriving, setRedriving] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +95,8 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
         }
       })
       .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : "Could not read the scheduler.");
+        if (!cancelled)
+          setError(reason instanceof Error ? reason.message : "Could not read the scheduler.");
       });
     return () => {
       cancelled = true;
@@ -100,6 +114,31 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
       setError(reason instanceof Error ? reason.message : "The run failed.");
     } finally {
       setRunning(false);
+    }
+  }
+
+  /**
+   * Put a dead item back on the queue.
+   *
+   * Redriving is a founder action and never an automatic one. The server
+   * function is behind the founder gate and writes the redrive to the audit
+   * chain, so what the office did here is on the record like everything else.
+   */
+  async function redrive(workId: string) {
+    if (redriving) return;
+    setRedriving(workId);
+    try {
+      const result = await redriveWork({ data: { workId } });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Back on the queue. The redrive is on the audit chain.");
+      setData(await readAutonomy());
+    } catch {
+      toast.error("The item could not be redriven.");
+    } finally {
+      setRedriving("");
     }
   }
 
@@ -151,12 +190,12 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
           warn={stale}
         />
         <Stat label="Queued" value={String(data.counts.open)} />
-        <Stat label="Duties due" value={String(dueNow.length)} hint={`of ${data.dueDuties.length}`} />
         <Stat
-          label="Failed runs"
-          value={String(data.consecutiveFailures)}
-          warn={broken}
+          label="Duties due"
+          value={String(dueNow.length)}
+          hint={`of ${data.dueDuties.length}`}
         />
+        <Stat label="Failed runs" value={String(data.consecutiveFailures)} warn={broken} />
       </dl>
 
       {!data.autonomyOn ? (
@@ -165,9 +204,13 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
           environment for the office to act without you pressing anything.
         </p>
       ) : stale ? (
-        <p role="alert" className="mt-4 border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger">
-          The scheduler has not run in {overdueMinutes === null ? "this deployment" : `${overdueMinutes} minutes`}.
-          Nothing will be planned or executed until it does.
+        <p
+          role="alert"
+          className="mt-4 border border-danger/30 bg-danger/5 px-3 py-2 text-xs text-danger"
+        >
+          The scheduler has not run in{" "}
+          {overdueMinutes === null ? "this deployment" : `${overdueMinutes} minutes`}. Nothing will
+          be planned or executed until it does.
         </p>
       ) : null}
 
@@ -227,6 +270,43 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
         </section>
       </div>
 
+      {data.deadLetters.length ? (
+        <section className="mt-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-danger">
+              Dead-letter queue
+            </h3>
+            <p className="text-[11px] text-muted">
+              These exhausted their retries. Nothing retries them again on its own.
+            </p>
+          </div>
+          <ul className="mt-2 divide-y divide-border">
+            {data.deadLetters.map((item) => (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs text-fg">{item.reason}</p>
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
+                    {item.agentId} · {item.kind} · {item.status} {item.attempts}/{item.maxAttempts}
+                  </p>
+                  {item.lastError ? (
+                    <p className="mt-1 text-[11px] text-danger">Last error: {item.lastError}</p>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={Boolean(redriving)}
+                  onClick={() => void redrive(item.id)}
+                >
+                  {redriving === item.id ? "Redriving…" : "Redrive"}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {data.items.length ? (
         <section className="mt-5">
           <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted">
@@ -256,7 +336,17 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
   );
 }
 
-function Stat({ label, value, hint, warn }: { label: string; value: string; hint?: string; warn?: boolean }) {
+function Stat({
+  label,
+  value,
+  hint,
+  warn,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  warn?: boolean;
+}) {
   return (
     <div>
       <dt className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted">{label}</dt>

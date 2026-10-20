@@ -7,11 +7,7 @@
  */
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
-import {
-  parseSetCookieHeader,
-  setRequestCookie,
-  setSessionCookie,
-} from "better-auth/cookies";
+import { parseSetCookieHeader, setRequestCookie, setSessionCookie } from "better-auth/cookies";
 import { handleOAuthUserInfo } from "better-auth/oauth2";
 import {
   GATE_IDENTITY_HEADER,
@@ -63,9 +59,7 @@ async function emitSessionCookie(
     return null;
   }
 
-  const sessionValue = parseSetCookieHeader(signedCookie).get(
-    sessionTokenName,
-  )?.value;
+  const sessionValue = parseSetCookieHeader(signedCookie).get(sessionTokenName)?.value;
   if (!sessionValue) {
     console.error(`${LOG} signed Set-Cookie missing session token value`, {
       cookiePreview: signedCookie.slice(0, 120),
@@ -136,10 +130,7 @@ async function expireSessionDataCookie(
         `${secure ? "Secure; " : ""}SameSite=Lax; Max-Age=0`,
     );
   } catch (err) {
-    console.error(
-      `${LOG} responseHeaders.append (expire session_data) failed`,
-      err,
-    );
+    console.error(`${LOG} responseHeaders.append (expire session_data) failed`, err);
   }
 }
 
@@ -154,11 +145,7 @@ async function writeGateMarkerCookie(
   clear: boolean,
 ): Promise<void> {
   const sessionMaxAge = ctx.context.sessionConfig.expiresIn;
-  const maxAge = clear
-    ? 0
-    : typeof sessionMaxAge === "number"
-      ? sessionMaxAge
-      : undefined;
+  const maxAge = clear ? 0 : typeof sessionMaxAge === "number" ? sessionMaxAge : undefined;
   const value = clear ? "" : "1";
   try {
     await writeResponseCookie({
@@ -233,9 +220,7 @@ export function gateIdentitySessions() {
 
             const identity = await gateIdentityFromHeaders(inbound);
             if (!identity) {
-              console.error(
-                `${LOG} ${GATE_IDENTITY_HEADER} present but verification failed`,
-              );
+              console.error(`${LOG} ${GATE_IDENTITY_HEADER} present but verification failed`);
               return;
             }
 
@@ -254,29 +239,19 @@ export function gateIdentitySessions() {
                     return null;
                   });
                 if (!accounts) {
-                  console.error(
-                    `${LOG} could not load accounts for existing session user`,
-                    { userId: existing.user.id },
-                  );
+                  console.error(`${LOG} could not load accounts for existing session user`, {
+                    userId: existing.user.id,
+                  });
                   return;
                 }
-                if (
-                  sessionBoundToGateIdentity(
-                    accounts,
-                    identity.sub,
-                    GATE_PROVIDER_ID,
-                  )
-                ) {
+                if (sessionBoundToGateIdentity(accounts, identity.sub, GATE_PROVIDER_ID)) {
                   await writeGateMarkerCookie(ctx, false);
                   return;
                 }
                 await ctx.context.internalAdapter
                   .deleteSession(existing.session.token)
                   .catch((err) => {
-                    console.error(
-                      `${LOG} deleteSession (stale non-gate session) failed`,
-                      err,
-                    );
+                    console.error(`${LOG} deleteSession (stale non-gate session) failed`, err);
                     return null;
                   });
               }
@@ -312,10 +287,9 @@ export function gateIdentitySessions() {
                 result.data.session.token,
               );
               if (!sessionValue) {
-                console.error(
-                  `${LOG} session created in DB but cookie was not emitted`,
-                  { userId: result.data.user.id },
-                );
+                console.error(`${LOG} session created in DB but cookie was not emitted`, {
+                  userId: result.data.user.id,
+                });
                 return;
               }
 
@@ -326,9 +300,7 @@ export function gateIdentitySessions() {
 
               // Inject the cookie into this request so the rest of /get-session
               // resolves the newly created session in the same round-trip.
-              const headers = new Headers(
-                Object.fromEntries(inbound.entries()),
-              );
+              const headers = new Headers(Object.fromEntries(inbound.entries()));
               setRequestCookie(headers, sessionCookieName, sessionValue);
               removeRequestCookie(headers, sessionDataCookie.name);
               return { context: { headers } };

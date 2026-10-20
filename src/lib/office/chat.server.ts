@@ -5,7 +5,12 @@ import { ensureOffice } from "./store.server";
 
 const THREAD = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type ChatLine = { id: string; role: "customer" | "office" | "founder"; body: string; createdAt: string };
+export type ChatLine = {
+  id: string;
+  role: "customer" | "office" | "founder";
+  body: string;
+  createdAt: string;
+};
 
 async function ensureChat(): Promise<void> {
   await ensureOffice();
@@ -65,7 +70,9 @@ export async function postChat(input: {
   if (body.length < 1 || body.length > 1000) return { ok: false, error: "Write a short message." };
   await ensureChat();
   const sql = await getSql();
-  const existing = await sql<{ id: string }>`select id from chat_threads where id = ${input.threadId}`;
+  const existing = await sql<{
+    id: string;
+  }>`select id from chat_threads where id = ${input.threadId}`;
   const first = existing.length === 0;
   if (first) {
     await sql`
@@ -88,7 +95,9 @@ export async function postChat(input: {
   return { ok: true, messages: await readChat(input.threadId), first };
 }
 
-export async function listChats(): Promise<{ id: string; name: string; updatedAt: string; preview: string }[]> {
+export async function listChats(): Promise<
+  { id: string; name: string; updatedAt: string; preview: string }[]
+> {
   await ensureChat();
   const sql = await getSql();
   const rows = await sql<Record<string, unknown>>`
@@ -106,7 +115,10 @@ export async function listChats(): Promise<{ id: string; name: string; updatedAt
   }));
 }
 
-export async function founderReply(threadId: string, body: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function founderReply(
+  threadId: string,
+  body: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!THREAD.test(threadId)) return { ok: false, error: "That chat is not open." };
   const text = body.replace(/\s+/g, " ").trim();
   if (text.length < 1 || text.length > 1000) return { ok: false, error: "Write a short reply." };

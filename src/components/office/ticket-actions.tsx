@@ -14,12 +14,18 @@ export function TicketActions({ id, status }: { id: string; status: string }) {
   async function onClick() {
     setPending(true);
     try {
-      const result = await updateTicket({ data: { ticketId: id, status: next as "in_progress" | "resolved" } });
+      const result = await updateTicket({
+        data: { ticketId: id, status: next as "in_progress" | "resolved" },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
       }
-      toast.success(next === "resolved" ? "Resolved. The customer was not emailed." : "Work started. The customer was not emailed.");
+      toast.success(
+        next === "resolved"
+          ? "Resolved. The customer was not emailed."
+          : "Work started. The customer was not emailed.",
+      );
       await router.invalidate();
     } catch {
       toast.error("The ticket could not be updated.");
@@ -29,7 +35,13 @@ export function TicketActions({ id, status }: { id: string; status: string }) {
   }
 
   return (
-    <Button type="button" size="sm" variant="secondary" disabled={pending} onClick={() => void onClick()}>
+    <Button
+      type="button"
+      size="sm"
+      variant="secondary"
+      disabled={pending}
+      onClick={() => void onClick()}
+    >
       {pending ? "Saving…" : label}
     </Button>
   );

@@ -123,9 +123,14 @@ describe("authorizeAction", () => {
   });
 
   it("escalates customer win and loss", () => {
-    const won = authorizeAction(action({ kind: "propose_close_won", amountCents: 1 }), "close", company, {
-      approvedHandoff: true,
-    });
+    const won = authorizeAction(
+      action({ kind: "propose_close_won", amountCents: 1 }),
+      "close",
+      company,
+      {
+        approvedHandoff: true,
+      },
+    );
     const lost = authorizeAction(action({ kind: "propose_close_lost" }), "close", company, {
       approvedHandoff: true,
     });

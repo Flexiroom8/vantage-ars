@@ -42,10 +42,7 @@ describe("route files declare their own path", () => {
   }
 
   it("site-frame exports PublicFrame and declares no route", () => {
-    const source = readFileSync(
-      join(here, "../components/public/site-frame.tsx"),
-      "utf8",
-    );
+    const source = readFileSync(join(here, "../components/public/site-frame.tsx"), "utf8");
     assert.ok(source.includes("export function PublicFrame"));
     assert.ok(!source.includes("createFileRoute"));
   });
@@ -64,9 +61,24 @@ describe("route files declare their own path", () => {
       imageAlt: "Vantage-ARS VoIP support preview",
     });
 
-    assert.ok(meta.some((item) => item.property === "og:image:alt" && item.content === "Vantage-ARS VoIP support preview"));
-    assert.ok(meta.some((item) => item.name === "twitter:image:alt" && item.content === "Vantage-ARS VoIP support preview"));
-    assert.ok(links.some((link) => link.rel === "canonical" && link.href === "https://vantage-ars.co.za/services/voip"));
+    assert.ok(
+      meta.some(
+        (item) =>
+          item.property === "og:image:alt" && item.content === "Vantage-ARS VoIP support preview",
+      ),
+    );
+    assert.ok(
+      meta.some(
+        (item) =>
+          item.name === "twitter:image:alt" && item.content === "Vantage-ARS VoIP support preview",
+      ),
+    );
+    assert.ok(
+      links.some(
+        (link) =>
+          link.rel === "canonical" && link.href === "https://vantage-ars.co.za/services/voip",
+      ),
+    );
   });
 
   it("businessJsonLd includes the public logo for richer schema metadata", () => {
@@ -87,10 +99,7 @@ describe("route files declare their own path", () => {
   it("api routes never import `.server` modules (build would fail)", () => {
     for (const file of Object.keys(API_ROUTES)) {
       const source = readFileSync(join(here, file), "utf8");
-      assert.ok(
-        !/\.server["']/.test(source),
-        `${file} must not reference .server modules`,
-      );
+      assert.ok(!/\.server["']/.test(source), `${file} must not reference .server modules`);
     }
   });
 });

@@ -17,7 +17,11 @@ export type ResponseCookieOptions = {
  * called from the client — all callers run inside the auth request pipeline.
  */
 export const writeResponseCookie = createServerOnlyFn(
-  async (input: { name: string; value: string; options?: ResponseCookieOptions }): Promise<void> => {
+  async (input: {
+    name: string;
+    value: string;
+    options?: ResponseCookieOptions;
+  }): Promise<void> => {
     const { setCookie } = await import("@tanstack/react-start/server");
     setCookie(input.name, input.value, {
       path: "/",

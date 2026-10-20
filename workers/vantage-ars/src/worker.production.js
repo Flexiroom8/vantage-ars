@@ -436,7 +436,19 @@ Sitemap: ${origin}/sitemap.xml
         });
       }
       if (path === "/api/backlog") return json((await env.DB.prepare("SELECT * FROM backlog ORDER BY priority ASC").all()).results);
-      return page(origin, path, "Not found", "Not found", `<h1>Not found</h1><p><a href="/">Back to home</a></p>`);
+      // Anything the content Worker does not own (services, rates, legal pages,
+      // office, auth, quotes, ...) is served by the Vercel application. This
+      // keeps the Worker's content site and the app coexisting on one origin.
+      const vercelOrigin = String(env.VERCEL_ORIGIN || "https://vercel.vantage-ars.co.za").replace(/\/+$/, "");
+      try {
+        const target = new URL(request.url);
+        target.protocol = "https:";
+        target.host = new URL(vercelOrigin).host;
+        target.port = "";
+        return await fetch(new Request(target.toString(), request));
+      } catch (proxyErr) {
+        return page(origin, path, "Not found", "Not found", `<h1>Not found</h1><p><a href="/">Back to home</a></p>`);
+      }
     } catch (err) {
       return json({ error: err.message }, 500);
     }

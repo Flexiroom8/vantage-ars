@@ -4,8 +4,16 @@ export function encodeSubject(subject: string): string {
   return `=?UTF-8?B?${Buffer.from(subject, "utf8").toString("base64")}?=`;
 }
 
-export function smtpData(input: { from: string; to: string; subject: string; body: string }): string {
-  const subject = input.subject.replace(/[\r\n]+/g, " ").trim().slice(0, 180);
+export function smtpData(input: {
+  from: string;
+  to: string;
+  subject: string;
+  body: string;
+}): string {
+  const subject = input.subject
+    .replace(/[\r\n]+/g, " ")
+    .trim()
+    .slice(0, 180);
   const from = input.from.replace(/[\r\n]+/g, "").trim();
   const to = input.to.replace(/[\r\n]+/g, "").trim();
   const text = input.body.replace(/\r\n/g, "\n").replace(/\r/g, "\n");

@@ -3,10 +3,18 @@ const PRICE = ["quote", "price", "pricing", "how much", "cost", "rate", "invoice
 const FAULT = ["down", "broken", "fault", "not working", "outage", "no dial", "one-way", "one way"];
 
 export function chatName(value: string): string | null {
-  const cleaned = value.replace(/[^\p{L}\p{N}\s.'-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  const cleaned = value
+    .replace(/[^\p{L}\p{N}\s.'-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
   if (cleaned.length < 2) return null;
   const lower = cleaned.toLowerCase();
-  if (["ignore", "instruction", "system prompt", "stupid", "hate", "scam"].some((word) => lower.includes(word))) {
+  if (
+    ["ignore", "instruction", "system prompt", "stupid", "hate", "scam"].some((word) =>
+      lower.includes(word),
+    )
+  ) {
     return null;
   }
   return cleaned;

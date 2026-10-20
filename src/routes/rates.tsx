@@ -6,14 +6,20 @@ import { SignalBars } from "@/components/public/motion-icons";
 import { RATE_GROUPS, ratesByIds } from "../lib/office/catalogue";
 import { cn } from "../lib/utils";
 
-const GROUP_IDS = ["labour", "quoted", "outside"] as const;
+const GROUP_IDS = ["labour", "quoted", "managed", "outside"] as const;
+
+/** Every published group, paired with the anchor it scrolls to. */
+const GROUPS = RATE_GROUPS.map((group, index) => ({
+  ...group,
+  id: GROUP_IDS[index] ?? `group-${index + 1}`,
+}));
 
 export const Route = createFileRoute("/rates")({
   head: () => {
     const head = pageHead({
       title: "Rates · Vantage-ARS",
       description:
-        "Published Vantage-ARS rates in South African rand. A written quote confirms the total. Managed support is not offered.",
+        "Published Vantage-ARS rates in South African rand. Labour by the hour, quoted work at a fixed figure, managed services at a fixed price. A written quote confirms the total.",
       path: "/rates",
     });
 
@@ -29,7 +35,7 @@ function RatesPage() {
   const [active, setActive] = useState(0);
 
   useEffect(() => {
-    const sections = GROUP_IDS.map((id) => document.getElementById(`rate-${id}`)).filter(
+    const sections = GROUPS.map((group) => document.getElementById(`rate-${group.id}`)).filter(
       (el): el is HTMLElement => Boolean(el),
     );
     if (sections.length === 0 || typeof IntersectionObserver === "undefined") return;
@@ -59,19 +65,32 @@ function RatesPage() {
           See the price before you say yes.
         </h1>
         <p className="mt-8 max-w-xl text-lg leading-relaxed text-muted">
-          Remote help starts at R690 an hour. On-site help starts at R805 an hour. Both are in South African rand. VAT is added only when the written quote says so.
+          Remote help starts at R690 an hour. On-site help starts at R805 an hour. Both are in South
+          African rand. VAT is added only when the written quote says so.
+        </p>
+
+        <p className="mt-4 max-w-2xl leading-relaxed text-muted">
+          Labour is charged by the hour. Quoted work gets a fixed figure once the site, the devices
+          and the scope are known. Managed services have a fixed scope and a fixed price, are
+          produced from our own records, and are remote only. Nothing in the managed group is a
+          monitoring service, an uptime promise or a contractual service level.
         </p>
       </article>
 
-      <nav aria-label="Rate groups" className="sticky top-14 z-20 -mx-5 mb-4 border-y border-border bg-bg/90 px-5 py-3 backdrop-blur-md sm:-mx-8 sm:px-8">
+      <nav
+        aria-label="Rate groups"
+        className="sticky top-14 z-20 -mx-5 mb-4 border-y border-border bg-bg/90 px-5 py-3 backdrop-blur-md sm:-mx-8 sm:px-8"
+      >
         <div className="flex flex-wrap gap-2">
-          {RATE_GROUPS.map((group, index) => (
+          {GROUPS.map((group, index) => (
             <a
               key={group.title}
-              href={`#rate-${GROUP_IDS[index]}`}
+              href={`#rate-${group.id}`}
               onClick={(event) => {
                 event.preventDefault();
-                document.getElementById(`rate-${GROUP_IDS[index]}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                document
+                  .getElementById(`rate-${group.id}`)
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
               className="spy-pill rounded-full px-3.5 py-1.5 text-sm font-medium"
               data-active={active === index}
@@ -83,37 +102,53 @@ function RatesPage() {
         </div>
       </nav>
 
-      {RATE_GROUPS.map((group, index) => (
-        <section
-          key={group.title}
-          id={`rate-${GROUP_IDS[index]}`}
-          className="scroll-mt-32 border-t border-border py-16"
-        >
-          <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
-            <div>
-              <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">
-                {String(index + 1).padStart(2, "0")}
-              </p>
-              <h2 className="mt-2 text-4xl">{group.title}</h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{group.note}</p>
+      {GROUPS.map((group, index) => {
+        const groupRates = ratesByIds(group.ids);
+
+        return (
+          <section
+            key={group.title}
+            id={`rate-${group.id}`}
+            className="scroll-mt-32 border-t border-border py-16"
+          >
+            <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">
+              <div>
+                <p className="font-mono text-xs tracking-[0.2em] text-accent uppercase">
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h2 className="mt-2 text-4xl">{group.title}</h2>
+                <p className="mt-4 text-sm leading-relaxed text-muted">{group.note}</p>
+              </div>
+              <ul className="border-t border-border">
+                {groupRates.length === 0 ? (
+                  <li className="border-b border-border py-6 text-sm text-muted">
+                    No rates in this group.
+                  </li>
+                ) : (
+                  groupRates.map((rate) => (
+                    <li
+                      key={rate.id}
+                      className={cn(
+                        "grid gap-2 border-b border-border py-6 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_11rem] sm:gap-8",
+                        !rate.offered && "opacity-60",
+                      )}
+                    >
+                      <div>
+                        <h3 className="font-semibold">{rate.title}</h3>
+                        <p className="mt-1 text-sm text-muted">{rate.scope}</p>
+                        <p className="mt-2 text-sm text-subtle">{rate.basis}</p>
+                      </div>
+                      <p className="font-mono text-sm font-medium text-accent sm:text-right">
+                        {rate.offered ? rate.price : "Not offered"}
+                      </p>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
-            <ul className="border-t border-border">
-              {ratesByIds(group.ids).map((rate) => (
-                <li key={rate.id} className={cn("grid gap-2 border-b border-border py-6 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_11rem] sm:gap-8", !rate.offered && "opacity-60")}>
-                  <div>
-                    <h3 className="font-semibold">{rate.title}</h3>
-                    <p className="mt-1 text-sm text-muted">{rate.scope}</p>
-                    <p className="mt-2 text-sm text-subtle">{rate.basis}</p>
-                  </div>
-                  <p className="font-mono text-sm font-medium text-accent sm:text-right">
-                    {rate.offered ? rate.price : "Not offered"}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-      ))}
+          </section>
+        );
+      })}
       <p className="flex flex-wrap gap-3 border-t border-border py-16">
         <Link
           to="/"

@@ -1,7 +1,19 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { PublicFrame } from "@/components/public/site-frame";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { InfraIcon, NetworkIcon, NoTiesIcon, QuoteIcon, SignalBars, VoipIcon } from "@/components/public/motion-icons";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  InfraIcon,
+  NetworkIcon,
+  NoTiesIcon,
+  QuoteIcon,
+  SignalBars,
+  VoipIcon,
+} from "@/components/public/motion-icons";
 import { ratesByIds } from "@/lib/office/catalogue";
 import { SERVICE_PAGES, servicePage, type ServicePage } from "@/lib/site/services";
 import { businessJsonLd, faqJsonLd, jsonLd, pageHead, SITE_URL } from "@/lib/site/seo";
@@ -11,11 +23,12 @@ const SLUG_ICONS = {
   voip: VoipIcon,
   networking: NetworkIcon,
   "it-infrastructure": InfraIcon,
+  "managed-support": SignalBars,
 } as const;
 
 const VALUE_PROPS = [
   { label: "Scope explained before work starts", Icon: QuoteIcon },
-  { label: "Quote-first pricing with no retainer", Icon: NoTiesIcon },
+  { label: "Quoted work or a monthly plan", Icon: NoTiesIcon },
   { label: "Remote first, on-site only when needed", Icon: SignalBars },
 ] as const;
 
@@ -27,7 +40,12 @@ export const Route = createFileRoute("/services/$slug")({
   },
   head: ({ loaderData }: { loaderData?: ServicePage }) => {
     if (!loaderData) return {};
-    const head = pageHead({ title: loaderData.metaTitle, description: loaderData.description, path: `/services/${loaderData.slug}`, authorName: COMPANY.authorName });
+    const head = pageHead({
+      title: loaderData.metaTitle,
+      description: loaderData.description,
+      path: `/services/${loaderData.slug}`,
+      authorName: COMPANY.authorName,
+    });
     return {
       ...head,
       scripts: [
@@ -57,7 +75,10 @@ function ServicePageView() {
 
   return (
     <PublicFrame>
-      <nav aria-label="Breadcrumb" className="pt-10 font-mono text-xs tracking-[0.14em] text-subtle uppercase">
+      <nav
+        aria-label="Breadcrumb"
+        className="pt-10 font-mono text-xs tracking-[0.14em] text-subtle uppercase"
+      >
         <Link to="/" className="transition-colors hover:text-fg">
           Home
         </Link>{" "}
@@ -75,22 +96,37 @@ function ServicePageView() {
           </span>
           <p className="font-mono text-sm text-accent">{page.number}</p>
         </div>
-        <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">{page.title}</h1>
+        <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
+          {page.title}
+        </h1>
         <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted">{page.lead}</p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/" hash="enquiry" className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium">
+          <Link
+            to="/"
+            hash="enquiry"
+            className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+          >
             Get a written quote
           </Link>
-          <Link to="/support" className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium">
+          <Link
+            to="/support"
+            className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+          >
             Already a customer? Service desk
           </Link>
         </div>
       </section>
 
-      <section className="grid gap-4 border-y border-border py-4 md:grid-cols-3 md:p-4" aria-label="Service value summary">
+      <section
+        className="grid gap-4 border-y border-border py-4 md:grid-cols-3 md:p-4"
+        aria-label="Service value summary"
+      >
         {VALUE_PROPS.map(({ label, Icon: ValueIcon }) => (
-          <div key={label} className="flex items-center gap-3 rounded-xl border border-border bg-bg/60 p-4 text-sm text-muted">
+          <div
+            key={label}
+            className="flex items-center gap-3 rounded-xl border border-border bg-bg/60 p-4 text-sm text-muted"
+          >
             <ValueIcon className="size-5 shrink-0 text-accent" aria-hidden="true" />
             {label}
           </div>
@@ -104,7 +140,10 @@ function ServicePageView() {
           </h2>
           <ul className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
             {page.symptoms.map((item) => (
-              <li key={item} className="flex gap-3 border-b border-border pb-4 text-sm leading-relaxed">
+              <li
+                key={item}
+                className="flex gap-3 border-b border-border pb-4 text-sm leading-relaxed"
+              >
                 <span aria-hidden className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent" />
                 <span className="text-muted">{item}</span>
               </li>
@@ -144,13 +183,18 @@ function ServicePageView() {
           </div>
           <ul className="border-t border-border">
             {rates.map((rate) => (
-              <li key={rate.id} className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_9rem] sm:gap-8">
+              <li
+                key={rate.id}
+                className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_9rem] sm:gap-8"
+              >
                 <div>
                   <h3 className="text-base font-semibold">{rate.title}</h3>
                   <p className="mt-1 text-sm text-muted">{rate.scope}</p>
                   <p className="mt-2 text-sm text-subtle">{rate.basis}</p>
                 </div>
-                <p className="font-mono text-sm font-medium text-accent sm:text-right">{rate.price}</p>
+                <p className="font-mono text-sm font-medium text-accent sm:text-right">
+                  {rate.price}
+                </p>
               </li>
             ))}
           </ul>
@@ -161,7 +205,7 @@ function ServicePageView() {
         <div className="grid gap-10 lg:grid-cols-2">
           <div>
             <h2 id="excluded-heading" className="font-serif text-3xl tracking-[-0.03em]">
-              Not in the labour rate
+              {page.excludedTitle ?? "Not in the labour rate"}
             </h2>
             <ul className="mt-6 space-y-3 text-sm leading-relaxed text-muted">
               {page.excluded.map((item) => (
@@ -196,20 +240,30 @@ function ServicePageView() {
             className="pointer-events-none absolute -bottom-32 -left-20 size-64 rounded-full bg-ok/10 blur-3xl"
           />
           <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">Signal desk</p>
-          <h2 className="mt-4 max-w-2xl font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Tell us what stopped.</h2>
+          <h2 className="mt-4 max-w-2xl font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+            Tell us what stopped.
+          </h2>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-            A few sentences are enough. You get a written quote before anyone starts, and asking does not commit you to anything.
+            A few sentences are enough. You get a written quote before anyone starts, and asking
+            does not commit you to anything.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/" hash="enquiry" className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium">
+            <Link
+              to="/"
+              hash="enquiry"
+              className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+            >
               Request a quote
             </Link>
-            <Link to="/support" className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium">
+            <Link
+              to="/support"
+              className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+            >
               Service desk
             </Link>
           </div>
         </div>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {others.map((item) => (
             <Link
               key={item.slug}

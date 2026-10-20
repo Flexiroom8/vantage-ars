@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { PageHeader } from "@/components/office/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,6 @@ import { formatDateTime } from "@/lib/office/money";
 export const Route = createFileRoute("/office/floor")({
   component: FloorPage,
 });
-
 
 function FloorPage() {
   const snapshot = useOfficeSnapshot();
@@ -26,11 +25,17 @@ function FloorPage() {
           <Card key={agent.id}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-mono text-[11px] tracking-[0.18em] text-muted">{agent.callsign}</p>
+                <p className="font-mono text-[11px] tracking-[0.18em] text-muted">
+                  {agent.callsign}
+                </p>
                 <h2 className="mt-1 font-serif text-2xl">{agent.title}</h2>
                 <p className="text-xs text-muted">{agent.department}</p>
               </div>
-              <Badge variant={agent.status === "halted" ? "danger" : agent.status === "blocked" ? "warn" : "ok"}>
+              <Badge
+                variant={
+                  agent.status === "halted" ? "danger" : agent.status === "blocked" ? "warn" : "ok"
+                }
+              >
                 {agent.status}
               </Badge>
             </div>

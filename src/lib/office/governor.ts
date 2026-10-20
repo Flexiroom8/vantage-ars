@@ -1,5 +1,11 @@
 import { AGENT_BY_ID } from "./agents.ts";
 import { priceQuote } from "./quote.ts";
+import {
+  DELEGATABLE_ACTIONS,
+  evaluateDelegation,
+  type DelegationAction,
+  type DelegationPolicy,
+} from "./delegation.ts";
 import type {
   ActionKind,
   ApprovalKind,
@@ -12,7 +18,11 @@ import type {
 } from "./types.ts";
 
 const WIN_KINDS = new Set<ActionKind>(["propose_close_won", "issue_quote"]);
-const LOSS_KINDS = new Set<ActionKind>(["propose_close_lost", "escalate_account_risk"]);
+const LOSS_KINDS = new Set<ActionKind>([
+  "propose_close_lost",
+  "escalate_account_risk",
+  "cancel_subscription",
+]);
 const SALES_KINDS = new Set<ActionKind>([
   "open_opportunity",
   "advance_opportunity",
@@ -21,6 +31,23 @@ const SALES_KINDS = new Set<ActionKind>([
   "propose_close_lost",
 ]);
 const COST_KINDS = new Set<ActionKind>(["record_expense", "activate_campaign"]);
+
+/**
+ * Action kinds that exist only because a founder delegated them.
+ *
+ * The older kinds keep their old behaviour with no delegation at all: the
+ * founder still raises the invoice, still approves the quote, still wins the
+ * customer. These four are different — they are how the office acts on its own
+ * — so they are refused outright unless a delegation covers them.
+ */
+const DELEGATION_ONLY_KINDS = new Set<ActionKind>([
+  "fulfil_service",
+  "start_subscription",
+  "cancel_subscription",
+  "send_customer_mail",
+]);
+
+const DELEGATABLE = new Set<ActionKind>(DELEGATABLE_ACTIONS as readonly ActionKind[]);
 
 const PROTECTED = [
   "race",
@@ -63,6 +90,8 @@ const IRREVERSIBLE = new Set<ActionKind>([
   "record_inbound_payment",
   "issue_invoice",
   "activate_campaign",
+  "start_subscription",
+  "cancel_subscription",
 ]);
 
 function textBlob(action: ProposedAction): string {
@@ -86,17 +115,38 @@ function push(
   trace.push({ provision, check, passed, margin, detail });
 }
 
+export type GovernorExtras = {
+  approvedHandoff?: boolean;
+  opportunityWon?: boolean;
+  /** The founder's standing delegation, if there is one. */
+  delegation?: DelegationPolicy | null;
+  /** How much of the delegation has already been used. */
+  delegationUsage?: { usedToday: number; usedThisMonth: number };
+  /** Whether the customer has an accepted quote on file. */
+  acceptedQuote?: boolean;
+  /** Whether the customer actually contacted the office. */
+  realEnquiry?: boolean;
+  /**
+   * True when a person asked for this action. The founder present at the
+   * keyboard is the authority, so the delegation-only action kinds are
+   * permitted — the delegation exists to let the office act ALONE, not to
+   * stop the founder.
+   */
+  founderInitiated?: boolean;
+};
+
 export function authorizeAction(
   action: ProposedAction,
   agentId: string,
   company: CompanySnapshot,
-  extras?: { approvedHandoff?: boolean; opportunityWon?: boolean },
+  extras?: GovernorExtras,
 ): AuthorizationDecision {
   const trace: ProvisionCheck[] = [];
   const constraints: string[] = [];
   let verdict: GovernorVerdict = "allow";
   let reason = "Within constitutional envelope.";
   let approvalKind: ApprovalKind | null = null;
+  let delegation: AuthorizationDecision["delegation"] = null;
 
   const agent = AGENT_BY_ID[agentId];
   if (!agent) {
@@ -105,8 +155,11 @@ export function authorizeAction(
       reason: "Unknown non-human identity.",
       approvalKind: null,
       reversibility: reversibilityOf(action.kind),
-      trace: [{ provision: "ART-10", check: "known_nhi", passed: false, margin: null, detail: agentId }],
+      trace: [
+        { provision: "ART-10", check: "known_nhi", passed: false, margin: null, detail: agentId },
+      ],
       runtimeConstraints: [],
+      delegation: null,
     };
   }
 
@@ -119,6 +172,7 @@ export function authorizeAction(
       reversibility: reversibilityOf(action.kind),
       trace,
       runtimeConstraints: ["halted"],
+      delegation: null,
     };
   }
 
@@ -141,28 +195,60 @@ export function authorizeAction(
   }
 
   if (INJECTION_FAIL.some((p) => blob.includes(p))) {
-    push(trace, "ART-10", "instruction_override", false, "Adversarial instruction pattern in the proposal.");
+    push(
+      trace,
+      "ART-10",
+      "instruction_override",
+      false,
+      "Adversarial instruction pattern in the proposal.",
+    );
     verdict = "deny";
     reason = "Blocked: instruction-override or shutdown-resistance pattern.";
   } else {
-    push(trace, "ART-10", "instruction_override", true, "No shutdown resistance or override pattern.");
+    push(
+      trace,
+      "ART-10",
+      "instruction_override",
+      true,
+      "No shutdown resistance or override pattern.",
+    );
   }
 
   if (DIGNITY_FAIL.some((p) => blob.includes(p))) {
-    push(trace, "ART-7", "human_dignity", false, "Proposal contains coercive or degrading language.");
+    push(
+      trace,
+      "ART-7",
+      "human_dignity",
+      false,
+      "Proposal contains coercive or degrading language.",
+    );
     verdict = "deny";
     reason = "Blocked: human dignity constraint.";
   } else {
     push(trace, "ART-7", "human_dignity", true, "Language within dignity bounds.");
   }
 
-  const usesProtected = PROTECTED.some((p) => blob.includes(p) && /because|based on|due to/.test(blob));
+  const usesProtected = PROTECTED.some(
+    (p) => blob.includes(p) && /because|based on|due to/.test(blob),
+  );
   if (usesProtected) {
-    push(trace, "ART-3", "non_discrimination", false, "Protected characteristic used as a decision factor.");
+    push(
+      trace,
+      "ART-3",
+      "non_discrimination",
+      false,
+      "Protected characteristic used as a decision factor.",
+    );
     verdict = "deny";
     reason = "Blocked: non-discrimination constraint.";
   } else {
-    push(trace, "ART-3", "non_discrimination", true, "No protected-characteristic decisioning detected.");
+    push(
+      trace,
+      "ART-3",
+      "non_discrimination",
+      true,
+      "No protected-characteristic decisioning detected.",
+    );
   }
 
   if (SALES_KINDS.has(action.kind) && agent.id !== "close") {
@@ -171,14 +257,74 @@ export function authorizeAction(
     reason = "Marketing and other departments stop at the sales boundary.";
   }
 
-  if ((action.kind === "open_opportunity" || action.kind === "issue_quote") && !extras?.approvedHandoff) {
-    push(trace, "ART-12", "handoff_gate", false, "No approved marketing-to-sales handoff for this company.");
+  // ── Delegated authority (ART-13) ──────────────────────────────────────────
+  // Evaluated after the absolute blocks, so a delegation can never rescue an
+  // action that was already refused for role, dignity, injection or
+  // discrimination reasons.
+  const delegationPolicy = extras?.delegation ?? null;
+  let delegationAllowed = false;
+
+  if (DELEGATABLE.has(action.kind)) {
+    const rateId =
+      typeof action.payload.rateId === "string" && action.payload.rateId.trim()
+        ? action.payload.rateId.trim()
+        : null;
+    const outcome = evaluateDelegation(delegationPolicy, {
+      action: action.kind as DelegationAction,
+      amountCents: amount,
+      rateId,
+      acceptedQuote: extras?.acceptedQuote === true,
+      opportunityWon: extras?.opportunityWon === true,
+      realEnquiry: extras?.realEnquiry === true,
+      usedToday: extras?.delegationUsage?.usedToday ?? 0,
+      usedThisMonth: extras?.delegationUsage?.usedThisMonth ?? 0,
+    });
+    delegationAllowed = outcome.allowed;
+    push(trace, "ART-13", "delegated_authority", outcome.allowed, outcome.reason);
+    if (outcome.allowed) {
+      delegation = {
+        id: delegationPolicy?.id ?? "",
+        label: delegationPolicy?.label ?? "",
+        check: outcome.check,
+      };
+    } else if (DELEGATION_ONLY_KINDS.has(action.kind) && !extras?.founderInitiated) {
+      // These actions exist only under a delegation. Without one they are not
+      // "escalated" — they are simply not permitted. A founder who asked for
+      // the action directly is the authority and is not blocked.
+      push(trace, "ART-13", "delegation_required", false, outcome.reason);
+      if (verdict !== "deny") {
+        verdict = "deny";
+        reason = `Blocked: ${action.kind} needs a standing founder delegation. ${outcome.reason}`;
+      }
+    }
+  }
+
+  if (
+    (action.kind === "open_opportunity" || action.kind === "issue_quote") &&
+    !extras?.approvedHandoff &&
+    !delegationAllowed
+  ) {
+    push(
+      trace,
+      "ART-12",
+      "handoff_gate",
+      false,
+      "No approved marketing-to-sales handoff for this company.",
+    );
     if (verdict !== "deny") {
       verdict = "deny";
       reason = "Sales cannot open work without an approved handoff.";
     }
   } else if (action.kind === "open_opportunity" || action.kind === "issue_quote") {
-    push(trace, "ART-12", "handoff_gate", true, "Approved handoff present.");
+    push(
+      trace,
+      "ART-12",
+      "handoff_gate",
+      true,
+      delegationAllowed
+        ? "Delegated sales authority (ART-13) stands in for the handoff."
+        : "Approved handoff present.",
+    );
   }
 
   if (action.kind === "issue_quote") {
@@ -194,7 +340,11 @@ export function authorizeAction(
       "ART-4",
       "published_price",
       matches,
-      matches ? priced.detail : priced.ok ? "Amount does not match the published rate." : priced.error,
+      matches
+        ? priced.detail
+        : priced.ok
+          ? "Amount does not match the published rate."
+          : priced.error,
     );
     if (!matches && verdict !== "deny") {
       verdict = "deny";
@@ -202,15 +352,29 @@ export function authorizeAction(
     }
   }
 
-  if (action.kind === "issue_invoice" && !extras?.opportunityWon) {
-    push(trace, "ART-12", "invoice_gate", false, "Invoice without a won opportunity is a customer-win event.");
+  if (action.kind === "issue_invoice" && !extras?.opportunityWon && !delegationAllowed) {
+    push(
+      trace,
+      "ART-12",
+      "invoice_gate",
+      false,
+      "Invoice without a won opportunity is a customer-win event.",
+    );
     if (verdict !== "deny") {
       verdict = "review";
       approvalKind = "customer_win";
       reason = "Issuing an invoice without a closed win needs founder approval.";
     }
   } else if (action.kind === "issue_invoice") {
-    push(trace, "ART-12", "invoice_gate", true, "Won opportunity on file. Invoice is operational.");
+    push(
+      trace,
+      "ART-12",
+      "invoice_gate",
+      true,
+      delegationAllowed
+        ? "Delegated billing authority (ART-13) authorises this invoice."
+        : "Won opportunity on file. Invoice is operational.",
+    );
   }
 
   const isCost = COST_KINDS.has(action.kind) && amount > 0;
@@ -248,33 +412,63 @@ export function authorizeAction(
     }
   }
 
-  if (WIN_KINDS.has(action.kind)) {
+  if (WIN_KINDS.has(action.kind) && !delegationAllowed) {
     push(trace, "ART-12", "customer_win", false, "Winning a customer requires founder approval.");
     if (verdict !== "deny") {
       verdict = "review";
       approvalKind = "customer_win";
       reason = "This action risks winning a customer. Founder approval is required.";
     }
+  } else if (WIN_KINDS.has(action.kind)) {
+    push(
+      trace,
+      "ART-12",
+      "customer_win",
+      true,
+      "Delegated authority (ART-13) pre-approves this class of win.",
+    );
   }
 
-  if (LOSS_KINDS.has(action.kind)) {
+  if (LOSS_KINDS.has(action.kind) && !delegationAllowed) {
     push(trace, "ART-12", "customer_loss", false, "Losing a customer requires founder approval.");
     if (verdict !== "deny") {
       verdict = "review";
       approvalKind = "customer_loss";
       reason = "This action risks losing a customer. Founder approval is required.";
     }
+  } else if (LOSS_KINDS.has(action.kind)) {
+    push(
+      trace,
+      "ART-12",
+      "customer_loss",
+      true,
+      "Delegated authority (ART-13) pre-approves this class of loss.",
+    );
   }
 
   if (confidence < 0.5) {
-    push(trace, "ART-9", "confidence_critical", false, `Confidence ${confidence.toFixed(2)} < 0.50.`, confidence);
+    push(
+      trace,
+      "ART-9",
+      "confidence_critical",
+      false,
+      `Confidence ${confidence.toFixed(2)} < 0.50.`,
+      confidence,
+    );
     if (verdict !== "deny") {
       verdict = "review";
       approvalKind = approvalKind ?? "constraint_margin";
       reason = "Confidence is below the critical threshold. Escalating.";
     }
   } else if (confidence < 0.7) {
-    push(trace, "ART-9", "confidence_warning", true, `Confidence ${confidence.toFixed(2)} in warning band.`, confidence);
+    push(
+      trace,
+      "ART-9",
+      "confidence_warning",
+      true,
+      `Confidence ${confidence.toFixed(2)} in warning band.`,
+      confidence,
+    );
     constraints.push("log_and_continue");
   } else {
     push(trace, "ART-9", "confidence", true, `Confidence ${confidence.toFixed(2)}.`, confidence);
@@ -293,6 +487,7 @@ export function authorizeAction(
       reversibility: reversibilityOf(action.kind),
       trace,
       runtimeConstraints: constraints,
+      delegation: null,
     };
   }
 
@@ -303,6 +498,7 @@ export function authorizeAction(
     reversibility: reversibilityOf(action.kind),
     trace,
     runtimeConstraints: constraints,
+    delegation,
   };
 }
 

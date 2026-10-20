@@ -7,7 +7,12 @@ import { AGENT_BY_ID } from "./agents";
 import { proposeActions } from "./ai.server";
 import { listChats, founderReply, postChat, readChat } from "./chat.server";
 import { processWebsiteEnquiry } from "./intake";
-import { founderChatNotice, founderEnquiryNotice, founderPaymentNotice, founderQuoteAnswerNotice } from "./notice";
+import {
+  founderChatNotice,
+  founderEnquiryNotice,
+  founderPaymentNotice,
+  founderQuoteAnswerNotice,
+} from "./notice";
 import { parseCustomerAnswer, plausibleToken } from "./quote-link";
 import { founderMiddleware, officeAccessMiddleware } from "./founder-gate";
 import { priceQuote, type QuoteLocation } from "./quote";
@@ -35,10 +40,24 @@ import {
   savePaymentInstructions,
   setOfficeHalt,
   setTicketStatus,
+  readDelegation,
+  readDelegationUsage,
+  saveDelegation,
+  revokeDelegation,
+  listSubscriptions,
+  listBillingCycles,
+  revenueMetrics,
+  startSubscriptionForOpportunity,
+  cancelSubscriptionById,
+  listCustomerNotices,
+  getApprovalContext as readApprovalContext,
+  listDecisionEpisodes as readDecisionEpisodes,
 } from "./store.server";
+import { DELEGATABLE_ACTIONS, DELEGATION_PRESETS } from "./delegation";
 import { tick, runNow, schedulerStatus } from "./scheduler.server";
 import type { OfficeHealth } from "./health.server";
 import { listWork, workCounts } from "./work-queue.server";
+import { redriveAbandonedWork } from "./redrive.server";
 import type { DispatchResult, OfficeSnapshot, ProposedAction } from "./types";
 
 async function applyPlan(
@@ -108,7 +127,9 @@ export const nudgeScheduler = createServerFn({ method: "POST" })
     const { kickFloorIfStale } = await import("./kick.server");
     const attempt = kickFloorIfStale()
       .then((outcome: { kicked: boolean; detail?: string; reason?: string }) =>
-        outcome.kicked ? { kicked: true, reason: outcome.detail ?? "" } : { kicked: false, reason: outcome.reason ?? "" },
+        outcome.kicked
+          ? { kicked: true, reason: outcome.detail ?? "" }
+          : { kicked: false, reason: outcome.reason ?? "" },
       )
       .catch((error: unknown) => ({
         kicked: false,
@@ -120,21 +141,28 @@ export const nudgeScheduler = createServerFn({ method: "POST" })
       new Promise<{ kicked: boolean; reason: string }>((resolve) => {
         // Ref'd on purpose: this timer is the hard bound on how long the
         // surface can wait, even if the database hangs underneath the tick.
-        setTimeout(() => resolve({ kicked: false, reason: `still running after ${data.waitMs}ms` }), data.waitMs);
+        setTimeout(
+          () => resolve({ kicked: false, reason: `still running after ${data.waitMs}ms` }),
+          data.waitMs,
+        );
       }),
     ]);
   });
 
 export const getOfficeSnapshot = createServerFn({ method: "GET" })
   .middleware([officeAccessMiddleware])
-  .handler(async ({ context }): Promise<{ locked: true } | { locked: false; snapshot: OfficeSnapshot }> => {
-    if (!context.founder) return { locked: true };
-    // The founder opening the floor is the best possible moment to catch up,
-    // so a stale scheduler is nudged before the snapshot is read. Founder-only
-    // on purpose: anonymous visits must never start work.
-    await nudgeScheduler({ data: { waitMs: 2_000 } }).catch(() => undefined);
-    return { locked: false, snapshot: await readSnapshot() };
-  });
+  .handler(
+    async ({
+      context,
+    }): Promise<{ locked: true } | { locked: false; snapshot: OfficeSnapshot }> => {
+      if (!context.founder) return { locked: true };
+      // The founder opening the floor is the best possible moment to catch up,
+      // so a stale scheduler is nudged before the snapshot is read. Founder-only
+      // on purpose: anonymous visits must never start work.
+      await nudgeScheduler({ data: { waitMs: 2_000 } }).catch(() => undefined);
+      return { locked: false, snapshot: await readSnapshot() };
+    },
+  );
 
 const enquiryLimiter = createRateLimiter(8, 60 * 60 * 1000);
 const paymentLimiter = createRateLimiter(8, 60 * 60 * 1000);
@@ -154,27 +182,37 @@ function callerKey(request: Request | undefined): string {
 
 async function allowEnquiry(key: string): Promise<boolean> {
   if (!enquiryLimiter.allow(key)) return false;
-  return durableAllow(await getSql(), "enquiry", key, 8, 60 * 60 * 1000, Date.now(), () => enquiryLimiter.allow(key));
+  return durableAllow(await getSql(), "enquiry", key, 8, 60 * 60 * 1000, Date.now(), () =>
+    enquiryLimiter.allow(key),
+  );
 }
 
 async function allowPaymentNotice(key: string): Promise<boolean> {
   if (!paymentLimiter.allow(key)) return false;
-  return durableAllow(await getSql(), "payment_notice", key, 8, 60 * 60 * 1000, Date.now(), () => paymentLimiter.allow(key));
+  return durableAllow(await getSql(), "payment_notice", key, 8, 60 * 60 * 1000, Date.now(), () =>
+    paymentLimiter.allow(key),
+  );
 }
 
 async function allowChat(key: string): Promise<boolean> {
   if (!chatLimiter.allow(key)) return false;
-  return durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000, Date.now(), () => chatLimiter.allow(key));
+  return durableAllow(await getSql(), "chat", key, 40, 60 * 60 * 1000, Date.now(), () =>
+    chatLimiter.allow(key),
+  );
 }
 
 async function allowSiteView(key: string): Promise<boolean> {
   if (!siteViewLimiter.allow(key)) return false;
-  return durableAllow(await getSql(), "site_view", key, 120, 3600_000, Date.now(), () => siteViewLimiter.allow(key));
+  return durableAllow(await getSql(), "site_view", key, 120, 3600_000, Date.now(), () =>
+    siteViewLimiter.allow(key),
+  );
 }
 
 async function allowChatRead(key: string): Promise<boolean> {
   if (!chatReadLimiter.allow(key)) return false;
-  return durableAllow(await getSql(), "chat_read", key, 120, 60 * 60 * 1000, Date.now(), () => chatReadLimiter.allow(key));
+  return durableAllow(await getSql(), "chat_read", key, 120, 60 * 60 * 1000, Date.now(), () =>
+    chatReadLimiter.allow(key),
+  );
 }
 
 const SERVICE_MATTERS = ["fault", "question", "complaint"] as const;
@@ -185,8 +223,14 @@ function serviceMatter(value: unknown): (typeof SERVICE_MATTERS)[number] | undef
 
 export const submitPublicEnquiry = createServerFn({ method: "POST" })
   .validator(
-    (input: { name: string; email: string; message: string; website?: string; desk?: boolean; matter?: string }) =>
-      input,
+    (input: {
+      name: string;
+      email: string;
+      message: string;
+      website?: string;
+      desk?: boolean;
+      matter?: string;
+    }) => input,
   )
   .handler(async ({ data }) => {
     if (str(data.website, 200).trim()) return { ok: true as const };
@@ -212,7 +256,10 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
       request = undefined;
     }
     if (!(await allowEnquiry(callerKey(request)))) {
-      return { ok: false as const, error: "Too many enquiries from this connection. Try again later." };
+      return {
+        ok: false as const,
+        error: "Too many enquiries from this connection. Try again later.",
+      };
     }
     const subject = message.replace(/\s+/g, " ").slice(0, 90);
     const source = desk
@@ -251,7 +298,10 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
   });
 
 export const submitPaymentNotice = createServerFn({ method: "POST" })
-  .validator((input: { name: string; email: string; reference: string; amount: string; website?: string }) => input)
+  .validator(
+    (input: { name: string; email: string; reference: string; amount: string; website?: string }) =>
+      input,
+  )
   .handler(async ({ data }) => {
     if (str(data.website, 200).trim()) return { ok: true as const };
     const email = str(data.email, 400).trim();
@@ -266,7 +316,10 @@ export const submitPaymentNotice = createServerFn({ method: "POST" })
       request = undefined;
     }
     if (!(await allowPaymentNotice(callerKey(request)))) {
-      return { ok: false as const, error: "Too many notices from this connection. Try again later." };
+      return {
+        ok: false as const,
+        error: "Too many notices from this connection. Try again later.",
+      };
     }
     const filed = await filePaymentNotice({
       name: str(data.name, 400),
@@ -316,11 +369,18 @@ export const postPublicChat = createServerFn({ method: "POST" })
       request = undefined;
     }
     if (!(await allowChat(callerKey(request)))) {
-      return { ok: false as const, error: "Too many messages from this connection. Try again later." };
+      return {
+        ok: false as const,
+        error: "Too many messages from this connection. Try again later.",
+      };
     }
     const chatSender = str(data.name, 200);
     const chatText = str(data.body, 2000);
-    const result = await postChat({ threadId: str(data.threadId, 80), name: chatSender, body: chatText });
+    const result = await postChat({
+      threadId: str(data.threadId, 80),
+      name: chatSender,
+      body: chatText,
+    });
     if (!result.ok) return result;
     if (result.first) {
       try {
@@ -345,7 +405,10 @@ export const readPublicChat = createServerFn({ method: "POST" })
       request = undefined;
     }
     if (!(await allowChatRead(callerKey(request)))) {
-      return { ok: false as const, error: "Too many chat requests from this connection. Try again later." };
+      return {
+        ok: false as const,
+        error: "Too many chat requests from this connection. Try again later.",
+      };
     }
     return { ok: true as const, messages: await readChat(threadId) };
   });
@@ -383,13 +446,15 @@ export const haltOffice = createServerFn({ method: "POST" })
 
 export const submitInbound = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
-  .validator((input: {
-    channel: string;
-    companyName: string;
-    subject: string;
-    summary: string;
-    intent: string;
-  }) => input)
+  .validator(
+    (input: {
+      channel: string;
+      companyName: string;
+      subject: string;
+      summary: string;
+      intent: string;
+    }) => input,
+  )
   .handler(async ({ data }) => {
     const companyName = data.companyName.trim();
     const subject = data.subject.trim();
@@ -447,7 +512,8 @@ export const submitInbound = createServerFn({ method: "POST" })
 export const fileQuote = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
   .validator(
-    (input: { opportunityId: string; rateId: string; location: QuoteLocation; quantity: number }) => input,
+    (input: { opportunityId: string; rateId: string; location: QuoteLocation; quantity: number }) =>
+      input,
   )
   .handler(async ({ data }) => {
     const location: QuoteLocation = data.location === "onsite" ? "onsite" : "remote";
@@ -460,7 +526,8 @@ export const fileQuote = createServerFn({ method: "POST" })
     const snapshot = await readSnapshot();
     if (snapshot.company.halted) return { ok: false as const, error: "Office is halted." };
     const opportunity = snapshot.opportunities.find((item) => item.id === data.opportunityId);
-    if (!opportunity) return { ok: false as const, error: "That opportunity is not on the pipeline." };
+    if (!opportunity)
+      return { ok: false as const, error: "That opportunity is not on the pipeline." };
     if (opportunity.stage === "won" || opportunity.stage === "lost") {
       return { ok: false as const, error: "This opportunity is already closed." };
     }
@@ -484,7 +551,10 @@ export const fileQuote = createServerFn({ method: "POST" })
       { source: "sales-desk" },
     );
     if (result.status === "blocked") {
-      return { ok: false as const, error: "Sales cannot quote this company yet. Approve the marketing handoff first." };
+      return {
+        ok: false as const,
+        error: "Sales cannot quote this company yet. Approve the marketing handoff first.",
+      };
     }
     return { ok: true as const, status: result.status };
   });
@@ -500,7 +570,9 @@ export const recordCustomerAnswer = createServerFn({ method: "POST" })
 export const raiseInvoice = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
   .validator((input: { opportunityId: string; vatTreatment?: string }) => input)
-  .handler(async ({ data }) => raiseQuoteInvoice(data.opportunityId, parseVatTreatment(data.vatTreatment)));
+  .handler(async ({ data }) =>
+    raiseQuoteInvoice(data.opportunityId, parseVatTreatment(data.vatTreatment)),
+  );
 
 export const recordReceipt = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
@@ -520,14 +592,64 @@ export const savePaymentNote = createServerFn({ method: "POST" })
   .validator((input: { text: string }) => input)
   .handler(async ({ data }) => savePaymentInstructions(data.text ?? ""));
 
+/**
+ * Founder decides a queued action.
+ *
+ * A POPIA section 71 decision carries the founder's own reasoning: the reason
+ * code, the reasoning itself, and the evidence that was shown. The office
+ * refuses to resolve a legal approval without them, so they are passed
+ * straight through to the store.
+ */
 export const decideApproval = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
-  .validator((input: { approvalId: string; decision: "approved" | "rejected"; note?: string }) => input)
+  .validator(
+    (input: {
+      approvalId: string;
+      decision: "approved" | "rejected";
+      note?: string;
+      reasoning?: string;
+      reasonCode?: string;
+      evidenceShown?: string;
+    }) => ({
+      approvalId: str(input?.approvalId, 100),
+      decision: input?.decision === "rejected" ? ("rejected" as const) : ("approved" as const),
+      note: str(input?.note, 2000),
+      reasoning: str(input?.reasoning, 2000),
+      reasonCode: str(input?.reasonCode, 100),
+      evidenceShown: str(input?.evidenceShown, 2000),
+    }),
+  )
   .handler(async ({ data }) => {
     const result = await resolveApproval(data);
     if (!result.ok) return { ok: false as const, error: result.error ?? "Could not resolve." };
     return { ok: true as const };
   });
+
+/**
+ * Everything the founder needs to decide one approval, in one object.
+ *
+ * The approval itself, the risk tier it sits in, the POPIA section 71 gate and
+ * its five questions, whether a written reason is required before the action
+ * may be exposed, the fixed reason codes, the earlier rulings on the same
+ * terms, and what those rulings say about this one.
+ */
+export const getApprovalContext = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .validator((input: { approvalId: string }) => ({ approvalId: str(input?.approvalId, 100) }))
+  .handler(async ({ data }) => readApprovalContext(data.approvalId));
+
+/**
+ * The founder's precedent history: every Tier 1–3 ruling, newest first.
+ *
+ * A precedent is evidence, never authority. It shows what was decided before
+ * under which conditions; it never decides anything by itself.
+ */
+export const listDecisionEpisodes = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .validator((input: { limit?: number }) => ({
+    limit: Math.max(1, Math.min(Math.trunc(Number(input?.limit ?? 50)) || 50, 200)),
+  }))
+  .handler(async ({ data }) => readDecisionEpisodes(data.limit));
 
 export const dispatchAgent = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
@@ -557,7 +679,8 @@ export const runFloor = createServerFn({ method: "POST" })
   .handler(async (): Promise<DispatchResult> => {
     await ensureOffice();
     const snapshot = await readSnapshot();
-    if (snapshot.company.halted) return emptyFail("Office is halted. Resume before running the floor.");
+    if (snapshot.company.halted)
+      return emptyFail("Office is halted. Resume before running the floor.");
     // The founder button runs the floor path (operateFloor). The scheduler's
     // unattended path (tick / runNow) is invoked independently by the cron and
     // by runAutonomy, so the button does not double-run duties already due.
@@ -611,9 +734,15 @@ export const getWorkQueue = createServerFn({ method: "GET" })
 
 export const downloadBackup = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
-  .handler(async () => ({ ok: true as const, filename: `vantage-ars-backup-${new Date().toISOString().slice(0, 10)}.json`, json: await exportBackupJson() }));
+  .handler(async () => ({
+    ok: true as const,
+    filename: `vantage-ars-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    json: await exportBackupJson(),
+  }));
 
-export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async () => paymentMethods(process.env));
+export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async () =>
+  paymentMethods(process.env),
+);
 
 /**
  * Scheduled autonomous run for `GET /api/cron/floor`.
@@ -624,54 +753,59 @@ export const getPaymentMethods = createServerFn({ method: "GET" }).handler(async
  * an exempt server-function handler.
  */
 export const runOfficeCron = createServerFn({ method: "POST" })
-  .validator((input: { secret: string }) => ({ secret: typeof input?.secret === "string" ? input.secret : "" }))
-  .handler(async ({ data }): Promise<
-    | {
-        ok: true;
-        ranAt: string;
-        planned: number;
-        executed: number;
-        escalated: number;
-        blocked: number;
-        failed: number;
-        ran: { duty: string; owner: string; note: string }[];
-        detail: string;
+  .validator((input: { secret: string }) => ({
+    secret: typeof input?.secret === "string" ? input.secret : "",
+  }))
+  .handler(
+    async ({
+      data,
+    }): Promise<
+      | {
+          ok: true;
+          ranAt: string;
+          planned: number;
+          executed: number;
+          escalated: number;
+          blocked: number;
+          failed: number;
+          ran: { duty: string; owner: string; note: string }[];
+          detail: string;
+        }
+      | { ok: false; reason: string }
+    > => {
+      const expected = process.env.CRON_SECRET?.trim() ?? "";
+      if (expected.length < 16 || !secretEqual(data.secret, expected)) {
+        return { ok: false, reason: "Unauthorized" };
       }
-    | { ok: false; reason: string }
-  > => {
-    const expected = process.env.CRON_SECRET?.trim() ?? "";
-    if (expected.length < 16 || !secretEqual(data.secret, expected)) {
-      return { ok: false, reason: "Unauthorized" };
-    }
-    if (process.env.AUTONOMY?.trim().toLowerCase() !== "on") {
-      return { ok: false, reason: "AUTONOMY is not on." };
-    }
-    try {
-      const result = await tick();
-      if (!result.ok) return { ok: false, reason: result.detail };
-      if (result.planned + result.ran.length > 0) {
-        await appendAudit(
-          "office_tick",
-          "Scheduled autonomous run",
-          result.detail,
-          "vantage",
-        );
+      if (process.env.AUTONOMY?.trim().toLowerCase() !== "on") {
+        return { ok: false, reason: "AUTONOMY is not on." };
       }
-      return {
-        ok: true,
-        ranAt: result.ranAt,
-        planned: result.planned,
-        executed: result.executed,
-        escalated: result.escalated,
-        blocked: result.blocked,
-        failed: result.failed,
-        ran: result.ran.map((entry) => ({ duty: entry.duty, owner: entry.owner, note: entry.note })),
-        detail: result.detail,
-      };
-    } catch (error) {
-      return { ok: false, reason: error instanceof Error ? error.message : "The run failed." };
-    }
-  });
+      try {
+        const result = await tick();
+        if (!result.ok) return { ok: false, reason: result.detail };
+        if (result.planned + result.ran.length > 0) {
+          await appendAudit("office_tick", "Scheduled autonomous run", result.detail, "vantage");
+        }
+        return {
+          ok: true,
+          ranAt: result.ranAt,
+          planned: result.planned,
+          executed: result.executed,
+          escalated: result.escalated,
+          blocked: result.blocked,
+          failed: result.failed,
+          ran: result.ran.map((entry) => ({
+            duty: entry.duty,
+            owner: entry.owner,
+            note: entry.note,
+          })),
+          detail: result.detail,
+        };
+      } catch (error) {
+        return { ok: false, reason: error instanceof Error ? error.message : "The run failed." };
+      }
+    },
+  );
 
 /** Constant-time string compare without node:crypto (safe anywhere). */
 function secretEqual(a: string, b: string): boolean {
@@ -683,8 +817,89 @@ function secretEqual(a: string, b: string): boolean {
 
 export const restoreBackup = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
-  .validator((input: { json: string }) => ({ json: typeof input?.json === "string" ? input.json : "" }))
+  .validator((input: { json: string }) => ({
+    json: typeof input?.json === "string" ? input.json : "",
+  }))
   .handler(async ({ data }) => restoreBackupJson(data.json));
+
+// ── Delegated authority and recurring revenue ─────────────────────────────────
+
+/** The founder's standing delegation, and how much of it has been used. */
+export const getDelegation = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => {
+    const delegation = await readDelegation();
+    const usage = delegation ? await readDelegationUsage(delegation.id) : null;
+    return {
+      delegation,
+      usage,
+      presets: DELEGATION_PRESETS,
+      delegatableActions: DELEGATABLE_ACTIONS,
+    };
+  });
+
+/** Save the delegation. This is the founder writing down how far the office may go. */
+export const saveDelegationPolicy = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator(
+    (input: {
+      label: string;
+      status?: "active" | "paused";
+      maxAmountCents: number;
+      maxActionsPerDay: number;
+      maxActionsPerMonth: number;
+      allowedActions: string[];
+      allowedRateIds: string[];
+      allowCustomerMail: boolean;
+      allowAutoReconcile: boolean;
+      requireAcceptedQuote: boolean;
+    }) => input,
+  )
+  .handler(async ({ data }) => saveDelegation(data));
+
+/** Revoke the delegation. It takes effect on the very next action. */
+export const revokeDelegationPolicy = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { reason: string }) => ({ reason: str(input?.reason, 400) }))
+  .handler(async ({ data }) => revokeDelegation(data.reason || "Revoked by the founder."));
+
+/** The recurring-revenue book: subscriptions, billing periods, and the money. */
+export const getRevenue = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => ({
+    subscriptions: await listSubscriptions(),
+    cycles: await listBillingCycles(120),
+    metrics: await revenueMetrics(),
+  }));
+
+/** Start a subscription for a won opportunity, on the founder's instruction. */
+export const startSubscription = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { opportunityId: string; planId: string }) => input)
+  .handler(async ({ data }) => startSubscriptionForOpportunity(data.opportunityId, data.planId));
+
+/** End a subscription. The customer outcome is a founder decision. */
+export const cancelSubscription = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { subscriptionId: string; reason: string }) => input)
+  .handler(async ({ data }) => cancelSubscriptionById(data.subscriptionId, data.reason));
+
+/** Every email the office has sent to a customer, and whether it arrived. */
+export const getCustomerNotices = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => listCustomerNotices());
+
+/**
+ * Redrive abandoned work.
+ *
+ * A task that exhausted its retries waits in the dead-letter queue until
+ * somebody looks at it. Redriving is a founder action, never an automatic
+ * one, and the item goes back with its attempt count reset.
+ */
+export const redriveWork = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { workId: string }) => ({ workId: str(input?.workId, 100) }))
+  .handler(async ({ data }) => redriveAbandonedWork(data.workId));
 
 // ── Customer quote links ─────────────────────────────────────────────────────
 
@@ -717,24 +932,40 @@ export const revokeCustomerQuoteLink = createServerFn({ method: "POST" })
 export const getCustomerQuote = createServerFn({ method: "GET" })
   .validator((input: { token: string }) => ({ token: str(input?.token, 100) }))
   .handler(async ({ data }) => {
-    if (!plausibleToken(data.token)) return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
+    if (!plausibleToken(data.token))
+      return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
     const key = callerKey(await currentRequest());
     if (!quoteViewLimiter.allow(key)) {
-      return { ok: false as const, error: "Too many requests from this connection. Try again in a while." };
+      return {
+        ok: false as const,
+        error: "Too many requests from this connection. Try again in a while.",
+      };
     }
     return readPublicQuote(data.token);
   });
 
 export const answerCustomerQuote = createServerFn({ method: "POST" })
-  .validator((input: { token: string; outcome: string; name: string; note?: string; agree?: boolean }) => input)
+  .validator(
+    (input: { token: string; outcome: string; name: string; note?: string; agree?: boolean }) =>
+      input,
+  )
   .handler(async ({ data }) => {
     const token = str(data?.token, 100);
-    if (!plausibleToken(token)) return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
+    if (!plausibleToken(token))
+      return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
     const key = callerKey(await currentRequest());
     if (!quoteAnswerLimiter.allow(key)) {
-      return { ok: false as const, error: "Too many attempts from this connection. Try again later." };
+      return {
+        ok: false as const,
+        error: "Too many attempts from this connection. Try again later.",
+      };
     }
-    const parsed = parseCustomerAnswer({ outcome: data.outcome, name: data.name, note: data.note, agree: data.agree });
+    const parsed = parseCustomerAnswer({
+      outcome: data.outcome,
+      name: data.name,
+      note: data.note,
+      agree: data.agree,
+    });
     if (!parsed.ok) return parsed;
     const result = await answerPublicQuote(token, parsed);
     if (!result.ok) return result;
@@ -763,7 +994,13 @@ export const answerCustomerQuote = createServerFn({ method: "POST" })
  */
 export const reportSiteView = createServerFn({ method: "POST" })
   .validator(
-    (input: { path?: string; kind?: string; referrer?: string; country?: string; agentFamily?: string }) => input,
+    (input: {
+      path?: string;
+      kind?: string;
+      referrer?: string;
+      country?: string;
+      agentFamily?: string;
+    }) => input,
   )
   .handler(async ({ data }) => {
     const { isTrackedPage } = await import("@/lib/site/tracked");

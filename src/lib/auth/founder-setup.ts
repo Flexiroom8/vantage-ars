@@ -48,7 +48,9 @@ export function isFounderEmail(value: unknown): boolean {
 export async function founderAccountExists(): Promise<boolean> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  const rows = await sql<{ n: number }>`select count(*)::int as n from "user" where lower(email) = ${founderEmail()}`;
+  const rows = await sql<{
+    n: number;
+  }>`select count(*)::int as n from "user" where lower(email) = ${founderEmail()}`;
   return Number(rows[0]?.n ?? 0) > 0;
 }
 

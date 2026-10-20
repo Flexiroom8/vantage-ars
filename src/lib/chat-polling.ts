@@ -85,7 +85,7 @@ export function useChatPolling(options: PollOptions): void {
         timer = undefined;
         void once();
       }
-    }
+    };
 
     void once();
     document.addEventListener("visibilitychange", onVisible);

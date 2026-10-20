@@ -11,7 +11,7 @@ export type ConstitutionProvisionDef = {
   parameters: { [key: string]: Json };
 };
 
-export const CONSTITUTION_PREAMBLE = `This constitution establishes the bounds within which the Vantage-ARS autonomous office may operate. All decisions are evaluated against these provisions. In conflict, higher-priority provisions override lower ones. Human involvement is limited to initial authorization, constitutional constraint-setting, and post-hoc audit — except where this constitution requires founder approval.`;
+export const CONSTITUTION_PREAMBLE = `This constitution establishes the bounds within which the Vantage-ARS autonomous office may operate. All decisions are evaluated against these provisions. In conflict, higher-priority provisions override lower ones. Human involvement is limited to initial authorization, constitutional constraint-setting, and post-hoc audit — except where this constitution requires founder approval, and except where the founder has granted a standing delegation under ART-13.`;
 
 export const CONSTITUTION: ConstitutionProvisionDef[] = [
   {
@@ -24,7 +24,13 @@ export const CONSTITUTION: ConstitutionProvisionDef[] = [
     machineCheckable: true,
     parameters: {
       jurisdiction: "ZA",
-      statutes: ["Companies Act 71 of 2008", "POPIA", "CPA 68 of 2008", "ECTA 25 of 2002", "VAT Act 89 of 1991"],
+      statutes: [
+        "Companies Act 71 of 2008",
+        "POPIA",
+        "CPA 68 of 2008",
+        "ECTA 25 of 2002",
+        "VAT Act 89 of 1991",
+      ],
     },
   },
   {
@@ -158,12 +164,40 @@ export const CONSTITUTION: ConstitutionProvisionDef[] = [
     articleId: "ART-12",
     title: "Founder Approval Gate",
     priority: 1,
-    body: "Juan-louw Greyling retains exclusive approval over (1) any action that costs the company money, (2) any action that risks losing a customer, and (3) any action that risks winning a customer, including every marketing-to-sales handoff. Autonomous work proceeds everywhere else.",
+    body: "Juan-louw Greyling retains exclusive approval over (1) any action that costs the company money, (2) any action that risks losing a customer, and (3) any action that risks winning a customer, including every marketing-to-sales handoff. The sole exception is a standing delegation the founder has granted under ART-13: granting one is itself a founder decision, and within the bounds of a delegation in force the office may take the covered action without asking again. Autonomous work proceeds everywhere else.",
     enforcement: "hard_block",
     machineCheckable: true,
     parameters: {
       gates: ["cost", "customer_win", "customer_loss", "sales_handoff"],
       approver: "Juan-louw Greyling",
+      delegation_exception: "ART-13",
+      delegation_is_founder_decision: true,
+    },
+  },
+  {
+    id: "art-13",
+    articleId: "ART-13",
+    title: "Delegated Authority",
+    priority: 1,
+    body: "The founder may grant the office a standing delegation: a named, bounded, revocable authority over a fixed class of actions. A delegation states the action kinds it covers, the published rate lines it may charge, the most any single action may be worth, and how many actions it may take per day and per month. Within that envelope the office may act without asking again, and every action it takes is recorded in the audit chain against the delegation that allowed it. A delegation never overrides a hard block: it cannot widen an agent's role, cannot permit a price that is not published, cannot permit a promise to a customer, and cannot survive a halt. The founder may pause or revoke a delegation at any time, and revocation takes effect on the very next action.",
+    enforcement: "hard_block",
+    machineCheckable: true,
+    parameters: {
+      delegatable_actions: [
+        "open_opportunity",
+        "issue_quote",
+        "propose_close_won",
+        "issue_invoice",
+        "record_inbound_payment",
+        "start_subscription",
+        "cancel_subscription",
+        "fulfil_service",
+        "send_customer_mail",
+      ],
+      revocable: true,
+      default_max_amount_cents: 500000,
+      default_max_actions_per_day: 20,
+      default_max_actions_per_month: 200,
     },
   },
 ];

@@ -8,10 +8,7 @@ import { Pool } from "pg";
 
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
-import {
-  checkFounderSignUp,
-  FOUNDER_SETUP_HEADER,
-} from "./founder-setup";
+import { checkFounderSignUp, FOUNDER_SETUP_HEADER } from "./founder-setup";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
@@ -63,8 +60,7 @@ const grokClientId = env("GROK_AUTH_CLIENT_ID") ?? PREVIEW_CLIENT_ID;
 const grokClientSecret = env("GROK_AUTH_CLIENT_SECRET") ?? PREVIEW_CLIENT_SECRET;
 
 export const authConfigured =
-  !authDisabled &&
-  (emailAndPasswordEnabled || Boolean(grokClientId && grokClientSecret));
+  !authDisabled && (emailAndPasswordEnabled || Boolean(grokClientId && grokClientSecret));
 
 const explicitBaseURL = env("BETTER_AUTH_URL");
 
@@ -82,30 +78,22 @@ const PRODUCTION_ORIGINS: string[] = [
   "https://vercel.vantage-ars.co.za",
 ];
 
-const baseURL =
-  explicitBaseURL ??
-  {
-    allowedHosts: [
-      ...previewAllowedHosts,
-      "localhost",
-      "127.0.0.1",
-      "[::1]",
-      "vantage-ars.co.za",
-      "www.vantage-ars.co.za",
-      "vercel.vantage-ars.co.za",
-    ],
-    protocol: "auto" as const,
-    fallback: "https://www.vantage-ars.co.za",
-  };
+const baseURL = explicitBaseURL ?? {
+  allowedHosts: [
+    ...previewAllowedHosts,
+    "localhost",
+    "127.0.0.1",
+    "[::1]",
+    "vantage-ars.co.za",
+    "www.vantage-ars.co.za",
+    "vercel.vantage-ars.co.za",
+  ],
+  protocol: "auto" as const,
+  fallback: "https://www.vantage-ars.co.za",
+};
 
 const trustedOrigins: string[] = explicitBaseURL
-  ? [
-      ...new Set([
-        explicitBaseURL,
-        ...PRODUCTION_ORIGINS,
-        ...LOCAL_DEV_ORIGINS,
-      ]),
-    ]
+  ? [...new Set([explicitBaseURL, ...PRODUCTION_ORIGINS, ...LOCAL_DEV_ORIGINS])]
   : [
       ...previewAllowedHosts,
       ...previewAllowedHosts.flatMap((host) => [`https://${host}`, `http://${host}`]),
@@ -125,8 +113,7 @@ const database = databaseUrl
 export const SESSION_TOKEN_COOKIE = "__Host-grok-auth.session_token";
 
 const grokOAuthWanted =
-  env("GROK_OAUTH") !== "off" &&
-  (Boolean(env("GROK_AUTH_CLIENT_ID")) || !explicitBaseURL);
+  env("GROK_OAUTH") !== "off" && (Boolean(env("GROK_AUTH_CLIENT_ID")) || !explicitBaseURL);
 
 const issuerBase = grokIssuer.replace(/\/+$/, "");
 const grokAuthorizationUrl = `${issuerBase}/api/auth/oauth2/authorize`;
@@ -134,10 +121,7 @@ const grokTokenUrl = `${issuerBase}/api/auth/oauth2/token`;
 const grokUserInfoUrl = `${issuerBase}/api/auth/oauth2/userinfo`;
 
 const grokOAuthPlugin =
-  authConfigured &&
-  grokOAuthWanted &&
-  grokClientId &&
-  grokClientSecret
+  authConfigured && grokOAuthWanted && grokClientId && grokClientSecret
     ? genericOAuth({
         config: GROK_PROVIDERS.map(({ providerId, idp }) => ({
           providerId,
@@ -206,10 +190,7 @@ export const auth = betterAuth({
       }
 
       const body = (ctx.body ?? {}) as { email?: unknown };
-      const verdict = await checkFounderSignUp(
-        body.email,
-        ctx.headers?.get(FOUNDER_SETUP_HEADER),
-      );
+      const verdict = await checkFounderSignUp(body.email, ctx.headers?.get(FOUNDER_SETUP_HEADER));
 
       if (!verdict.ok) {
         throw new APIError("FORBIDDEN", { message: verdict.error });

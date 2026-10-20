@@ -90,7 +90,12 @@ describe("chain verification", () => {
     const built = chain(5);
     const clashing = [
       ...built,
-      { id: "copy", previousHash: GENESIS, recordHash: built[0].recordHash, createdAt: new Date(0).toISOString() },
+      {
+        id: "copy",
+        previousHash: GENESIS,
+        recordHash: built[0].recordHash,
+        createdAt: new Date(0).toISOString(),
+      },
     ];
     const verdict = verifyChainLinks(clashing, built[4].recordHash);
     assert.equal(verdict.ok, false);

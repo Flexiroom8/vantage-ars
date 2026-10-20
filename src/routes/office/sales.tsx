@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
@@ -26,11 +26,12 @@ export const Route = createFileRoute("/office/sales")({
   component: SalesPage,
 });
 
-
 function SalesPage() {
   const snapshot = useOfficeSnapshot();
   const stages = ["discovery", "proposal", "negotiation", "won", "lost"] as const;
-  const open = snapshot.opportunities.filter((item) => item.stage !== "won" && item.stage !== "lost");
+  const open = snapshot.opportunities.filter(
+    (item) => item.stage !== "won" && item.stage !== "lost",
+  );
 
   return (
     <div className="enter-up mx-auto max-w-6xl">
@@ -47,7 +48,11 @@ function SalesPage() {
         <Card>
           <p className="text-xs uppercase tracking-[0.16em] text-muted">Open pipeline</p>
           <p className="mt-2 font-mono text-3xl tabular-nums">
-            {formatZar(snapshot.opportunities.filter((o) => o.stage !== "lost").reduce((s, o) => s + o.valueCents, 0))}
+            {formatZar(
+              snapshot.opportunities
+                .filter((o) => o.stage !== "lost")
+                .reduce((s, o) => s + o.valueCents, 0),
+            )}
           </p>
           <p className="mt-1 text-sm text-muted">Won and in-flight value. Lost work is excluded.</p>
         </Card>
@@ -55,7 +60,9 @@ function SalesPage() {
 
       {open.length > 0 ? <QuoteForm opportunities={open} /> : null}
       <ApprovedQuotes
-        quotes={snapshot.documents.filter((item) => item.kind === "quote" && item.status === "approved_unsent")}
+        quotes={snapshot.documents.filter(
+          (item) => item.kind === "quote" && item.status === "approved_unsent",
+        )}
         opportunities={snapshot.opportunities}
         paymentNote={snapshot.company.paymentInstructions}
       />
@@ -78,11 +85,15 @@ function SalesPage() {
                   {items.map((item) => (
                     <div key={item.id} className="rounded-md bg-raised p-3">
                       <p className="text-sm">{item.companyName}</p>
-                      <p className="font-mono text-xs tabular-nums text-muted">{formatZar(item.valueCents)}</p>
+                      <p className="font-mono text-xs tabular-nums text-muted">
+                        {formatZar(item.valueCents)}
+                      </p>
                       <p className="mt-1 line-clamp-2 text-xs text-subtle">{item.summary}</p>
                     </div>
                   ))}
-                  {items.length === 0 ? <p className="px-1 py-6 text-xs text-subtle">Empty</p> : null}
+                  {items.length === 0 ? (
+                    <p className="px-1 py-6 text-xs text-subtle">Empty</p>
+                  ) : null}
                 </div>
               </div>
             );
@@ -101,7 +112,8 @@ function QuoteForm({
   const router = useRouter();
   const [opportunityId, setOpportunityId] = useState(opportunities[0]?.id ?? "");
   const [specKey, setSpecKey] = useState(`${QUOTE_SPECS[0].rateId}:${QUOTE_SPECS[0].location}`);
-  const spec = QUOTE_SPECS.find((item) => `${item.rateId}:${item.location}` === specKey) ?? QUOTE_SPECS[0];
+  const spec =
+    QUOTE_SPECS.find((item) => `${item.rateId}:${item.location}` === specKey) ?? QUOTE_SPECS[0];
   const [quantity, setQuantity] = useState(spec.unit === "flat" ? "1" : String(spec.min));
   const [pending, setPending] = useState(false);
   const priced = priceQuote({
@@ -162,13 +174,18 @@ function QuoteForm({
             className="mt-2"
             value={specKey}
             onChange={(event) => {
-              const next = QUOTE_SPECS.find((item) => `${item.rateId}:${item.location}` === event.target.value);
+              const next = QUOTE_SPECS.find(
+                (item) => `${item.rateId}:${item.location}` === event.target.value,
+              );
               setSpecKey(event.target.value);
               if (next) setQuantity(next.unit === "flat" ? "1" : String(next.min));
             }}
           >
             {QUOTE_SPECS.map((item) => (
-              <option key={`${item.rateId}:${item.location}`} value={`${item.rateId}:${item.location}`}>
+              <option
+                key={`${item.rateId}:${item.location}`}
+                value={`${item.rateId}:${item.location}`}
+              >
                 {item.title}
               </option>
             ))}
@@ -190,7 +207,9 @@ function QuoteForm({
           </div>
         )}
         <div className="flex flex-col justify-end gap-3">
-          <p className="font-mono text-2xl tabular-nums">{priced.ok ? formatZar(priced.cents) : "—"}</p>
+          <p className="font-mono text-2xl tabular-nums">
+            {priced.ok ? formatZar(priced.cents) : "—"}
+          </p>
           {!priced.ok ? <p className="text-sm text-danger">{priced.error}</p> : null}
           <Badge variant="warn">Not sent</Badge>
           <Button type="submit" disabled={pending || !priced.ok}>
@@ -225,7 +244,8 @@ function ApprovedQuotes({
     <div className="mt-8 space-y-3">
       <h2 className="font-serif text-2xl">Approved quotes</h2>
       <p className="text-sm text-muted">
-        Copy one and send it yourself, or create a customer link where they can read it, download the PDF and accept or decline. Nothing on this desk is emailed.
+        Copy one and send it yourself, or create a customer link where they can read it, download
+        the PDF and accept or decline. Nothing on this desk is emailed.
       </p>
       {quotes.map((quote) => (
         <QuoteCard
@@ -262,7 +282,9 @@ function QuoteCard({
     if (!opportunity) return;
     setPending(outcome);
     try {
-      const result = await recordCustomerAnswer({ data: { opportunityId: opportunity.id, outcome } });
+      const result = await recordCustomerAnswer({
+        data: { opportunityId: opportunity.id, outcome },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -310,7 +332,8 @@ function QuoteCard({
           variant="secondary"
           onClick={() => {
             void (async () => {
-              const { buildQuotePdf, downloadPdf, quotePdfName } = await import("@/lib/office/quote-pdf");
+              const { buildQuotePdf, downloadPdf, quotePdfName } =
+                await import("@/lib/office/quote-pdf");
               const scope = customerQuoteText(quote.summary);
               const bytes = await buildQuotePdf({
                 companyName: opportunity?.companyName ?? quote.title,
@@ -325,7 +348,11 @@ function QuoteCard({
         >
           Download PDF
         </Button>
-        <Button type="button" disabled={!opportunity || pending !== null} onClick={() => void answer("won")}>
+        <Button
+          type="button"
+          disabled={!opportunity || pending !== null}
+          onClick={() => void answer("won")}
+        >
           {pending === "won" ? "Recording…" : "Customer accepted"}
         </Button>
         <Button
@@ -375,7 +402,8 @@ function CustomerLinkPanel({
       const url = `${window.location.origin}/q/${result.token}`;
       setFresh(url);
       await navigator.clipboard.writeText(url).then(
-        () => toast.success("Link copied. Send it to the customer yourself. It is shown only once."),
+        () =>
+          toast.success("Link copied. Send it to the customer yourself. It is shown only once."),
         () => toast.success("Link created. Copy it now. It is shown only once."),
       );
       onChanged();
@@ -413,7 +441,9 @@ function CustomerLinkPanel({
               ? "No link yet."
               : active
                 ? `Open until ${linkDate(link.expiresAt)} · ${
-                    link.viewCount > 0 ? `viewed ${link.viewCount}× (last ${linkDate(link.lastViewedAt ?? link.createdAt)})` : "not opened yet"
+                    link.viewCount > 0
+                      ? `viewed ${link.viewCount}× (last ${linkDate(link.lastViewedAt ?? link.createdAt)})`
+                      : "not opened yet"
                   }`
                 : link.state === "revoked"
                   ? "Withdrawn."
@@ -434,7 +464,10 @@ function CustomerLinkPanel({
         </div>
       </div>
       {fresh ? (
-        <p className="mt-3 break-all rounded-md bg-raised px-3 py-2 font-mono text-xs" aria-live="polite">
+        <p
+          className="mt-3 break-all rounded-md bg-raised px-3 py-2 font-mono text-xs"
+          aria-live="polite"
+        >
           {fresh}
         </p>
       ) : null}

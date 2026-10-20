@@ -33,11 +33,16 @@ import { planRestore } from "./backup.ts";
 
 describe("restore plan", () => {
   const cols = { leads: ["id", "name"] };
-  const file = () => JSON.parse(JSON.stringify(buildBackup({ leads: [{ id: "a", name: "x" }], approvals: [] })));
+  const file = () =>
+    JSON.parse(JSON.stringify(buildBackup({ leads: [{ id: "a", name: "x" }], approvals: [] })));
   it("accepts a verified file whose columns exist", () => {
     const plan = planRestore(file(), cols);
     assert.equal(plan.ok, true);
-    if (plan.ok) assert.deepEqual(plan.tables.map((t) => t.name), ["leads"]);
+    if (plan.ok)
+      assert.deepEqual(
+        plan.tables.map((t) => t.name),
+        ["leads"],
+      );
   });
   it("refuses tables we do not export, such as credentials", () => {
     const f = buildBackup({ session: [{ id: "a" }] });

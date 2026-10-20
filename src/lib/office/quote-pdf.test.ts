@@ -8,7 +8,10 @@ describe("quote pdf", () => {
     const body = "Remote support. Reference: VA-ABC12345.";
     assert.equal(quoteReference(body), "VA-ABC12345");
     assert.equal(quotePdfName("Harbour & Co", body), "vantage-ars-harbour-co-VA-ABC12345.pdf");
-    assert.equal(quotePdfName("Harbour & Co", body, "invoice"), "vantage-ars-harbour-co-invoice-VA-ABC12345.pdf");
+    assert.equal(
+      quotePdfName("Harbour & Co", body, "invoice"),
+      "vantage-ars-harbour-co-invoice-VA-ABC12345.pdf",
+    );
   });
 
   it("builds a PDF that was not marked as emailed", async () => {

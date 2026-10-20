@@ -27,6 +27,18 @@ function int(value: unknown): number {
   return typeof value === "number" ? value : Number(value ?? 0) || 0;
 }
 
+/** The delegated action kinds, read defensively. */
+function parseActions(value: unknown): string[] {
+  if (typeof value !== "string" || !value) return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
 /** Paths the public site actually publishes. Used to check content coverage. */
 const PUBLISHED_PATHS = [
   "/",
@@ -49,7 +61,7 @@ const PUBLISHED_PATHS = [
 export async function readDutyView(now: string = new Date().toISOString()): Promise<DutyView> {
   const sql = await getSql();
 
-const [
+  const [
     companyRow,
     inbound,
     leads,
@@ -64,17 +76,37 @@ const [
     chatThreads,
     chainRows,
   ] = await Promise.all([
-    sql<Record<string, unknown>>`select halted, treasury_cents, receivable_cents, payable_cents, last_audit_hash from company_state where id = ${COMPANY.id}`,
-    sql<Record<string, unknown>>`select * from inbound_items where status <> 'filed' order by created_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select halted, treasury_cents, receivable_cents, payable_cents, last_audit_hash from company_state where id = ${COMPANY.id}`,
+    sql<
+      Record<string, unknown>
+    >`select * from inbound_items where status <> 'filed' order by created_at desc limit ${LIST_LIMIT}`,
     sql<Record<string, unknown>>`select * from leads order by updated_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select * from opportunities order by updated_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select * from tickets order by updated_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select * from ledger_entries order by created_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select id, title, kind, status, related_id, created_at from documents order by created_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select id, callsign, status, last_heartbeat from agents order by callsign`,
-    sql<Record<string, unknown>>`select * from campaigns order by created_at desc limit ${LIST_LIMIT}`,
-    sql<Record<string, unknown>>`select kind, path, occurred_at from site_events where occurred_at > now() - interval '30 days' order by occurred_at desc limit 2000`,
+    sql<
+      Record<string, unknown>
+    >`select * from opportunities order by updated_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select * from tickets order by updated_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select * from ledger_entries order by created_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select id, title, kind, status, related_id, created_at, rate_id from documents order by created_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select id, callsign, status, last_heartbeat from agents order by callsign`,
+    sql<
+      Record<string, unknown>
+    >`select * from campaigns order by created_at desc limit ${LIST_LIMIT}`,
+    sql<
+      Record<string, unknown>
+    >`select kind, path, occurred_at from site_events where occurred_at > now() - interval '30 days' order by occurred_at desc limit 2000`,
     sql<Record<string, unknown>>`
       select t.id, t.name, t.status, t.updated_at,
              max(m.created_at) as last_message_at,
@@ -120,6 +152,33 @@ const [
     select distinct on (document_id) document_id, revoked_at, answered_at, expires_at, view_count, created_at, last_viewed_at
     from quote_links
     order by document_id, created_at desc
+  `;
+
+  const subscriptions = await sql<Record<string, unknown>>`
+    select id, company_name, plan_id, rate_id, cycle, price_cents, status,
+           next_billing_at, started_at, contact_email
+    from subscriptions
+    where status <> 'cancelled'
+    order by next_billing_at asc
+    limit 200
+  `;
+
+  const billingCycles = await sql<Record<string, unknown>>`
+    select id, subscription_id, company_name, plan_id, amount_cents, status,
+           period_start, period_end, invoice_id, document_id, report_document_id, notified_at
+    from billing_cycles
+    where status in ('pending', 'invoiced', 'fulfilled')
+    order by created_at asc
+    limit 200
+  `;
+
+  const delegationRow = await sql<Record<string, unknown>>`
+    select id, label, status, max_amount_cents, max_actions_per_day, max_actions_per_month,
+           allowed_actions_json, allow_customer_mail, allow_auto_reconcile, require_accepted_quote
+    from delegations
+    where status <> 'revoked'
+    order by updated_at desc
+    limit 1
   `;
 
   const work = await sql<Record<string, unknown>>`
@@ -169,6 +228,7 @@ const [
         status: text(row.status),
         relatedId: row.related_id ? text(row.related_id) : null,
         createdAt: iso(row.created_at),
+        rateId: row.rate_id ? text(row.rate_id) : null,
       })),
     tickets: tickets.map((row) => ({
       id: text(row.id),
@@ -235,18 +295,57 @@ const [
     })),
     quoteLinks: quoteLinks.map((row) => ({
       documentId: text(row.document_id),
-      state:
-        row.answered_at
-          ? "answered"
-          : row.revoked_at
-            ? "revoked"
-            : Date.parse(iso(row.expires_at)) < Date.now()
-              ? "expired"
-              : "open",
+      state: row.answered_at
+        ? "answered"
+        : row.revoked_at
+          ? "revoked"
+          : Date.parse(iso(row.expires_at)) < Date.now()
+            ? "expired"
+            : "open",
       viewCount: int(row.view_count),
       createdAt: iso(row.created_at),
       lastViewedAt: row.last_viewed_at ? iso(row.last_viewed_at) : null,
     })),
+    subscriptions: subscriptions.map((row) => ({
+      id: text(row.id),
+      companyName: text(row.company_name),
+      planId: text(row.plan_id),
+      rateId: text(row.rate_id),
+      cycle: text(row.cycle),
+      priceCents: int(row.price_cents),
+      status: text(row.status),
+      nextBillingAt: iso(row.next_billing_at),
+      startedAt: iso(row.started_at),
+      contactEmail: row.contact_email ? text(row.contact_email) : null,
+    })),
+    billingCycles: billingCycles.map((row) => ({
+      id: text(row.id),
+      subscriptionId: text(row.subscription_id),
+      companyName: text(row.company_name),
+      planId: text(row.plan_id),
+      amountCents: int(row.amount_cents),
+      status: text(row.status),
+      periodStart: iso(row.period_start),
+      periodEnd: iso(row.period_end),
+      invoiceId: row.invoice_id ? text(row.invoice_id) : null,
+      documentId: row.document_id ? text(row.document_id) : null,
+      reportDocumentId: row.report_document_id ? text(row.report_document_id) : null,
+      notifiedAt: row.notified_at ? iso(row.notified_at) : null,
+    })),
+    delegation: delegationRow.length
+      ? {
+          id: text(delegationRow[0].id),
+          label: text(delegationRow[0].label),
+          status: text(delegationRow[0].status),
+          maxAmountCents: int(delegationRow[0].max_amount_cents),
+          maxActionsPerDay: int(delegationRow[0].max_actions_per_day),
+          maxActionsPerMonth: int(delegationRow[0].max_actions_per_month),
+          allowedActions: parseActions(delegationRow[0].allowed_actions_json),
+          allowCustomerMail: delegationRow[0].allow_customer_mail === true,
+          allowAutoReconcile: delegationRow[0].allow_auto_reconcile === true,
+          requireAcceptedQuote: delegationRow[0].require_accepted_quote !== false,
+        }
+      : null,
     treasuryCents: int(company.treasury_cents),
     receivableCents: int(company.receivable_cents),
     payableCents: int(company.payable_cents),

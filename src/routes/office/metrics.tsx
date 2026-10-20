@@ -1,26 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PageHeader } from "@/components/office/page-header";
 import { Card } from "@/components/ui/card";
 import { formatZar } from "@/lib/office/money";
+import type { RevenueMetrics } from "@/lib/office/types";
 
 export const Route = createFileRoute("/office/metrics")({
   component: MetricsPage,
 });
 
+/** The recurring-revenue figures this page shows, and nothing else. */
+type RecurringFigures = Pick<
+  RevenueMetrics,
+  | "activeSubscriptions"
+  | "churnRiskCount"
+  | "monthlyRecurringCents"
+  | "annualRecurringCents"
+  | "collectedThisMonthCents"
+  | "outstandingCents"
+  | "overdueCents"
+>;
+
+/**
+ * Read the recurring-revenue figures out of the snapshot.
+ *
+ * The snapshot is data on the wire, so the block that shows it must not assume
+ * it is there. A missing figure counts as zero; a missing block is nothing at
+ * all, and the page says no more about revenue than it actually knows.
+ */
+function readRecurringFigures(value: unknown): RecurringFigures | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Record<string, unknown>;
+  const count = (key: string): number => (typeof raw[key] === "number" ? raw[key] : 0);
+  return {
+    activeSubscriptions: count("activeSubscriptions"),
+    churnRiskCount: count("churnRiskCount"),
+    monthlyRecurringCents: count("monthlyRecurringCents"),
+    annualRecurringCents: count("annualRecurringCents"),
+    collectedThisMonthCents: count("collectedThisMonthCents"),
+    outstandingCents: count("outstandingCents"),
+    overdueCents: count("overdueCents"),
+  };
+}
 
 function MetricsPage() {
   const snapshot = useOfficeSnapshot();
   const { health, company, decisions } = snapshot;
+  const recurring = readRecurringFigures(snapshot.revenue);
 
   const rows = [
     ["Overall autonomy health", health.overall.toFixed(3), "≥ 0.90"],
@@ -54,6 +81,22 @@ function MetricsPage() {
     { name: "Escalated", value: decisions.filter((d) => d.status === "escalated").length },
     { name: "Blocked", value: decisions.filter((d) => d.status === "blocked").length },
   ];
+
+  const recurringRows = recurring
+    ? ([
+        ["Monthly recurring revenue", formatZar(recurring.monthlyRecurringCents), "active plans"],
+        [
+          "Annual recurring revenue",
+          formatZar(recurring.annualRecurringCents),
+          "run rate, not a forecast",
+        ],
+        ["Active subscriptions", String(recurring.activeSubscriptions), "on a recurring plan"],
+        ["Collected this month", formatZar(recurring.collectedThisMonthCents), "receipts only"],
+        ["Outstanding", formatZar(recurring.outstandingCents), "issued, not yet collected"],
+        ["Overdue", formatZar(recurring.overdueCents), "past the due date"],
+        ["Churn risk", String(recurring.churnRiskCount), "subscriptions at risk"],
+      ] as const)
+    : [];
 
   return (
     <div className="enter-up mx-auto max-w-3xl">
@@ -138,6 +181,47 @@ function MetricsPage() {
           </tbody>
         </table>
       </Card>
+
+      {recurring ? (
+        <section className="mt-10">
+          <h2 className="mb-3 font-serif text-2xl">Recurring revenue</h2>
+          <p className="mb-3 text-sm text-muted">
+            The money that arrives on its own, because a customer is on a managed plan. One-off work
+            is not counted here.
+          </p>
+          <Card className="overflow-hidden p-0">
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Recurring revenue: monthly and annual run rate, active subscriptions, money
+                collected this month, what is still outstanding, what is overdue, and how many
+                subscriptions are at risk of lapsing.
+              </caption>
+              <thead className="text-left text-xs uppercase tracking-[0.14em] text-muted">
+                <tr className="border-b border-border">
+                  <th scope="col" className="px-5 py-3 font-medium">
+                    Metric
+                  </th>
+                  <th scope="col" className="px-5 py-3 font-medium">
+                    Live
+                  </th>
+                  <th scope="col" className="hidden px-5 py-3 font-medium sm:table-cell">
+                    Basis
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {recurringRows.map((row) => (
+                  <tr key={row[0]} className="border-b border-border last:border-0">
+                    <td className="px-5 py-3">{row[0]}</td>
+                    <td className="px-5 py-3 font-mono tabular-nums">{row[1]}</td>
+                    <td className="hidden px-5 py-3 text-muted sm:table-cell">{row[2]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        </section>
+      ) : null}
     </div>
   );
 }

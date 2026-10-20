@@ -11,13 +11,7 @@ import { runFloor } from "@/lib/office/api";
  * I press the button" means something. It is a convenience, not a prerequisite:
  * with `AUTONOMY=on` the office does this without anyone pressing it.
  */
-export function RunFloorButton({
-  halted,
-  onDone,
-}: {
-  halted: boolean;
-  onDone?: () => void;
-}) {
+export function RunFloorButton({ halted, onDone }: { halted: boolean; onDone?: () => void }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 

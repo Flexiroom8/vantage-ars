@@ -9,16 +9,27 @@ export const COMPANY = {
   vatRate: 0.15,
   authorName: "Juan-louw Greyling",
   authorRole: "Constitutional Author",
-  constitutionVersion: "1.0.0",
+  constitutionVersion: "1.1.0",
   autonomyLevel: "A3" as const,
   email: "juanlouw.greyling@gmail.com",
 };
 
-export const GENESIS_HASH =
-  "0000000000000000000000000000000000000000000000000000000000000000";
+export const GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
 
 /** Lower-cased company contact address; the office default login. */
 export const FOUNDER_EMAIL = COMPANY.email.toLowerCase();
+
+/**
+ * The public address of the site, used for the links the office puts in
+ * customer emails. Configured with BETTER_AUTH_URL; otherwise the published
+ * domain, which is the address the office already publishes.
+ */
+export function publicBaseUrl(): string {
+  const configured =
+    typeof process !== "undefined" ? process.env.BETTER_AUTH_URL?.trim() : undefined;
+  if (configured) return configured.replace(/\/+$/, "");
+  return `https://www.${COMPANY.domain}`;
+}
 
 /**
  * The one email that opens the office. Server settings may override the

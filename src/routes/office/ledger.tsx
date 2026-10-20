@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useOfficeSnapshot } from "@/components/office/office-context";
+import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
@@ -11,14 +11,19 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { filePaymentClaim, raiseInvoice, recordReceipt, savePaymentNote } from "@/lib/office/api";
-import { VAT_TREATMENT_LABELS, parseVatTreatment, quoteInvoice, withPaymentNote, type VatTreatment } from "@/lib/office/invoice";
+import {
+  VAT_TREATMENT_LABELS,
+  parseVatTreatment,
+  quoteInvoice,
+  withPaymentNote,
+  type VatTreatment,
+} from "@/lib/office/invoice";
 import { Select } from "@/components/ui/select";
 import { formatDateTime, formatZar } from "@/lib/office/money";
 
 export const Route = createFileRoute("/office/ledger")({
   component: LedgerPage,
 });
-
 
 function LedgerPage() {
   const snapshot = useOfficeSnapshot();
@@ -38,7 +43,9 @@ function LedgerPage() {
         </Card>
         <Card className="p-4">
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Receivable</p>
-          <p className="mt-2 font-mono text-2xl tabular-nums">{formatZar(company.receivableCents)}</p>
+          <p className="mt-2 font-mono text-2xl tabular-nums">
+            {formatZar(company.receivableCents)}
+          </p>
         </Card>
         <Card className="p-4">
           <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Payable</p>
@@ -49,16 +56,24 @@ function LedgerPage() {
       <PaymentNote current={company.paymentInstructions} />
 
       <PaymentNotices
-        notices={snapshot.inbound.filter((item) => item.intent === "payment_notice" && item.status !== "filed")}
+        notices={snapshot.inbound.filter(
+          (item) => item.intent === "payment_notice" && item.status !== "filed",
+        )}
       />
 
       <ReadyInvoices
-        opportunities={snapshot.opportunities.filter((item) => item.stage === "won" && item.valueCents > 0)}
-        invoicedIds={snapshot.ledger.filter((row) => row.kind === "invoice" && row.relatedId).map((row) => row.relatedId as string)}
+        opportunities={snapshot.opportunities.filter(
+          (item) => item.stage === "won" && item.valueCents > 0,
+        )}
+        invoicedIds={snapshot.ledger
+          .filter((row) => row.kind === "invoice" && row.relatedId)
+          .map((row) => row.relatedId as string)}
       />
 
       <AwaitingPayment
-        invoices={snapshot.ledger.filter((row) => row.kind === "invoice" && row.status === "issued")}
+        invoices={snapshot.ledger.filter(
+          (row) => row.kind === "invoice" && row.status === "issued",
+        )}
         documents={snapshot.documents.filter((item) => item.kind === "invoice")}
         paymentNote={company.paymentInstructions}
       />
@@ -104,8 +119,12 @@ function LedgerPage() {
                     <td className="px-4 py-3">
                       <Badge>{row.status}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums">{formatZar(row.vatCents)}</td>
-                    <td className="px-4 py-3 text-right font-mono tabular-nums">{formatZar(row.amountCents)}</td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">
+                      {formatZar(row.vatCents)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono tabular-nums">
+                      {formatZar(row.amountCents)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -129,7 +148,9 @@ function ReadyInvoices({
   return (
     <div className="mt-6 space-y-3">
       <h2 className="font-serif text-2xl">Ready to invoice</h2>
-      <p className="text-sm text-muted">The figure is the accepted quote. VAT is not added. The customer is not emailed.</p>
+      <p className="text-sm text-muted">
+        The figure is the accepted quote. VAT is not added. The customer is not emailed.
+      </p>
       {ready.map((item) => (
         <InvoiceCard key={item.id} opportunity={item} />
       ))}
@@ -137,7 +158,11 @@ function ReadyInvoices({
   );
 }
 
-function InvoiceCard({ opportunity }: { opportunity: { id: string; companyName: string; valueCents: number } }) {
+function InvoiceCard({
+  opportunity,
+}: {
+  opportunity: { id: string; companyName: string; valueCents: number };
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [treatment, setTreatment] = useState<VatTreatment>("none");
@@ -146,7 +171,9 @@ function InvoiceCard({ opportunity }: { opportunity: { id: string; companyName: 
   async function onClick() {
     setPending(true);
     try {
-      const result = await raiseInvoice({ data: { opportunityId: opportunity.id, vatTreatment: treatment } });
+      const result = await raiseInvoice({
+        data: { opportunityId: opportunity.id, vatTreatment: treatment },
+      });
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -164,7 +191,9 @@ function InvoiceCard({ opportunity }: { opportunity: { id: string; companyName: 
     <Card className="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p className="text-sm">{opportunity.companyName}</p>
-        <p className="mt-1 font-mono text-2xl tabular-nums">{formatZar(figure.ok ? figure.cents : opportunity.valueCents)}</p>
+        <p className="mt-1 font-mono text-2xl tabular-nums">
+          {formatZar(figure.ok ? figure.cents : opportunity.valueCents)}
+        </p>
         {figure.ok && treatment !== "none" ? (
           <p className="mt-1 text-xs text-muted">
             Excl. VAT {formatZar(figure.netCents)} · VAT {formatZar(figure.vatCents)}
@@ -206,10 +235,13 @@ function AwaitingPayment({
     <div className="mt-6 space-y-3">
       <h2 className="font-serif text-2xl">Awaiting payment</h2>
       <p className="text-sm text-muted">
-        Copy the invoice and send it yourself. A PDF uses the same figure. Record a payment only after the money has arrived.
+        Copy the invoice and send it yourself. A PDF uses the same figure. Record a payment only
+        after the money has arrived.
       </p>
       {invoices.map((invoice) => {
-        const summary = documents.find((item) => item.relatedId && item.relatedId === invoice.relatedId)?.summary;
+        const summary = documents.find(
+          (item) => item.relatedId && item.relatedId === invoice.relatedId,
+        )?.summary;
         return (
           <ReceiptCard
             key={invoice.id}
@@ -284,7 +316,8 @@ function ReceiptCard({
             variant="secondary"
             onClick={() => {
               void (async () => {
-                const { buildQuotePdf, downloadPdf, quotePdfName } = await import("@/lib/office/quote-pdf");
+                const { buildQuotePdf, downloadPdf, quotePdfName } =
+                  await import("@/lib/office/quote-pdf");
                 const bytes = await buildQuotePdf({
                   kind: "invoice",
                   companyName: invoice.counterparty,
@@ -319,7 +352,9 @@ function PaidReceipts({
   return (
     <div className="mt-6 space-y-3">
       <h2 className="font-serif text-2xl">Receipts</h2>
-      <p className="text-sm text-muted">Copy one if you want to send it. Nothing here is emailed.</p>
+      <p className="text-sm text-muted">
+        Copy one if you want to send it. Nothing here is emailed.
+      </p>
       {documents.map((document) => {
         const text = withPaymentNote(document.summary, paymentNote);
         return (
@@ -327,40 +362,41 @@ function PaidReceipts({
             <p className="text-sm">{document.title}</p>
             <p className="mt-3 text-sm text-muted">{text}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                void navigator.clipboard.writeText(text).then(
-                  () => toast.success("Copied. Send it yourself. It has not been emailed."),
-                  () => toast.error("Could not copy. Select the receipt text instead."),
-                );
-              }}
-            >
-              Copy receipt
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                void (async () => {
-                  const { buildQuotePdf, downloadPdf, quotePdfName } = await import("@/lib/office/quote-pdf");
-                  const company = document.title.replace(/^Receipt ·\s*/, "") || "Customer";
-                  const amount = document.summary.match(/Amount received ([^.]+)/)?.[1] ?? "-";
-                  const bytes = await buildQuotePdf({
-                    kind: "receipt",
-                    companyName: company,
-                    amount,
-                    body: document.summary,
-                    payment: paymentNote,
-                  });
-                  downloadPdf(bytes, quotePdfName(company, document.summary, "receipt"));
-                  toast.success("PDF saved. Send it yourself. It has not been emailed.");
-                })().catch(() => toast.error("The PDF could not be created."));
-              }}
-            >
-              Download PDF
-            </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  void navigator.clipboard.writeText(text).then(
+                    () => toast.success("Copied. Send it yourself. It has not been emailed."),
+                    () => toast.error("Could not copy. Select the receipt text instead."),
+                  );
+                }}
+              >
+                Copy receipt
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  void (async () => {
+                    const { buildQuotePdf, downloadPdf, quotePdfName } =
+                      await import("@/lib/office/quote-pdf");
+                    const company = document.title.replace(/^Receipt ·\s*/, "") || "Customer";
+                    const amount = document.summary.match(/Amount received ([^.]+)/)?.[1] ?? "-";
+                    const bytes = await buildQuotePdf({
+                      kind: "receipt",
+                      companyName: company,
+                      amount,
+                      body: document.summary,
+                      payment: paymentNote,
+                    });
+                    downloadPdf(bytes, quotePdfName(company, document.summary, "receipt"));
+                    toast.success("PDF saved. Send it yourself. It has not been emailed.");
+                  })().catch(() => toast.error("The PDF could not be created."));
+                }}
+              >
+                Download PDF
+              </Button>
             </div>
           </Card>
         );
@@ -379,7 +415,8 @@ function PaymentNotices({
     <div className="mt-6 space-y-3">
       <h2 className="font-serif text-2xl">Customer says they paid</h2>
       <p className="text-sm text-muted">
-        These are claims, not receipts. Treasury does not move until you record the payment on the invoice.
+        These are claims, not receipts. Treasury does not move until you record the payment on the
+        invoice.
       </p>
       {notices.map((notice) => (
         <NoticeCard key={notice.id} notice={notice} />
@@ -413,7 +450,13 @@ function NoticeCard({ notice }: { notice: { id: string; companyName: string; sum
     <Card>
       <p className="text-sm">{notice.companyName}</p>
       <p className="mt-2 text-sm text-muted">{notice.summary}</p>
-      <Button type="button" className="mt-4" variant="secondary" disabled={pending} onClick={() => void onClick()}>
+      <Button
+        type="button"
+        className="mt-4"
+        variant="secondary"
+        disabled={pending}
+        onClick={() => void onClick()}
+      >
         {pending ? "Filing…" : "File notice"}
       </Button>
     </Card>
@@ -449,7 +492,8 @@ function PaymentNote({ current }: { current: string }) {
         <div>
           <Label htmlFor="pay-note">How customers pay</Label>
           <p className="mt-1 text-sm text-muted">
-            Bank, reference, or other instructions. Leave this blank and the invoice will not invent them.
+            Bank, reference, or other instructions. Leave this blank and the invoice will not invent
+            them.
           </p>
         </div>
         <Textarea
@@ -459,7 +503,11 @@ function PaymentNote({ current }: { current: string }) {
           onChange={(event) => setText(event.target.value)}
           placeholder="Nothing saved yet"
         />
-        <Button type="submit" variant="secondary" disabled={pending || text.trim() === current.trim()}>
+        <Button
+          type="submit"
+          variant="secondary"
+          disabled={pending || text.trim() === current.trim()}
+        >
           {pending ? "Saving…" : "Save"}
         </Button>
       </form>

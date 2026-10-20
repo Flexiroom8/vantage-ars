@@ -28,9 +28,14 @@ export const Route = createFileRoute("/api/cron/floor")({
         const secret = header.startsWith("Bearer ") ? header.slice(7) : "";
         const result = await runOfficeCron({ data: { secret } });
         if (!result.ok) {
-          if (result.reason === "Unauthorized") return new Response("Unauthorized", { status: 401 });
-          if (result.reason === "AUTONOMY is not on.") return new Response("Autonomy is off.", { status: 404 });
-          return Response.json({ ok: false, reason: result.reason ?? "The run failed." }, { status: 500 });
+          if (result.reason === "Unauthorized")
+            return new Response("Unauthorized", { status: 401 });
+          if (result.reason === "AUTONOMY is not on.")
+            return new Response("Autonomy is off.", { status: 404 });
+          return Response.json(
+            { ok: false, reason: result.reason ?? "The run failed." },
+            { status: 500 },
+          );
         }
         return Response.json({
           ok: true,

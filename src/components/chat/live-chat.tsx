@@ -61,7 +61,9 @@ function ChatPanel() {
           return false;
         }
         setError(null);
-        const next = result.messages.map((message) => `${message.id}:${message.createdAt}`).join("|");
+        const next = result.messages
+          .map((message) => `${message.id}:${message.createdAt}`)
+          .join("|");
         if (next === signature.current) return false;
         signature.current = next;
         setLines(result.messages);
@@ -85,7 +87,9 @@ function ChatPanel() {
     setPending(true);
     setError(null);
     try {
-      const result = await postPublicChat({ data: { threadId: id, name, body: draft, website: "" } });
+      const result = await postPublicChat({
+        data: { threadId: id, name, body: draft, website: "" },
+      });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -114,13 +118,21 @@ function ChatPanel() {
                 <p className="text-xs text-muted">A quote is sent separately.</p>
               </div>
             </div>
-            <button type="button" className="text-muted hover:text-fg" aria-label="Close chat" onClick={() => setOpen(false)}>
+            <button
+              type="button"
+              className="text-muted hover:text-fg"
+              aria-label="Close chat"
+              onClick={() => setOpen(false)}
+            >
               <X className="size-4" />
             </button>
           </header>
           <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
             {lines.length === 0 ? (
-              <p className="text-sm text-muted">Tell us what is going wrong. We will point you to the next step. A written quote is not sent from this chat.</p>
+              <p className="text-sm text-muted">
+                Tell us what is going wrong. We will point you to the next step. A written quote is
+                not sent from this chat.
+              </p>
             ) : null}
             {lines.map((line) => (
               <p
@@ -135,7 +147,10 @@ function ChatPanel() {
               </p>
             ))}
           </div>
-          <form onSubmit={(event) => void onSubmit(event)} className="space-y-2 border-t border-border p-3">
+          <form
+            onSubmit={(event) => void onSubmit(event)}
+            className="space-y-2 border-t border-border p-3"
+          >
             <Input
               aria-label="Your name"
               value={name}
@@ -168,7 +183,10 @@ function ChatPanel() {
           className="group fixed bottom-5 left-5 flex cursor-pointer items-center gap-3"
         >
           <span className="relative flex size-12 items-center justify-center">
-            <span aria-hidden className="fab-ring absolute inset-0 rounded-full border-2 border-accent/70" />
+            <span
+              aria-hidden
+              className="fab-ring absolute inset-0 rounded-full border-2 border-accent/70"
+            />
             <span className="relative flex size-12 items-center justify-center rounded-full bg-accent text-accent-fg shadow-[var(--glow-accent)] transition-transform duration-150 group-hover:scale-105">
               <MessageCircle className="size-5" />
             </span>

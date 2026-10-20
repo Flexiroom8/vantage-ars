@@ -1,4 +1,9 @@
-export type ModelTarget = { provider: "workers-ai" | "xai"; url: string; key: string; model: string };
+export type ModelTarget = {
+  provider: "workers-ai" | "xai";
+  url: string;
+  key: string;
+  model: string;
+};
 
 /**
  * Chooses the reasoning model. Cloudflare Workers AI (the agreed plan) is used when both
@@ -17,6 +22,12 @@ export function resolveModelTarget(env: Record<string, string | undefined>): Mod
       model: env.WORKERS_AI_MODEL?.trim() || "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     };
   }
-  if (xai) return { provider: "xai", url: "https://api.x.ai/v1/chat/completions", key: xai, model: "grok-4.5" };
+  if (xai)
+    return {
+      provider: "xai",
+      url: "https://api.x.ai/v1/chat/completions",
+      key: xai,
+      model: "grok-4.5",
+    };
   return null;
 }

@@ -15,7 +15,9 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-const NAV_ITEMS = [
+type NavItem = { href: string; label: string };
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/office", label: "Command" },
   { href: "/office/approvals", label: "Approvals" },
   { href: "/office/floor", label: "Floor" },
@@ -27,26 +29,29 @@ const NAV_ITEMS = [
   { href: "/office/sales", label: "Sales" },
   { href: "/office/ledger", label: "Ledger" },
   { href: "/office/technical", label: "Technical" },
+  { href: "/office/revenue", label: "Revenue" },
+  { href: "/office/delegations", label: "Delegation" },
   { href: "/office/constitution", label: "Constitution" },
   { href: "/office/audit", label: "Audit" },
   { href: "/office/metrics", label: "Metrics" },
 ];
 
-function NavLink({
-  href,
-  label,
-  onClick,
-}: {
-  href: string;
-  label: string;
-  onClick?: () => void;
-}) {
+// Governance is the explicit exception; every other entry falls under Operations.
+const GOVERNANCE_HREFS = new Set([
+  "/office/delegations",
+  "/office/constitution",
+  "/office/audit",
+  "/office/metrics",
+]);
+
+const OPERATIONS_NAV_ITEMS = NAV_ITEMS.filter((item) => !GOVERNANCE_HREFS.has(item.href));
+const GOVERNANCE_NAV_ITEMS = NAV_ITEMS.filter((item) => GOVERNANCE_HREFS.has(item.href));
+
+function NavLink({ href, label, onClick }: { href: string; label: string; onClick?: () => void }) {
   const location = useLocation();
 
   const active =
-    href === "/office"
-      ? location.pathname === "/office"
-      : location.pathname.startsWith(href);
+    href === "/office" ? location.pathname === "/office" : location.pathname.startsWith(href);
 
   return (
     <Link
@@ -66,9 +71,7 @@ function NavLink({
         aria-hidden="true"
         className={cn(
           "h-1.5 w-1.5 rounded-full transition-opacity",
-          active
-            ? "bg-accent opacity-100"
-            : "bg-muted opacity-0 group-hover:opacity-40",
+          active ? "bg-accent opacity-100" : "bg-muted opacity-0 group-hover:opacity-40",
         )}
       />
     </Link>
@@ -83,34 +86,21 @@ function OfficeNavigation({
   onNavigate?: () => void;
 }) {
   return (
-    <nav
-      className={cn(
-        "space-y-1",
-        mobile ? "px-1 py-4" : "px-3 py-5",
-      )}
-    >
+    <nav className={cn("space-y-1", mobile ? "px-1 py-4" : "px-3 py-5")}>
       <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Operations
       </div>
 
-      {NAV_ITEMS.slice(0, 11).map((item) => (
-        <NavLink
-          key={item.href}
-          {...item}
-          onClick={onNavigate}
-        />
+      {OPERATIONS_NAV_ITEMS.map((item) => (
+        <NavLink key={item.href} {...item} onClick={onNavigate} />
       ))}
 
       <div className="mb-3 mt-7 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Governance
       </div>
 
-      {NAV_ITEMS.slice(11).map((item) => (
-        <NavLink
-          key={item.href}
-          {...item}
-          onClick={onNavigate}
-        />
+      {GOVERNANCE_NAV_ITEMS.map((item) => (
+        <NavLink key={item.href} {...item} onClick={onNavigate} />
       ))}
     </nav>
   );
@@ -164,16 +154,11 @@ export function AppShell({ snapshot, children }: AppShellProps) {
         {/* Desktop sidebar */}
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/70 bg-surface/50 backdrop-blur-xl lg:flex lg:flex-col">
           <div className="border-b border-border/70 px-5 py-5">
-            <Link
-              to="/office"
-              className="group flex items-center gap-3"
-            >
+            <Link to="/office" className="group flex items-center gap-3">
               <WatchtowerMark className="h-9 w-9 shrink-0 transition-transform group-hover:scale-105" />
 
               <div className="min-w-0">
-                <div className="font-mono text-xs font-semibold tracking-[0.2em]">
-                  VANTAGE-ARS
-                </div>
+                <div className="font-mono text-xs font-semibold tracking-[0.2em]">VANTAGE-ARS</div>
 
                 <div className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
                   Network operations desk
@@ -185,12 +170,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
           <div className="border-b border-border/50 px-5 py-3">
             <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em]">
               <span className="flex items-center gap-2 text-muted">
-                <span
-                  className={cn(
-                    "live-dot",
-                    halted && "opacity-40",
-                  )}
-                />
+                <span className={cn("live-dot", halted && "opacity-40")} />
                 {halted ? "Halted" : "A3 live"}
               </span>
 
@@ -208,9 +188,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
                 <div className="font-mono text-[8px] uppercase tracking-[0.15em] text-muted">
                   Treasury
                 </div>
-                <div className="mt-1 font-mono text-xs text-fg">
-                  {formatZar(treasury)}
-                </div>
+                <div className="mt-1 font-mono text-xs text-fg">{formatZar(treasury)}</div>
               </div>
 
               <div className="border border-border/60 bg-bg/30 p-3">
@@ -282,10 +260,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
                   className="w-[290px] border-r border-border/70 bg-bg/95 p-0 backdrop-blur-xl"
                 >
                   <div className="border-b border-border/70 px-5 py-5">
-                    <Link
-                      to="/office"
-                      className="flex items-center gap-3"
-                    >
+                    <Link to="/office" className="flex items-center gap-3">
                       <WatchtowerMark className="h-9 w-9" />
 
                       <div>
@@ -363,9 +338,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
                     Treasury
                   </div>
 
-                  <div className="font-mono text-xs text-accent">
-                    {formatZar(treasury)}
-                  </div>
+                  <div className="font-mono text-xs text-accent">{formatZar(treasury)}</div>
                 </div>
 
                 <UserButton />
@@ -373,10 +346,11 @@ export function AppShell({ snapshot, children }: AppShellProps) {
             </div>
           </header>
 
-          <main id="office-main" className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
-            <div className="mx-auto w-full max-w-[1600px]">
-              {children}
-            </div>
+          <main
+            id="office-main"
+            className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10"
+          >
+            <div className="mx-auto w-full max-w-[1600px]">{children}</div>
           </main>
         </div>
       </div>
