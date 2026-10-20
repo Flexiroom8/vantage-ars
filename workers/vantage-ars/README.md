@@ -1,15 +1,20 @@
 # vantage-ars Worker
 
-Cloudflare Worker serving **vantage-ars.co.za** — a content site with a
-Workers AI writer and a human-in-the-loop admin queue.
+Cloudflare Worker behind the vantage-ars content site — the admin queue, AI
+writer and task workflow. It no longer owns the custom domains; the public site
+and office are served by the Vercel deployment (see "Fallback to the Vercel
+app" below).
 
 - `src/worker.production.js` — the deployed Worker (routes, AI calls, admin,
   rendering, plus the `AgentTaskWorkflow` class); this is `main` in `wrangler.toml`
 - `src/worker.js` — the `AgentTaskWorkflow` class alone; not deployable and not
   imported by `wrangler.toml` (the Durable Workflow entry needs its own module)
 - `wrangler.toml` — bindings: D1 `vantage-data`, Workers AI, Durable Workflow,
-  cron `0 7 * * 1` + `*/15 * * * *`, custom domains
-  `vantage-ars.co.za` + `www.vantage-ars.co.za`, and `VERCEL_ORIGIN`
+  cron `0 7 * * 1` + `*/15 * * * *`, and `VERCEL_ORIGIN`. The Worker deploys to
+  `https://vantage-ars.greylingjuanlouw-850.workers.dev`; the custom-domain
+  routes for `vantage-ars.co.za` + `www.vantage-ars.co.za` are commented out
+  because those hostnames are served by Vercel (Cloudflare error 100117 if the
+  Worker tries to claim them while the Vercel DNS records exist).
 - `schema.sql` / `seed.sql` — idempotent D1 schema + starter backlog
 
 ## Deploy
@@ -34,10 +39,16 @@ npx wrangler@4 deploy
 The Worker owns the content site, admin queue, AI writer and the `/api/*`
 routes it implements. Every other path (services, rates, legal pages, office,
 auth, quotes, ...) is proxied to `VERCEL_ORIGIN` (default
-`https://vercel.vantage-ars.co.za`), so the content site and the Vercel app
-can coexist on the custom domains instead of one replacing the other.
-`VERCEL_ORIGIN` is a Worker variable in `wrangler.toml`; override it there if
-the Vercel deployment lives elsewhere.
+`https://vercel.vantage-ars.co.za`), so the Worker and the Vercel app can
+coexist on one origin instead of one replacing the other. `VERCEL_ORIGIN` is a
+Worker variable in `wrangler.toml`; override it there if the Vercel deployment
+lives elsewhere.
+
+Until the Worker is given the hostnames back, `vantage-ars.co.za` and
+`www.vantage-ars.co.za` are served directly by Vercel and this proxy is only
+reachable through the workers.dev URL. To put the Worker in front again, delete
+the Vercel DNS records for both hostnames, uncomment the `[[routes]]` blocks in
+`wrangler.toml`, and redeploy.
 
 ## Admin
 

@@ -58,8 +58,8 @@ crons = [
 # VERCEL FALLBACK (app routes the Worker does not own)
 # ============================================================
 #
-# Unknown paths are proxied to this origin so the content site and the Vercel
-# application coexist on the custom domains. Override per environment with the
+# Unknown paths are proxied to this origin so the Worker and the Vercel
+# application can coexist on one origin. Override per environment with the
 # VERCEL_ORIGIN Worker variable if the Vercel project lives elsewhere.
 [vars]
 VERCEL_ORIGIN = "https://vercel.vantage-ars.co.za"
@@ -67,14 +67,22 @@ VERCEL_ORIGIN = "https://vercel.vantage-ars.co.za"
 # ============================================================
 # CUSTOM DOMAINS
 # ============================================================
-
-[[routes]]
-pattern = "vantage-ars.co.za"
-custom_domain = true
-
-[[routes]]
-pattern = "www.vantage-ars.co.za"
-custom_domain = true
+#
+# Disabled: vantage-ars.co.za and www.vantage-ars.co.za are served by the
+# Vercel deployment (DNS records point at Vercel, verified live). Attaching the
+# Worker's custom domain while those records exist aborts `wrangler deploy`
+# with Cloudflare error 100117 ("Hostname already has externally managed DNS
+# records"), which is how every deploy after bff30a6 died. The Worker deploys
+# to vantage-ars.greylingjuanlouw-850.workers.dev instead. To make the Worker
+# front the domain again, delete the Vercel DNS records first, then uncomment.
+#
+# [[routes]]
+# pattern = "vantage-ars.co.za"
+# custom_domain = true
+#
+# [[routes]]
+# pattern = "www.vantage-ars.co.za"
+# custom_domain = true
 
 
 # ============================================================

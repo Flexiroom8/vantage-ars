@@ -152,17 +152,16 @@ the founder does by hand, but it schedules nothing.
 
 Vercel → **Settings → Domains**. Add `vantage-ars.co.za` and `www.vantage-ars.co.za`.
 
-The domain is currently served by a Cloudflare Worker, not by this app. Pointing
-it at Vercel means:
+Both hostnames are served by this app (Vercel); Cloudflare keeps the zone
+(DNS, caching, TLS) with DNS set to **DNS only** pointing at the Vercel
+records.
 
-- the live site becomes this application, and
-- Cloudflare keeps the zone (DNS, caching, TLS) if you proxy it, with DNS set to
-  **DNS only** pointing at the Vercel nameservers/records.
-
-The Worker can stay on the custom domains: paths it does not own (services,
-rates, legal pages, office, auth, quotes, ...) are proxied to the Vercel app, so
-the content site and the application coexist. Verify the proxy returns the app's
-pages before you rely on it, and keep the Worker for a week either way.
+The Worker does not serve these hostnames: Vercel's DNS records own them, and a
+Worker custom-domain route cannot be attached while they exist (Cloudflare error
+100117). The Worker deploys to `vantage-ars.greylingjuanlouw-850.workers.dev`
+and keeps its D1, crons and workflow there. To put it in front of the domain
+again, delete the Vercel DNS records and uncomment the `[[routes]]` blocks in
+`workers/vantage-ars/wrangler.toml`.
 
 ## 7. Verify the deploy
 
