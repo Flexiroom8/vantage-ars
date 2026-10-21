@@ -16,15 +16,15 @@ are the things a customer cannot verify and a business should not sell.
 
 ## The seven services
 
-| Service | Published price | Cycle | What the customer receives | What is excluded |
-|---|---|---|---|---|
-| Managed support plan (`managed-support`) | R2,750 / month | Monthly | A monthly managed service report, automatic triage of every fault raised, and a quarterly infrastructure review | On-site work, hardware, third-party licences and carrier costs; after-hours work, which is quoted separately; anything outside the published rate card |
-| Remote health and spend watch (`health-watch`) | R990 / month | Monthly | A monthly written watch report covering open faults, ageing tickets, response against our own targets, and everything invoiced in the period | Monitoring of your live estate; on-site work and third-party costs |
-| Service report (`service-report`) | R690 | One-off | A report covering every fault raised, every quote issued and every invoice raised in the period, in plain language | Any new work — this reports on work already done |
-| Billing and rate compliance audit (`billing-audit`) | R1,150 | One-off | An audit of the invoices issued in the period, each matched to the published rate line it came from, with anything that does not match called out | Supplier and carrier invoices, which are not ours to audit |
-| Infrastructure documentation and handover pack (`handover-pack`) | R1,380 | One-off | A handover document built from the work the office has recorded: the equipment seen, the faults fixed, the configurations changed, and what is still open | Site drawings and cabling schedules; anything we have not worked on and cannot see |
-| Business continuity plan (`continuity-plan`) | R1,725 | One-off | A continuity plan built from your recorded fault history: the failure points we have actually seen, the order to recover them in, and the gaps | A formal disaster recovery or compliance certification; penetration testing |
-| Service level and response review (`sla-review`) | R690 | One-off | A review of the faults raised in the period, how long each took to pick up and resolve, and how that compares with our published internal response targets | A contractual SLA — we publish our targets, we do not sell a guarantee |
+| Service                                                          | Published price | Cycle   | What the customer receives                                                                                                                                 | What is excluded                                                                                                                                       |
+| ---------------------------------------------------------------- | --------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Managed support plan (`managed-support`)                         | R2,750 / month  | Monthly | A monthly managed service report, automatic triage of every fault raised, and a quarterly infrastructure review                                            | On-site work, hardware, third-party licences and carrier costs; after-hours work, which is quoted separately; anything outside the published rate card |
+| Remote health and spend watch (`health-watch`)                   | R990 / month    | Monthly | A monthly written watch report covering open faults, ageing tickets, response against our own targets, and everything invoiced in the period               | Monitoring of your live estate; on-site work and third-party costs                                                                                     |
+| Service report (`service-report`)                                | R690            | One-off | A report covering every fault raised, every quote issued and every invoice raised in the period, in plain language                                         | Any new work — this reports on work already done                                                                                                       |
+| Billing and rate compliance audit (`billing-audit`)              | R1,150          | One-off | An audit of the invoices issued in the period, each matched to the published rate line it came from, with anything that does not match called out          | Supplier and carrier invoices, which are not ours to audit                                                                                             |
+| Infrastructure documentation and handover pack (`handover-pack`) | R1,380          | One-off | A handover document built from the work the office has recorded: the equipment seen, the faults fixed, the configurations changed, and what is still open  | Site drawings and cabling schedules; anything we have not worked on and cannot see                                                                     |
+| Business continuity plan (`continuity-plan`)                     | R1,725          | One-off | A continuity plan built from your recorded fault history: the failure points we have actually seen, the order to recover them in, and the gaps             | A formal disaster recovery or compliance certification; penetration testing                                                                            |
+| Service level and response review (`sla-review`)                 | R690            | One-off | A review of the faults raised in the period, how long each took to pick up and resolve, and how that compares with our published internal response targets | A contractual SLA — we publish our targets, we do not sell a guarantee                                                                                 |
 
 Two of the seven are recurring. The office's billing arithmetic supports a
 quarterly cycle as well, but no plan is currently published on it.
@@ -149,12 +149,12 @@ money is a founder gate, and the founder may satisfy those gates once, in
 advance, with a standing delegation under ART-13. The office ships with no
 delegation at all.
 
-| Preset | Label | Delegated actions | Customer email | Automatic payment matching | Accepted quote required |
-|---|---|---|---|---|---|
-| `observe` | Observe only | none | no | no | yes |
-| `delivery` | Deliver and tell the customer | `fulfil_service`, `send_customer_mail` | yes | no | yes |
-| `billing` | Bill and collect | `issue_invoice`, `record_inbound_payment`, `send_customer_mail` | yes | yes | yes |
-| `revenue` | Managed revenue | `open_opportunity`, `issue_quote`, `issue_invoice`, `record_inbound_payment`, `start_subscription`, `cancel_subscription`, `fulfil_service`, `send_customer_mail` | yes | yes | no |
+| Preset     | Label                         | Delegated actions                                                                                                                                                 | Customer email | Automatic payment matching | Accepted quote required |
+| ---------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------------------- | ----------------------- |
+| `observe`  | Observe only                  | none                                                                                                                                                              | no             | no                         | yes                     |
+| `delivery` | Deliver and tell the customer | `fulfil_service`, `send_customer_mail`                                                                                                                            | yes            | no                         | yes                     |
+| `billing`  | Bill and collect              | `issue_invoice`, `record_inbound_payment`, `send_customer_mail`                                                                                                   | yes            | yes                        | yes                     |
+| `revenue`  | Managed revenue               | `open_opportunity`, `issue_quote`, `issue_invoice`, `record_inbound_payment`, `start_subscription`, `cancel_subscription`, `fulfil_service`, `send_customer_mail` | yes            | yes                        | no                      |
 
 Which preset covers which behaviour:
 

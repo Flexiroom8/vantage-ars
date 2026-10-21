@@ -23,7 +23,7 @@ import { submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
 import type { PaymentMethod } from "@/lib/office/invoice";
 import { allMethodsAwaitBankDetails } from "@/lib/office/invoice";
 import { SERVICE_PAGES } from "@/lib/site/services";
-import { PUBLISHED_RATES, SERVICE_LINES, publicRateRows, ratesByIds } from "@/lib/office/catalogue";
+import { SERVICE_LINES, publicRateRows, rateAmount, ratesByIds } from "@/lib/office/catalogue";
 import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 import { COMPANY } from "@/lib/office/company";
 
@@ -34,13 +34,6 @@ const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
   const page = SERVICE_PAGES.find((item) => item.title === line.title);
   return page ? [{ line, page, Icon: LINE_ICONS[index] ?? VoipIcon }] : [];
 });
-
-/** The published amount for a rate, read from the catalogue and never typed out here. */
-function zarAmount(rateId: string): number {
-  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
-  const match = rate?.price.replace(/,/g, "").match(/R\s*([\d.]+)/);
-  return match ? Math.round(Number(match[1])) : 0;
-}
 
 const MANAGED_RATE_IDS = [
   "managed-support",
@@ -72,13 +65,13 @@ const STEPS = [
 
 const STATS = [
   {
-    value: zarAmount("remote-support"),
+    value: rateAmount("remote-support"),
     prefix: "R",
     suffix: " / hr",
     label: "Remote support, from",
   },
   {
-    value: zarAmount("onsite-support"),
+    value: rateAmount("onsite-support"),
     prefix: "R",
     suffix: " / hr",
     label: "On-site, by arrangement",
@@ -174,8 +167,9 @@ function HomePage() {
             </h1>
 
             <p className="enter-up d-2 mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-              Worldwide remote support from R690 an hour, on-site by arrangement from R805 an hour.
-              You see the scope, timing and total in writing before anyone starts.
+              Worldwide remote support from R{rateAmount("remote-support")} an hour, on-site by
+              arrangement from R{rateAmount("onsite-support")} an hour. You see the scope, timing
+              and total in writing before anyone starts.
             </p>
 
             <div className="enter-up d-3 mt-8 flex flex-wrap gap-3">

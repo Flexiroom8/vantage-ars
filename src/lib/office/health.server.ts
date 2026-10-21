@@ -28,6 +28,7 @@ import { schedulerStatus } from "./scheduler.server";
 import { readDutyView } from "./office-view.server";
 import { workCounts } from "./work-queue.server";
 import { rateCardIntegrity } from "./duties";
+import { COMPANY } from "./company";
 import { loadCompanyForHealth } from "./store-health.server";
 import { ensureOffice, readDelegation, readDelegationUsage, revenueMetrics } from "./store.server";
 import type { DelegationStatus } from "./delegation";
@@ -234,7 +235,7 @@ export async function officeHealth(options: { full?: boolean } = {}): Promise<Of
       ok: false,
       checkedAt,
       company: "Vantage-ARS",
-      version: "4.2.0",
+      version: COMPANY.version,
       halted: false,
       haltReason: null,
       database,
@@ -367,7 +368,7 @@ export async function officeHealth(options: { full?: boolean } = {}): Promise<Of
     ok,
     checkedAt,
     company: company.tradingName,
-    version: "4.2.0",
+    version: COMPANY.version,
     halted: company.halted,
     haltReason: company.haltReason,
     database,

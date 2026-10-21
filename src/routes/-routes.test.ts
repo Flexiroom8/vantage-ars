@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { businessJsonLd, pageHead } from "../lib/site/seo.ts";
+import { breadcrumbJsonLd, businessJsonLd, offerCatalogJsonLd, pageHead } from "../lib/site/seo.ts";
+import { COMPANY } from "../lib/office/company.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -16,6 +17,7 @@ const EXPECTED: Record<string, string> = {
   "q.$token.tsx": '"/q/$token"',
   "rates.tsx": '"/rates"',
   "services.$slug.tsx": '"/services/$slug"',
+  "status.tsx": '"/status"',
   "support.tsx": '"/support"',
   "terms.tsx": '"/terms"',
   "work.tsx": '"/work"',
@@ -85,6 +87,65 @@ describe("route files declare their own path", () => {
     const json = JSON.parse(String(businessJsonLd().children));
     assert.equal(json.logo, "https://vantage-ars.co.za/favicon.svg");
     assert.equal(json["@type"], "ProfessionalService");
+  });
+
+  it("breadcrumbJsonLd numbers the trail from one and uses absolute URLs", () => {
+    const json = JSON.parse(
+      String(
+        breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Rates", path: "/rates" },
+        ]).children,
+      ),
+    );
+    assert.equal(json["@type"], "BreadcrumbList");
+    assert.deepEqual(
+      json.itemListElement.map((item: { position: number; item: string }) => [
+        item.position,
+        item.item,
+      ]),
+      [
+        [1, "https://vantage-ars.co.za/"],
+        [2, "https://vantage-ars.co.za/rates"],
+      ],
+    );
+  });
+
+  it("offerCatalogJsonLd emits only offered lines with a real figure", () => {
+    const json = JSON.parse(String(offerCatalogJsonLd().children));
+    assert.equal(json["@type"], "OfferCatalog");
+    assert.equal(json.numberOfItems, json.itemListElement.length);
+    assert.ok(json.itemListElement.length > 0);
+    for (const offer of json.itemListElement) {
+      assert.equal(offer["@type"], "Offer");
+      assert.equal(offer.priceCurrency, "ZAR");
+      assert.match(String(offer.price), /^\d+(\.\d+)?$/);
+    }
+  });
+
+  it("offerCatalogJsonLd narrows to the rate lines a service page shows", () => {
+    const json = JSON.parse(
+      String(offerCatalogJsonLd({ rateIds: ["remote-support", "managed-support"] }).children),
+    );
+    assert.equal(json.numberOfItems, 2);
+    assert.deepEqual(
+      json.itemListElement.map((offer: { name: string }) => offer.name),
+      ["Remote technical support", "Managed support plan"],
+    );
+  });
+
+  it("keeps the package version and the office version in step", () => {
+    const pkg = JSON.parse(readFileSync(join(here, "../../package.json"), "utf8")) as {
+      version: string;
+    };
+    assert.equal(COMPANY.version, pkg.version);
+  });
+
+  it("publishes a security.txt with a contact, expiry and canonical URL", () => {
+    const text = readFileSync(join(here, "../../public/.well-known/security.txt"), "utf8");
+    assert.match(text, /^Contact: mailto:/m);
+    assert.match(text, /^Expires: \d{4}-\d{2}-\d{2}T/m);
+    assert.match(text, /^Canonical: https:\/\/vantage-ars\.co\.za\//m);
   });
 
   for (const [file, path] of Object.entries(API_ROUTES)) {

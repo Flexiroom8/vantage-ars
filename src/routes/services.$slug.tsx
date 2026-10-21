@@ -16,7 +16,15 @@ import {
 } from "@/components/public/motion-icons";
 import { ratesByIds } from "@/lib/office/catalogue";
 import { SERVICE_PAGES, servicePage, type ServicePage } from "@/lib/site/services";
-import { businessJsonLd, faqJsonLd, jsonLd, pageHead, SITE_URL } from "@/lib/site/seo";
+import {
+  breadcrumbJsonLd,
+  businessJsonLd,
+  faqJsonLd,
+  jsonLd,
+  offerCatalogJsonLd,
+  pageHead,
+  SITE_URL,
+} from "@/lib/site/seo";
 import { COMPANY } from "@/lib/office/company";
 
 const SLUG_ICONS = {
@@ -50,6 +58,16 @@ export const Route = createFileRoute("/services/$slug")({
       ...head,
       scripts: [
         businessJsonLd(),
+        breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Services", path: "/" },
+          { name: loaderData.title, path: `/services/${loaderData.slug}` },
+        ]),
+        offerCatalogJsonLd({
+          name: `${loaderData.title} — published rates`,
+          path: `/services/${loaderData.slug}`,
+          rateIds: loaderData.rateIds,
+        }),
         faqJsonLd(loaderData.faqs),
         jsonLd({
           "@context": "https://schema.org",

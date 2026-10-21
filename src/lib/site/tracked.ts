@@ -10,11 +10,13 @@ export const TRACKED_PATHS = [
   "/rates",
   "/work",
   "/support",
+  "/status",
   "/terms",
   "/privacy",
   "/services/voip",
   "/services/networking",
   "/services/it-infrastructure",
+  "/services/managed-support",
 ] as const;
 
 const TRACKED = new Set<string>(TRACKED_PATHS);

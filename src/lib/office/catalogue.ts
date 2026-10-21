@@ -300,3 +300,32 @@ export const RATE_GROUPS = [
     ids: ["third-party", "travel"],
   },
 ] as const;
+
+/**
+ * The first published rand figure in a rate's price line, exactly as written
+ * ("R690", "R1,207.50", "R1,380" from a range). Empty when the line quotes no
+ * figure, such as a supplier quotation.
+ *
+ * Pages use this instead of repeating a price in prose, so editing the rate
+ * card cannot leave the copy quoting yesterday's number.
+ */
+export function rateAmountLabel(rateId: string): string {
+  const match = PUBLISHED_RATES.find((rate) => rate.id === rateId)?.price.match(
+    /R\s*(\d[\d,]*(?:\.\d+)?)/,
+  );
+  return match ? `R${match[1]}` : "";
+}
+
+/** The machine-readable value of the first figure, without a currency mark. */
+export function ratePriceValue(rateId: string): string | null {
+  const match = rateAmountLabel(rateId).match(/^R(.+)$/);
+  return match ? match[1].replace(/,/g, "") : null;
+}
+
+/** The whole-rand value of the first figure, for counts and comparisons. */
+export function rateAmount(rateId: string): number {
+  const value = ratePriceValue(rateId);
+  if (!value) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+}

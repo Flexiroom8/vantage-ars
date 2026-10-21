@@ -462,10 +462,17 @@ export async function databaseHealth(): Promise<{
 
 // Server-only eager start: kick DB bootstrap as soon as this module loads in
 // Node. Client bundles never hit this path (`getSql` throws in the browser).
+//
+// Unit tests that import a pure helper from this module do not need a database,
+// and booting embedded Postgres under the parallel test runner is both slow and
+// needlessly fragile. `VANTAGE_SKIP_DB_BOOTSTRAP=1` skips only the eager start;
+// any code that actually calls `getSql()` still initialises normally.
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
 };
-if (typeof window === "undefined") {
+const skipEagerBootstrap =
+  typeof process !== "undefined" && process.env.VANTAGE_SKIP_DB_BOOTSTRAP === "1";
+if (typeof window === "undefined" && !skipEagerBootstrap) {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] bootstrap failed:", err);

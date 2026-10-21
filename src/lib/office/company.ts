@@ -10,6 +10,8 @@ export const COMPANY = {
   authorName: "Juan-louw Greyling",
   authorRole: "Constitutional Author",
   constitutionVersion: "1.1.0",
+  /** Release version, kept in step with package.json by the route tests. */
+  version: "4.6.0",
   autonomyLevel: "A3" as const,
   email: "juanlouw.greyling@gmail.com",
 };

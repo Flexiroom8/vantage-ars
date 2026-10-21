@@ -2,13 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { pageHead, businessJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { QuoteIcon } from "@/components/public/motion-icons";
-import { PUBLISHED_RATES } from "@/lib/office/catalogue";
-
-/** The published amount for a rate, read from the catalogue and never typed out here. */
-function zarAmount(rateId: string): string {
-  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
-  return rate?.price.match(/R[\d,]+/)?.[0] ?? "";
-}
+import { rateAmountLabel } from "@/lib/office/catalogue";
 
 export const Route = createFileRoute("/terms")({
   head: () => {
@@ -29,11 +23,11 @@ export const Route = createFileRoute("/terms")({
 
 const RULES = [
   "An enquiry, chat, or service-desk message is not a contract and not a quote.",
-  `Published labour is ${zarAmount("remote-support")} an hour remote and ${zarAmount("onsite-support")} an hour on-site, unless the quote changes it.`,
+  `Published labour is ${rateAmountLabel("remote-support")} an hour remote and ${rateAmountLabel("onsite-support")} an hour on-site, unless the quote changes it.`,
   "VAT is added only when the written quote says so.",
   "Travel, hardware, licences, and third-party services are extra and itemised before they are agreed.",
-  `Monthly managed support is offered: the managed support plan is ${zarAmount("managed-support")} a month, and the remote health and spend watch is ${zarAmount("health-watch")} a month. Both are remote only.`,
-  `One-off written services can be ordered on their own: a service report ${zarAmount("service-report")}, a billing and rate compliance audit ${zarAmount("billing-audit")}, an infrastructure documentation and handover pack ${zarAmount("handover-pack")}, a business continuity plan ${zarAmount("continuity-plan")}, and a service level and response review ${zarAmount("sla-review")}.`,
+  `Monthly managed support is offered: the managed support plan is ${rateAmountLabel("managed-support")} a month, and the remote health and spend watch is ${rateAmountLabel("health-watch")} a month. Both are remote only.`,
+  `One-off written services can be ordered on their own: a service report ${rateAmountLabel("service-report")}, a billing and rate compliance audit ${rateAmountLabel("billing-audit")}, an infrastructure documentation and handover pack ${rateAmountLabel("handover-pack")}, a business continuity plan ${rateAmountLabel("continuity-plan")}, and a service level and response review ${rateAmountLabel("sla-review")}.`,
   "None of the managed services is live monitoring of your estate, an uptime promise, cover outside working hours, or a contractual service level. The reports are produced from our own records.",
   "After-hours work is by appointment.",
   "Pay by EFT or international wire, using the reference on the quote or invoice. Card checkout is not available.",

@@ -16,6 +16,7 @@ import { Route as OfficeRouteImport } from "./routes/office";
 import { Route as PrivacyRouteImport } from "./routes/privacy";
 import { Route as RatesRouteImport } from "./routes/rates";
 import { Route as ResetPasswordRouteImport } from "./routes/reset-password";
+import { Route as StatusRouteImport } from "./routes/status";
 import { Route as SupportRouteImport } from "./routes/support";
 import { Route as TermsRouteImport } from "./routes/terms";
 import { Route as WorkRouteImport } from "./routes/work";
@@ -76,6 +77,11 @@ const RatesRoute = RatesRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: "/reset-password",
   path: "/reset-password",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const StatusRoute = StatusRouteImport.update({
+  id: "/status",
+  path: "/status",
   getParentRoute: () => rootRouteImport,
 } as any);
 const SupportRoute = SupportRouteImport.update({
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   "/privacy": typeof PrivacyRoute;
   "/rates": typeof RatesRoute;
   "/reset-password": typeof ResetPasswordRoute;
+  "/status": typeof StatusRoute;
   "/support": typeof SupportRoute;
   "/terms": typeof TermsRoute;
   "/work": typeof WorkRoute;
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   "/privacy": typeof PrivacyRoute;
   "/rates": typeof RatesRoute;
   "/reset-password": typeof ResetPasswordRoute;
+  "/status": typeof StatusRoute;
   "/support": typeof SupportRoute;
   "/terms": typeof TermsRoute;
   "/work": typeof WorkRoute;
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   "/privacy": typeof PrivacyRoute;
   "/rates": typeof RatesRoute;
   "/reset-password": typeof ResetPasswordRoute;
+  "/status": typeof StatusRoute;
   "/support": typeof SupportRoute;
   "/terms": typeof TermsRoute;
   "/work": typeof WorkRoute;
@@ -324,6 +333,7 @@ export interface FileRouteTypes {
     | "/privacy"
     | "/rates"
     | "/reset-password"
+    | "/status"
     | "/support"
     | "/terms"
     | "/work"
@@ -358,6 +368,7 @@ export interface FileRouteTypes {
     | "/privacy"
     | "/rates"
     | "/reset-password"
+    | "/status"
     | "/support"
     | "/terms"
     | "/work"
@@ -393,6 +404,7 @@ export interface FileRouteTypes {
     | "/privacy"
     | "/rates"
     | "/reset-password"
+    | "/status"
     | "/support"
     | "/terms"
     | "/work"
@@ -429,6 +441,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute;
   RatesRoute: typeof RatesRoute;
   ResetPasswordRoute: typeof ResetPasswordRoute;
+  StatusRoute: typeof StatusRoute;
   SupportRoute: typeof SupportRoute;
   TermsRoute: typeof TermsRoute;
   WorkRoute: typeof WorkRoute;
@@ -490,6 +503,13 @@ declare module "@tanstack/react-router" {
       path: "/reset-password";
       fullPath: "/reset-password";
       preLoaderRoute: typeof ResetPasswordRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/status": {
+      id: "/status";
+      path: "/status";
+      fullPath: "/status";
+      preLoaderRoute: typeof StatusRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/support": {
@@ -725,6 +745,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   RatesRoute: RatesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  StatusRoute: StatusRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
   WorkRoute: WorkRoute,

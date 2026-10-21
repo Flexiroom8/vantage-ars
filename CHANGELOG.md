@@ -2,6 +2,38 @@
 
 All notable changes to Vantage-ARS.
 
+## 4.6.0 — 2026-10-21
+
+### Added
+
+**The desk can be checked without opening the office.** `/status` is a public readiness page built from five real checks: the office database, the decision record, scheduled work, agreement between the public rate card and the office prices, and founder control. The full health document is reduced on the server by `src/lib/office/public-status.ts`, so a visitor never receives treasury figures, customer counts, the halt reason, mail configuration or delegation limits. The page says plainly that it keeps no uptime history, makes no monitoring promise and sells no service level. It is linked from the footer and listed in the sitemap.
+
+**The public pages describe themselves better to machines.** Service pages now emit a `BreadcrumbList` and an `OfferCatalog` narrowed to the rate lines they actually show. `/rates` emits the whole offered catalogue. The service JSON-LD still names the provider and the audience; the new blocks add the hierarchy and the published prices without inventing either.
+
+**`security.txt`.** `/.well-known/security.txt` publishes one contact address, an expiry and the canonical URL, so a researcher does not have to guess where to report a problem.
+
+### Changed
+
+**One source for a published price.** `rateAmountLabel()` and `rateAmount()` live with the catalogue and are now used by the home page, the rates page, the terms page and the service copy. Editing a rate line can no longer leave prose quoting yesterday's figure. `ratePriceValue()` supplies the machine-readable figure to structured data.
+
+**One source for the version.** The office health document had been reporting `4.2.0` while the package was `4.5.0`. It now reports `COMPANY.version`, and a route test fails if that drifts from `package.json`.
+
+**README.DEV is current again.** It no longer describes a long-merged password branch; it documents the local loop, the module boundaries, the test strategy and the route checklist.
+
+**Docs corrections.** Removed a duplicated sentence in the managed-services guide.
+
+### Fixed
+
+**A green test suite could exit as a segmentation fault.** The Node test runner fanned out across every core, importing PGlite and other native/WASM modules in parallel; all 536 tests passed and the process then died with exit 139, so CI never reached `verify:office`. The test command now caps concurrency at four and skips the eager PGlite bootstrap for unit tests — anything that calls `getSql()` still initialises normally. The suite exits 0, and `verify:office` runs.
+
+**The managed-support page was invisible to the site's own signal.** `/services/managed-support` was a published, linked page but was missing from `TRACKED_PATHS`, so its real traffic never became a page view. It is tracked now, and the status page is too. A new test keeps `TRACKED_PATHS` and `sitemap.xml` in step.
+
+### Verification
+
+- `npm test`: 564 unit checks, then the real-office verification, exit 0.
+- `npm run check`: typecheck, lint and the full test run.
+- `npm run build:ci`: production build with the new route regenerated.
+
 ## 4.5.0 — 2026-10-20
 
 ### Added

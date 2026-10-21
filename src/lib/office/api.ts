@@ -55,6 +55,7 @@ import {
 } from "./store.server";
 import { DELEGATABLE_ACTIONS, DELEGATION_PRESETS } from "./delegation";
 import { tick, runNow, schedulerStatus } from "./scheduler.server";
+import { publicStatus } from "./public-status";
 import type { OfficeHealth } from "./health.server";
 import { listWork, workCounts } from "./work-queue.server";
 import { redriveAbandonedWork } from "./redrive.server";
@@ -1047,3 +1048,29 @@ export const getOfficeHealth = createServerFn({ method: "GET" })
     const { officeHealth } = await import("./health.server");
     return officeHealth({ full: context.founder === true });
   });
+
+/**
+ * The public status document for `/status`.
+ *
+ * The full health read happens on the server and is immediately reduced to the
+ * five fields the public page shows. Money, the halt reason, customer counts,
+ * mail configuration and delegation limits never cross this boundary.
+ */
+export const getPublicStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const { officeHealth } = await import("./health.server");
+  const health = await officeHealth();
+  return publicStatus({
+    checkedAt: health.checkedAt,
+    company: health.company,
+    version: health.version,
+    halted: health.halted,
+    database: { ok: health.database.ok },
+    chain: { ok: health.chain.ok },
+    scheduler: {
+      autonomyEnabled: health.scheduler.autonomyEnabled,
+      overdue: health.scheduler.overdue,
+      consecutiveFailures: health.scheduler.consecutiveFailures,
+    },
+    rateCard: { ok: health.rateCard.ok },
+  });
+});

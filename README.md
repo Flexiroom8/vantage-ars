@@ -16,13 +16,13 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## What is in it
 
-| Area                | Routes                                                                                                                                                         |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/rates`, `/work`, `/support`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                            |
-| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                          |
-| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                              |
-| Operations          | `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                  |
+| Area                | Routes                                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                       |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                                     |
+| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                                         |
+| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                               |
 
 ## The office runs itself
 
@@ -172,6 +172,13 @@ position. It returns 503 when something that matters is wrong, and never exposes
 a secret or a customer. Sign in and it returns the full picture. Hitting it also
 nudges a stale scheduler back on cadence, so an uptime monitor doubles as the
 heartbeat.
+
+**Public status.** `/status` is a readiness check, not an uptime page: five
+lines read from the office at the moment it loads — records, decision-record
+integrity, scheduled work, published-rate agreement and founder control. The
+full health document is reduced on the server, so money, customers, the halt
+reason and delegation limits never reach a visitor. It keeps no history and
+makes no availability promise.
 
 **Autonomy UI.** `/office` shows the scheduler state, every duty and when it is
 next due, the live queue, and what each agent did last. The same panel runs the

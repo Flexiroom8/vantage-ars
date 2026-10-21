@@ -2,7 +2,7 @@
  * Public service pages. Every price and limit here comes from the published
  * catalogue (`@/lib/office/catalogue`); nothing new is promised.
  */
-import { PUBLISHED_RATES } from "@/lib/office/catalogue";
+import { rateAmountLabel } from "@/lib/office/catalogue";
 
 export type ServicePage = {
   slug: "voip" | "networking" | "it-infrastructure" | "managed-support";
@@ -19,12 +19,6 @@ export type ServicePage = {
   excluded: string[];
   faqs: { q: string; a: string }[];
 };
-
-/** The published amount for a rate, read from the catalogue and never typed out here. */
-function zarAmount(rateId: string): string {
-  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
-  return rate?.price.match(/R[\d,]+/)?.[0] ?? "";
-}
 
 export const SERVICE_PAGES: ServicePage[] = [
   {
@@ -172,7 +166,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     number: "04",
     title: "Managed services",
     metaTitle: "Managed services & monthly support plans · Vantage-ARS",
-    description: `Monthly remote support, a written report every month and a quarterly review. The managed support plan is ${zarAmount("managed-support")} a month, remote only, with no uptime promise.`,
+    description: `Monthly remote support, a written report every month and a quarterly review. The managed support plan is ${rateAmountLabel("managed-support")} a month, remote only, with no uptime promise.`,
     lead: "Not every job should need a ticket and a chase. The managed plan is remote support time each month, a written report on what we have actually done, and a quarterly look at the setup. The price is published, the scope is written down, and it stays the same every month.",
     symptoms: [
       "Faults are raised, but nothing moves until somebody chases it",
@@ -217,7 +211,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       },
       {
         q: "Can I buy a report without the plan?",
-        a: `Yes. The reports and reviews are separate products: a service report is ${zarAmount("service-report")}, a billing audit ${zarAmount("billing-audit")}, a handover pack ${zarAmount("handover-pack")}, a continuity plan ${zarAmount("continuity-plan")} and a service level review ${zarAmount("sla-review")}. Each one is ordered on its own.`,
+        a: `Yes. The reports and reviews are separate products: a service report is ${rateAmountLabel("service-report")}, a billing audit ${rateAmountLabel("billing-audit")}, a handover pack ${rateAmountLabel("handover-pack")}, a continuity plan ${rateAmountLabel("continuity-plan")} and a service level review ${rateAmountLabel("sla-review")}. Each one is ordered on its own.`,
       },
       {
         q: "Is on-site work part of the plan?",

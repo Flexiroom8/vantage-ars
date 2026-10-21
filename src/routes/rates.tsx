@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { pageHead, businessJsonLd } from "../lib/site/seo";
+import { pageHead, businessJsonLd, breadcrumbJsonLd, offerCatalogJsonLd } from "../lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
 import { SignalBars } from "@/components/public/motion-icons";
-import { RATE_GROUPS, ratesByIds } from "../lib/office/catalogue";
+import { RATE_GROUPS, rateAmount, ratesByIds } from "../lib/office/catalogue";
 import { cn } from "../lib/utils";
 
 const GROUP_IDS = ["labour", "quoted", "managed", "outside"] as const;
@@ -25,7 +25,14 @@ export const Route = createFileRoute("/rates")({
 
     return {
       ...head,
-      scripts: [businessJsonLd()],
+      scripts: [
+        businessJsonLd(),
+        breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Rates", path: "/rates" },
+        ]),
+        offerCatalogJsonLd({ name: "Vantage-ARS published rates", path: "/rates" }),
+      ],
     };
   },
   component: RatesPage,
@@ -65,8 +72,9 @@ function RatesPage() {
           See the price before you say yes.
         </h1>
         <p className="mt-8 max-w-xl text-lg leading-relaxed text-muted">
-          Remote help starts at R690 an hour. On-site help starts at R805 an hour. Both are in South
-          African rand. VAT is added only when the written quote says so.
+          Remote help starts at R{rateAmount("remote-support")} an hour. On-site help starts at R
+          {rateAmount("onsite-support")} an hour. Both are in South African rand. VAT is added only
+          when the written quote says so.
         </p>
 
         <p className="mt-4 max-w-2xl leading-relaxed text-muted">

@@ -1,4 +1,5 @@
 import { COMPANY } from "@/lib/office/company";
+import { PUBLISHED_RATES, ratePriceValue } from "@/lib/office/catalogue";
 
 export const SITE_URL = `https://${COMPANY.domain}`;
 
@@ -97,5 +98,67 @@ export function faqJsonLd(faqs: { q: string; a: string }[]) {
       name: item.q,
       acceptedAnswer: { "@type": "Answer", text: item.a },
     })),
+  });
+}
+
+/**
+ * A breadcrumb trail as schema.org data. Every public page that shows a
+ * breadcrumb should emit the same trail; search engines read this rather than
+ * guessing the hierarchy from links.
+ */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
+  return jsonLd({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${SITE_URL}${item.path === "/" ? "/" : item.path}`,
+    })),
+  });
+}
+
+/**
+ * The published rate card as an OfferCatalog. Only offered lines with a real
+ * figure are emitted: a withheld or supplier-quoted line is not a price.
+ *
+ * `rateIds` narrows the catalogue to the lines a single service page shows,
+ * so the page's structured data matches what a visitor can actually read.
+ */
+export function offerCatalogJsonLd(
+  options: {
+    name?: string;
+    path?: string;
+    rateIds?: readonly string[];
+  } = {},
+) {
+  const wanted = options.rateIds ? new Set(options.rateIds) : null;
+  const offers = PUBLISHED_RATES.filter(
+    (rate) => rate.offered && (!wanted || wanted.has(rate.id)),
+  ).flatMap((rate) => {
+    const price = ratePriceValue(rate.id);
+    if (!price) return [];
+    return [
+      {
+        "@type": "Offer",
+        name: rate.title,
+        description: rate.scope,
+        price,
+        priceCurrency: "ZAR",
+        url: `${SITE_URL}/rates`,
+        availability: "https://schema.org/InStock",
+        seller: { "@type": "ProfessionalService", name: COMPANY.tradingName, url: SITE_URL },
+      },
+    ];
+  });
+
+  return jsonLd({
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    name: options.name ?? "Published rates",
+    url: `${SITE_URL}${options.path ?? "/rates"}`,
+    numberOfItems: offers.length,
+    itemListElement: offers,
   });
 }

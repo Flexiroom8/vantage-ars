@@ -200,10 +200,13 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             <p className="mt-3 text-sm text-muted">
               VoIP, networking and IT infrastructure support.
             </p>
-            <p className="mt-4 flex items-center gap-2 text-xs text-subtle">
+            <Link
+              to="/status"
+              className="mt-4 flex items-center gap-2 text-xs text-subtle transition-colors hover:text-fg"
+            >
               <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
-              Desk open · Remote worldwide
-            </p>
+              Desk status · Remote worldwide
+            </Link>
           </div>
 
           <div className="flex flex-col gap-2 text-sm">
@@ -232,6 +235,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             </Link>
             <Link to="/support" className="text-muted transition-colors hover:text-fg">
               Service desk
+            </Link>
+            <Link to="/status" className="text-muted transition-colors hover:text-fg">
+              Status
             </Link>
             <Link to="/terms" className="text-muted transition-colors hover:text-fg">
               How work is agreed
