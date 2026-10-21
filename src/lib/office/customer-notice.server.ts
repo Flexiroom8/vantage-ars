@@ -72,6 +72,8 @@ export type NoticeRequest = {
   subscriptionId?: string | null;
   /** An issued invoice, for a reminder. */
   invoiceId?: string | null;
+  /** A cleared receipt, for the acknowledgement. */
+  receiptId?: string | null;
   /** A freshly created quote link token, when the template is a quote. */
   quoteToken?: string | null;
 };
@@ -166,6 +168,34 @@ export async function draftNotice(sql: Sql, request: NoticeRequest): Promise<Not
     reference =
       referenceOf(doc?.summary ?? "") ?? `VA-${String(invoice.id).slice(0, 10).toUpperCase()}`;
     periodLabel = periodLabel ?? null;
+  }
+
+  if (request.receiptId) {
+    const receipt = await sql<{
+      id: string;
+      amount_cents: number;
+      counterparty: string;
+      related_id: string;
+    }>`
+      select id, amount_cents, counterparty, related_id
+      from ledger_entries
+      where id = ${request.receiptId} and kind = 'receipt'
+    `.then((rows) => rows[0]);
+    if (!receipt) return { ok: false, error: "That receipt is not on file." };
+    amountCents = Number(receipt.amount_cents ?? 0);
+    const invoice = await sql<{ related_id: string }>`
+      select related_id from ledger_entries
+      where id = ${receipt.related_id} and kind = 'invoice'
+    `.then((rows) => rows[0]);
+    const doc = invoice
+      ? await sql<{ summary: string }>`
+          select summary from documents
+          where kind = 'invoice' and related_id = ${invoice.related_id}
+          limit 1
+        `.then((rows) => rows[0])
+      : undefined;
+    reference =
+      referenceOf(doc?.summary ?? "") ?? `VA-${String(receipt.id).slice(0, 10).toUpperCase()}`;
   }
 
   if (cycle) {

@@ -30,6 +30,7 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     tickets: [],
     ledger: [],
     documents: [],
+    notices: [],
     campaigns: [],
     approvalsPending: [],
     agents: [],

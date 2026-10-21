@@ -12,6 +12,7 @@
  */
 import { PUBLISHED_RATES } from "./catalogue";
 import { planForRate } from "./plans";
+import { chooseQuote, quoteScopeLines, type QuoteChoice } from "./quote-playbook";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -99,6 +100,15 @@ export type DocumentView = {
   createdAt: string;
 };
 
+export type NoticeView = {
+  id: string;
+  template: string;
+  status: string;
+  relatedId: string | null;
+  companyName: string | null;
+  createdAt: string;
+};
+
 export type CampaignView = {
   id: string;
   name: string;
@@ -172,6 +182,7 @@ export type DelegationView = {
   maxActionsPerDay: number;
   maxActionsPerMonth: number;
   allowedActions: string[];
+  allowedRateIds: string[];
   allowCustomerMail: boolean;
   allowAutoReconcile: boolean;
   requireAcceptedQuote: boolean;
@@ -187,6 +198,7 @@ export type DutyView = {
   tickets: TicketView[];
   ledger: LedgerView[];
   documents: DocumentView[];
+  notices: NoticeView[];
   campaigns: CampaignView[];
   approvalsPending: {
     id: string;
@@ -235,6 +247,7 @@ export type DutyId =
   | "signal_qualify_leads"
   | "signal_handoff"
   | "close_discovery"
+  | "close_quote"
   | "close_quote_followup"
   | "close_stale_proposal"
   | "close_win_handoff"
@@ -251,6 +264,7 @@ export type DutyId =
   | "seal_scope_audit"
   | "ledger_subscription_billing"
   | "ledger_dunning"
+  | "ledger_billing"
   | "desk_service_fulfilment"
   | "desk_service_notice"
   | "close_quote_notice"
@@ -270,6 +284,7 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   signal_qualify_leads: 180,
   signal_handoff: 120,
   close_discovery: 240,
+  close_quote: 60,
   close_quote_followup: 720,
   close_stale_proposal: 1440,
   close_win_handoff: 60,
@@ -286,6 +301,7 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   seal_scope_audit: 1440,
   ledger_subscription_billing: 60,
   ledger_dunning: 240,
+  ledger_billing: 30,
   desk_service_fulfilment: 60,
   desk_service_notice: 60,
   close_quote_notice: 120,
@@ -306,6 +322,7 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   signal_qualify_leads: "signal",
   signal_handoff: "signal",
   close_discovery: "close",
+  close_quote: "close",
   close_quote_followup: "close",
   close_stale_proposal: "close",
   close_win_handoff: "close",
@@ -322,6 +339,7 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   seal_scope_audit: "seal",
   ledger_subscription_billing: "ledger",
   ledger_dunning: "ledger",
+  ledger_billing: "ledger",
   desk_service_fulfilment: "desk",
   desk_service_notice: "desk",
   close_quote_notice: "close",
@@ -341,7 +359,8 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   signal_prospect: "Prospect from site signals",
   signal_qualify_leads: "Score and qualify leads",
   signal_handoff: "Hand qualified demand to sales",
-  close_discovery: "Advance discovery",
+  close_discovery: "Open and advance sales work",
+  close_quote: "Quote qualified demand",
   close_quote_followup: "Follow up on quotes",
   close_stale_proposal: "Review cold proposals",
   close_win_handoff: "Hand won work to delivery",
@@ -358,6 +377,7 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   seal_scope_audit: "Audit agents against their roles",
   ledger_subscription_billing: "Bill the subscriptions that are due",
   ledger_dunning: "Chase overdue invoices",
+  ledger_billing: "Invoice won work and send the paperwork",
   desk_service_fulfilment: "Deliver the productised services",
   desk_service_notice: "Send the customer their report and invoice",
   close_quote_notice: "Send the customer their quote",
@@ -372,6 +392,47 @@ function ageMinutes(iso: string, now: string): number {
   const current = Date.parse(now);
   if (!Number.isFinite(then) || !Number.isFinite(current)) return 0;
   return Math.max(0, Math.round((current - then) / 60_000));
+}
+
+/** Whether a live delegation covers one action. */
+function delegated(view: DutyView, action: string): boolean {
+  const policy = view.delegation;
+  return Boolean(policy && policy.status === "active" && policy.allowedActions.includes(action));
+}
+
+/** Whether the customer actually contacted the office. */
+function hasRealEnquiry(view: DutyView, companyName: string): boolean {
+  const key = companyName.trim().toLowerCase();
+  if (!key) return false;
+  return view.inbound.some((item) => item.companyName.trim().toLowerCase() === key);
+}
+
+/** Whether an email address is already on file for the customer. */
+function hasRecipient(view: DutyView, companyName: string): boolean {
+  const key = companyName.trim().toLowerCase();
+  if (!key) return false;
+  if (
+    view.subscriptions.some(
+      (sub) => sub.companyName.trim().toLowerCase() === key && sub.contactEmail,
+    )
+  ) {
+    return true;
+  }
+  return [...view.inbound, ...view.leads]
+    .filter((row) => row.companyName.trim().toLowerCase() === key)
+    .some((row) => /Email:\s*[^\s,;]+@[^\s,;]+/i.test(row.summary));
+}
+
+/** The published line the office may quote for this opportunity, if any. */
+function autoQuoteFor(view: DutyView, opp: DutyView["opportunities"][number]): QuoteChoice | null {
+  if (!delegated(view, "issue_quote") || !hasRealEnquiry(view, opp.companyName)) return null;
+  const choice = chooseQuote({ companyName: opp.companyName, summary: opp.summary });
+  if (!choice) return null;
+  const policy = view.delegation;
+  if (!policy) return null;
+  if (!policy.allowedRateIds.includes(choice.rateId)) return null;
+  if (choice.amountCents > policy.maxAmountCents) return null;
+  return choice;
 }
 
 /** Words that signal the sender actually wants to buy something. */
@@ -527,6 +588,8 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planHandoff(view);
     case "close_discovery":
       return planDiscovery(view);
+    case "close_quote":
+      return planCloseQuote(view);
     case "close_quote_followup":
       return planQuoteFollowUp(view);
     case "close_stale_proposal":
@@ -559,6 +622,8 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planSubscriptionBilling(view);
     case "ledger_dunning":
       return planDunning(view);
+    case "ledger_billing":
+      return planBilling(view);
     case "desk_service_fulfilment":
       return planServiceFulfilment(view);
     case "desk_service_notice":
@@ -932,9 +997,15 @@ function planHandoff(view: DutyView): PlannedWork[] {
       .map((lead) => lead.companyName.toLowerCase()),
   );
   const work: PlannedWork[] = [];
+  const canOpen = delegated(view, "open_opportunity");
   for (const lead of view.leads) {
     const key = lead.companyName.toLowerCase();
     if (lead.stage === "lost" || inSales.has(key) || pendingHandoff.has(key)) continue;
+    // A qualified lead with a real inbound record can be opened by Sales under
+    // the delegation. Marketing does not need to file a founder handoff for
+    // the same lead. A qualified lead with no inbound record still goes to the
+    // founder, because Sales may not sell to it.
+    if (canOpen && lead.stage === "qualified" && lead.inboundId) continue;
     const scored = scoreLead(lead.summary, lead.companyName);
     if (scored.spam || scored.score < HANDOFF_THRESHOLD || scored.demand === 0) continue;
     work.push({
@@ -955,16 +1026,94 @@ function planHandoff(view: DutyView): PlannedWork[] {
 }
 
 function planDiscovery(view: DutyView): PlannedWork[] {
-  return view.opportunities
-    .filter((opp) => opp.stage === "discovery")
-    .map((opp) => ({
+  const work: PlannedWork[] = [];
+  const opened = new Set(view.opportunities.map((opp) => opp.companyName.trim().toLowerCase()));
+  const pendingHandoff = new Set(
+    view.approvalsPending
+      .filter((approval) => approval.kind === "sales_handoff")
+      .map((approval) => (approval.companyName ?? "").trim().toLowerCase()),
+  );
+
+  if (delegated(view, "open_opportunity")) {
+    for (const lead of view.leads) {
+      const key = lead.companyName.trim().toLowerCase();
+      if (lead.stage !== "qualified" || !lead.inboundId) continue;
+      if (lead.score < 45 || opened.has(key) || pendingHandoff.has(key)) continue;
+      if (!hasRealEnquiry(view, lead.companyName)) continue;
+      work.push({
+        agentId: "close",
+        kind: "open_sales_opportunity",
+        reason: `${lead.companyName} qualified from a real enquiry and no sales opportunity is open.`,
+        priority: 10,
+        payload: {
+          leadId: lead.id,
+          companyName: lead.companyName,
+          score: lead.score,
+          summary: lead.summary,
+        },
+        dedupeKey: `open-opportunity:${lead.id}`,
+      });
+    }
+  }
+
+  const alreadyQuoted = new Set(
+    view.quotes.filter((quote) => quote.relatedId).map((quote) => quote.relatedId as string),
+  );
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "discovery") continue;
+    // When the office can price the quote itself, the quote duty owns this
+    // opportunity. Advancing discovery as well would move the stage twice.
+    if (!alreadyQuoted.has(opp.id) && autoQuoteFor(view, opp)) continue;
+    work.push({
       agentId: "close",
       kind: "advance_discovery",
       reason: `${opp.companyName} is in discovery${opp.summary ? `: ${opp.summary.slice(0, 120)}` : ""}`,
       priority: 20,
       payload: { opportunityId: opp.id, companyName: opp.companyName },
       dedupeKey: `discovery:${opp.id}`,
-    }));
+    });
+  }
+  return work;
+}
+
+/**
+ * Quote real demand from the published card.
+ *
+ * Sales may only do this under a delegation that covers quoting, and only for
+ * a customer who actually contacted the office. The line is chosen by the
+ * playbook, never by the model, and the governor re-prices it before it is
+ * written down. The customer has not received the quote until the separate
+ * notice duty emails it.
+ */
+function planCloseQuote(view: DutyView): PlannedWork[] {
+  if (!view.delegation || view.delegation.status !== "active") return [];
+  const quoted = new Set(
+    view.quotes.filter((quote) => quote.relatedId).map((quote) => quote.relatedId as string),
+  );
+  const work: PlannedWork[] = [];
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "discovery" || quoted.has(opp.id)) continue;
+    const choice = autoQuoteFor(view, opp);
+    if (!choice) continue;
+    work.push({
+      agentId: "close",
+      kind: "issue_quote",
+      reason: `${opp.companyName} asked for work the published card can price: ${choice.title} at ${(choice.amountCents / 100).toFixed(2)} ZAR. ${choice.why}.`,
+      priority: 8,
+      payload: {
+        opportunityId: opp.id,
+        companyName: opp.companyName,
+        rateId: choice.rateId,
+        location: choice.location,
+        quantity: choice.quantity,
+        amountCents: choice.amountCents,
+        why: choice.why,
+        scope: quoteScopeLines(choice),
+      },
+      dedupeKey: `quote:${opp.id}`,
+    });
+  }
+  return work;
 }
 
 function planQuoteFollowUp(view: DutyView): PlannedWork[] {
@@ -1030,11 +1179,29 @@ function planWinHandoff(view: DutyView): PlannedWork[] {
       .filter((row) => row.kind === "invoice" && row.relatedId)
       .map((row) => row.relatedId as string),
   );
+  // Under billing delegation, LEDGER's own duty raises the invoice when the
+  // customer has accepted a quote. A sales nudge would tell the founder to do
+  // work the office is already doing. A won job with no accepted quote still
+  // needs a person, because billing has nothing it may bill against.
+  const billingDelegated = delegated(view, "issue_invoice");
+  const billingCap = billingDelegated ? (view.delegation?.maxAmountCents ?? 0) : 0;
+  const accepted = new Set(
+    view.quotes
+      .filter((quote) => quote.kind === "quote" && quote.status === "accepted" && quote.relatedId)
+      .map((quote) => quote.relatedId as string),
+  );
   const work: PlannedWork[] = [];
   for (const opp of view.opportunities) {
     if (opp.stage !== "won") continue;
     if (!delivery.has(opp.id)) continue;
     if (invoiced.has(opp.id)) continue;
+    if (
+      billingDelegated &&
+      accepted.has(opp.id) &&
+      opp.valueCents > 0 &&
+      opp.valueCents <= billingCap
+    )
+      continue;
     work.push({
       agentId: "close",
       kind: "nudge_invoice",
@@ -1324,6 +1491,105 @@ function planServiceNotice(view: DutyView): PlannedWork[] {
       },
       dedupeKey: `notice:${cycle.id}`,
     }));
+}
+
+/**
+ * The billing duty.
+ *
+ * Won work with an accepted quote becomes an invoice. Under the same
+ * delegation, the customer is then sent the invoice and, once money is
+ * matched, a receipt. The store still enforces the money and mail gates; this
+ * planner only proposes work that the real state supports.
+ */
+function planBilling(view: DutyView): PlannedWork[] {
+  if (!delegated(view, "issue_invoice")) return [];
+  const billingCap = view.delegation?.maxAmountCents ?? 0;
+  const invoices = view.ledger.filter((row) => row.kind === "invoice");
+  const invoiceByRelated = new Map(
+    invoices.filter((row) => row.relatedId).map((row) => [row.relatedId as string, row]),
+  );
+  const accepted = view.quotes.filter(
+    (quote) => quote.kind === "quote" && quote.status === "accepted",
+  );
+  const noticed = new Set(
+    view.notices
+      .filter((notice) => notice.relatedId)
+      .map((notice) => `${notice.template}:${notice.relatedId}`),
+  );
+  const work: PlannedWork[] = [];
+
+  for (const opp of view.opportunities) {
+    if (opp.stage !== "won" || opp.valueCents <= 0) continue;
+    if (opp.valueCents > billingCap) continue;
+    if (invoiceByRelated.has(opp.id)) continue;
+    const quote = accepted.find((item) => item.relatedId === opp.id);
+    if (!quote) continue;
+    work.push({
+      agentId: "ledger",
+      kind: "issue_won_invoice",
+      reason: `${opp.companyName} accepted quote ${quote.title} and the work is won, but no invoice is on the books.`,
+      priority: 6,
+      payload: {
+        opportunityId: opp.id,
+        companyName: opp.companyName,
+        quoteDocumentId: quote.id,
+        valueCents: opp.valueCents,
+      },
+      dedupeKey: `won-invoice:${opp.id}`,
+    });
+  }
+
+  const canMail =
+    Boolean(view.delegation?.allowCustomerMail) && delegated(view, "send_customer_mail");
+  if (!canMail) return work;
+
+  const cycleIds = new Set(view.billingCycles.map((cycle) => cycle.id));
+  const invoiceDocuments = new Map(
+    view.documents
+      .filter((doc) => doc.kind === "invoice" && doc.relatedId)
+      .map((doc) => [doc.relatedId as string, doc]),
+  );
+  for (const invoice of invoices) {
+    if (!invoice.relatedId) continue;
+    if (cycleIds.has(invoice.relatedId)) continue;
+    if (!invoiceDocuments.has(invoice.relatedId)) continue;
+    if (noticed.has(`invoice:${invoice.id}`)) continue;
+    if (!hasRecipient(view, invoice.counterparty)) continue;
+    work.push({
+      agentId: "ledger",
+      kind: "send_invoice_notice",
+      reason: `${invoice.counterparty} has an invoice on file and has not been sent it.`,
+      priority: 12,
+      payload: {
+        invoiceId: invoice.id,
+        companyName: invoice.counterparty,
+        amountCents: invoice.amountCents,
+      },
+      dedupeKey: `invoice-notice:${invoice.id}`,
+    });
+  }
+
+  for (const receipt of view.ledger.filter((row) => row.kind === "receipt")) {
+    if (!receipt.relatedId) continue;
+    const invoice = invoices.find((row) => row.id === receipt.relatedId);
+    if (!invoice) continue;
+    if (noticed.has(`receipt:${receipt.id}`)) continue;
+    if (!hasRecipient(view, receipt.counterparty)) continue;
+    work.push({
+      agentId: "ledger",
+      kind: "send_receipt_notice",
+      reason: `${receipt.counterparty} has a cleared receipt that has not been acknowledged.`,
+      priority: 16,
+      payload: {
+        receiptId: receipt.id,
+        invoiceId: invoice.id,
+        companyName: receipt.counterparty,
+        amountCents: receipt.amountCents,
+      },
+      dedupeKey: `receipt-notice:${receipt.id}`,
+    });
+  }
+  return work;
 }
 
 /**

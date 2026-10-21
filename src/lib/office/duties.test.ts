@@ -36,6 +36,7 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     tickets: [],
     ledger: [],
     documents: [],
+    notices: [],
     campaigns: [],
     approvalsPending: [],
     agents: [],
@@ -48,6 +49,34 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     publishedPathCount: 9,
     chainIntact: true,
     work: [],
+    ...overrides,
+  };
+}
+
+function delegation(
+  overrides: Partial<NonNullable<DutyView["delegation"]>> = {},
+): NonNullable<DutyView["delegation"]> {
+  return {
+    id: "primary",
+    label: "Managed revenue",
+    status: "active",
+    maxAmountCents: 500000,
+    maxActionsPerDay: 20,
+    maxActionsPerMonth: 200,
+    allowedActions: [
+      "open_opportunity",
+      "issue_quote",
+      "issue_invoice",
+      "record_inbound_payment",
+      "start_subscription",
+      "cancel_subscription",
+      "fulfil_service",
+      "send_customer_mail",
+    ],
+    allowedRateIds: ["assessment", "managed-support", "remote-support", "onsite-support"],
+    allowCustomerMail: true,
+    allowAutoReconcile: true,
+    requireAcceptedQuote: true,
     ...overrides,
   };
 }
@@ -642,6 +671,275 @@ describe("sales duties", () => {
       }),
     );
     assert.deepEqual(invoiced, []);
+  });
+});
+
+describe("autonomous quote-to-cash", () => {
+  it("quotes a real enquiry from the published card under delegation", () => {
+    const opportunity = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "discovery",
+      valueCents: 0,
+      summary: "Monthly managed support for 15 users",
+      updatedAt: hoursAgo(2),
+    };
+    const inbound = {
+      id: "in1",
+      channel: "web",
+      companyName: "Acme",
+      subject: "Managed support",
+      summary: "Email: ops@acme.example We need monthly managed support for 15 users.",
+      intent: "enquiry",
+      status: "received",
+      createdAt: hoursAgo(2),
+    };
+    const work = planDuty(
+      "close_quote",
+      view({ opportunities: [opportunity], inbound: [inbound], delegation: delegation() }),
+    );
+    assert.equal(work.length, 1);
+    assert.equal(work[0].kind, "issue_quote");
+    assert.equal(work[0].payload?.rateId, "managed-support");
+    assert.ok(Number(work[0].payload?.amountCents) > 0);
+
+    assert.deepEqual(
+      planDuty("close_quote", view({ opportunities: [opportunity], inbound: [inbound] })),
+      [],
+      "quoting without a delegation must do nothing",
+    );
+    assert.deepEqual(
+      planDuty("close_quote", view({ opportunities: [opportunity], delegation: delegation() })),
+      [],
+      "quoting a customer who did not contact the office must do nothing",
+    );
+  });
+
+  it("opens a qualified lead only when the customer really contacted the office", () => {
+    const lead = {
+      id: "ld1",
+      companyName: "Acme",
+      stage: "qualified",
+      score: 70,
+      summary: "Email: ops@acme.example Need a network review.",
+      inboundId: "in1",
+      updatedAt: hoursAgo(2),
+    };
+    const inbound = {
+      id: "in1",
+      channel: "web",
+      companyName: "Acme",
+      subject: "Network review",
+      summary: "Email: ops@acme.example Need a network review.",
+      intent: "enquiry",
+      status: "received",
+      createdAt: hoursAgo(2),
+    };
+    const work = planDuty(
+      "close_discovery",
+      view({ leads: [lead], inbound: [inbound], delegation: delegation() }),
+    );
+    assert.equal(work.length, 1);
+    assert.equal(work[0].kind, "open_sales_opportunity");
+    assert.deepEqual(
+      planDuty("close_discovery", view({ leads: [lead], inbound: [inbound] })),
+      [],
+      "opening an opportunity without a delegation must do nothing",
+    );
+  });
+
+  it("invoices won work with an accepted quote, then sends the paperwork once", () => {
+    const opportunity = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 275000,
+      summary: "Managed support accepted",
+      updatedAt: daysAgo(2),
+    };
+    const quote = {
+      id: "q1",
+      title: "Quote · Acme",
+      kind: "quote",
+      status: "accepted",
+      relatedId: "op1",
+      createdAt: daysAgo(3),
+      rateId: "managed-support",
+    };
+    const invoiceBase = {
+      id: "lg1",
+      kind: "invoice",
+      counterparty: "Acme",
+      amountCents: 275000,
+      status: "issued",
+      relatedId: "op1",
+      createdAt: daysAgo(1),
+    };
+    const invoiceDoc = {
+      id: "dc1",
+      title: "Invoice · Acme",
+      kind: "invoice",
+      status: "approved_unsent",
+      relatedId: "op1",
+      createdAt: daysAgo(1),
+    };
+    const receipt = {
+      id: "lg2",
+      kind: "receipt",
+      counterparty: "Acme",
+      amountCents: 275000,
+      status: "cleared",
+      relatedId: "lg1",
+      createdAt: hoursAgo(2),
+    };
+    const inbound = {
+      id: "in1",
+      channel: "web",
+      companyName: "Acme",
+      subject: "Managed support",
+      summary: "Email: ops@acme.example We need monthly managed support.",
+      intent: "enquiry",
+      status: "received",
+      createdAt: daysAgo(5),
+    };
+
+    const invoiceWork = planDuty(
+      "ledger_billing",
+      view({
+        opportunities: [opportunity],
+        quotes: [quote],
+        inbound: [inbound],
+        delegation: delegation(),
+      }),
+    );
+    assert.deepEqual(
+      invoiceWork.map((item) => item.kind),
+      ["issue_won_invoice"],
+    );
+
+    const notices = new Map(
+      planDuty(
+        "ledger_billing",
+        view({
+          opportunities: [opportunity],
+          quotes: [quote],
+          inbound: [inbound],
+          ledger: [invoiceBase, receipt],
+          documents: [invoiceDoc],
+          delegation: delegation(),
+        }),
+      ).map((item) => [item.kind, item]),
+    );
+    assert.ok(notices.get("send_invoice_notice"));
+    assert.ok(notices.get("send_receipt_notice"));
+    assert.equal(notices.get("send_receipt_notice")?.payload?.receiptId, "lg2");
+
+    const alreadySent = planDuty(
+      "ledger_billing",
+      view({
+        opportunities: [opportunity],
+        quotes: [quote],
+        inbound: [inbound],
+        ledger: [invoiceBase, receipt],
+        documents: [invoiceDoc],
+        notices: [
+          {
+            id: "n1",
+            template: "invoice",
+            status: "sent",
+            relatedId: "lg1",
+            companyName: "Acme",
+            createdAt: daysAgo(1),
+          },
+          {
+            id: "n2",
+            template: "receipt",
+            status: "sent",
+            relatedId: "lg2",
+            companyName: "Acme",
+            createdAt: hoursAgo(1),
+          },
+        ],
+        delegation: delegation(),
+      }),
+    );
+    assert.deepEqual(alreadySent, []);
+  });
+
+  it("leaves the invoice nudge in place for won work with no accepted quote", () => {
+    const won = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 100000,
+      summary: "x",
+      updatedAt: daysAgo(3),
+    };
+    const ticket = {
+      id: "tk1",
+      title: "Job",
+      severity: "p3",
+      status: "open",
+      ownerAgent: "forge",
+      summary: "x",
+      relatedId: "op1",
+      updatedAt: daysAgo(3),
+    };
+    const work = planDuty(
+      "close_win_handoff",
+      view({
+        opportunities: [won],
+        tickets: [ticket],
+        delegation: delegation({ allowedActions: ["issue_invoice"] }),
+      }),
+    );
+    assert.equal(work.length, 1);
+    assert.equal(work[0].kind, "nudge_invoice");
+  });
+
+  it("keeps the invoice nudge when accepted work is over the billing cap", () => {
+    const won = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 600000,
+      summary: "x",
+      updatedAt: daysAgo(3),
+    };
+    const ticket = {
+      id: "tk1",
+      title: "Job",
+      severity: "p3",
+      status: "open",
+      ownerAgent: "forge",
+      summary: "x",
+      relatedId: "op1",
+      updatedAt: daysAgo(3),
+    };
+    const accepted = {
+      id: "q1",
+      title: "Quote · Acme",
+      kind: "quote",
+      status: "accepted",
+      relatedId: "op1",
+      createdAt: daysAgo(3),
+      rateId: "managed-support",
+    };
+    const state = view({
+      opportunities: [won],
+      tickets: [ticket],
+      quotes: [accepted],
+      delegation: delegation({ allowedActions: ["issue_invoice"] }),
+    });
+
+    const handoff = planDuty("close_win_handoff", state);
+    assert.equal(handoff.length, 1);
+    assert.equal(handoff[0].kind, "nudge_invoice");
+    assert.deepEqual(
+      planDuty("ledger_billing", state),
+      [],
+      "billing must not queue work the delegation cap cannot cover",
+    );
   });
 });
 

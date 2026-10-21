@@ -174,7 +174,11 @@ export function evaluateDelegation(
       );
     }
   }
-  if (policy.requireAcceptedQuote && !request.acceptedQuote) {
+  if (
+    policy.requireAcceptedQuote &&
+    ACCEPTED_QUOTE_GATED.has(request.action) &&
+    !request.acceptedQuote
+  ) {
     return deny(
       "no_accepted_quote",
       "The delegation only applies to customers with an accepted quote on file.",
@@ -210,6 +214,21 @@ const MONEY_ACTIONS = new Set<DelegationAction>([
   "issue_invoice",
   "record_inbound_payment",
   "start_subscription",
+]);
+
+/**
+ * Actions that can only be taken for work the customer has already accepted.
+ *
+ * A policy's "accepted quote required" switch protects the money and delivery
+ * side of the office. It cannot apply to opening an opportunity or issuing the
+ * first quote, because those happen before an accepted quote can exist. Those
+ * actions are still gated by the real-enquiry rule and the publish-price rule.
+ */
+const ACCEPTED_QUOTE_GATED = new Set<DelegationAction>([
+  ...MONEY_ACTIONS,
+  "propose_close_won",
+  "fulfil_service",
+  "cancel_subscription",
 ]);
 
 /** The next day's usage is not the next action's problem; this resets counters. */

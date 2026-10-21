@@ -235,6 +235,45 @@ describe("delegation preconditions", () => {
     assert.equal(verdict.allowed, true);
   });
 
+  it("does not block opening work or issuing the first quote", () => {
+    for (const action of ["open_opportunity", "issue_quote"] as const) {
+      const verdict = evaluateDelegation(
+        policy({ requireAcceptedQuote: true }),
+        request({
+          action,
+          acceptedQuote: false,
+          realEnquiry: true,
+          rateId: action === "issue_quote" ? "managed-support" : null,
+          amountCents: action === "issue_quote" ? 69000 : 0,
+        }),
+      );
+      assert.equal(verdict.allowed, true, `${action} was blocked by the accepted-quote gate`);
+    }
+  });
+
+  it("still blocks money and delivery without an accepted quote", () => {
+    for (const action of [
+      "issue_invoice",
+      "record_inbound_payment",
+      "start_subscription",
+      "fulfil_service",
+      "cancel_subscription",
+      "propose_close_won",
+    ] as const) {
+      const verdict = evaluateDelegation(
+        policy({ requireAcceptedQuote: true }),
+        request({
+          action,
+          acceptedQuote: false,
+          opportunityWon: action === "issue_invoice",
+          realEnquiry: true,
+        }),
+      );
+      assert.equal(verdict.allowed, false, `${action} ignored the accepted-quote gate`);
+      assert.equal(verdict.check, "no_accepted_quote");
+    }
+  });
+
   it("will not charge for work that was neither quoted nor won", () => {
     const money: DelegationAction[] = [
       "issue_invoice",

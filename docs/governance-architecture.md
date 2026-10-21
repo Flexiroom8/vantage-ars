@@ -25,7 +25,7 @@ allowed to.
   consecutive failing ticks all stop it before anything is planned. Then it
   plans, then it executes.
 - `src/lib/office/duties.ts` — the duty cadence table (`DUTY_CADENCE_MINUTES`,
-  33 duties), the owner table (`DUTY_OWNER`) and the title table
+  35 duties), the owner table (`DUTY_OWNER`) and the title table
   (`DUTY_TITLES`). `planDuty` is a pure function of the real office state and
   returns work or nothing. An empty answer is a successful run.
 - `src/lib/office/office-view.server.ts` — `readDutyView` assembles the state a
@@ -109,7 +109,7 @@ model is used, and it is deliberately small.
   re-decides the action afterwards.
 - **No memory.** There is no conversation history, no agent state, and nothing
   carried between calls. Every call gets the state the caller passed in.
-- **Not in the autonomous path at all.** The 33 duties decide from office
+- **Not in the autonomous path at all.** The 35 duties decide from office
   records. That is why the office keeps working when the model provider is
   down, and it is why `XAI_API_KEY` or `CLOUDFLARE_API_TOKEN` are optional.
 
@@ -470,7 +470,7 @@ npm run verify:office
 
 It boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did: 208 checks, no mocks, no
+asserts on what the real agents actually did: 209 checks, no mocks, no
 fixtures. It runs in CI on every push.
 
 It exercises the delegation and the subscription path end to end: the office

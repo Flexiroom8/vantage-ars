@@ -1433,6 +1433,212 @@ const startSubscriptionCycle: Runner = async (item) => {
   };
 };
 
+/** Open a sales opportunity from a qualified lead that came in through a real channel. */
+const openSalesOpportunity: Runner = async (item) => {
+  const leadId = str(item.payload.leadId);
+  const companyName = str(item.payload.companyName);
+  const sql = await getSql();
+  const lead = await sql<{ stage: string; inbound_id: string | null }>`
+    select stage, inbound_id from leads where id = ${leadId}
+  `.then((rows) => rows[0]);
+  if (!lead) return noop("That lead is no longer on file.");
+  if (lead.stage !== "qualified" || !lead.inbound_id) {
+    return noop("The lead is not qualified from a real enquiry, so no opportunity was opened.");
+  }
+  const result = await applyProposedAction(
+    "close",
+    {
+      kind: "open_opportunity",
+      title: `Opportunity · ${companyName}`,
+      rationale: `${item.reason} A real enquiry and a qualified lead are on file.`,
+      confidence: 0.94,
+      amountCents: 0,
+      companyName,
+      relatedId: leadId,
+      payload: { score: intOf(item.payload.score) },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  return {
+    outcome:
+      result.status === "executed"
+        ? `Opened a sales opportunity for ${companyName}.`
+        : `The ${companyName} opportunity was not opened: ${result.status}.`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
+/** Put a published-rate quote on a real discovery. */
+const issueQuote: Runner = async (item) => {
+  const sql = await getSql();
+  const opportunityId = str(item.payload.opportunityId);
+  const companyName = str(item.payload.companyName);
+  const amountCents = intOf(item.payload.amountCents);
+  const rateId = str(item.payload.rateId);
+  const location = str(item.payload.location, "remote");
+  const quantity = Number(item.payload.quantity);
+  if (!opportunityId || !rateId || amountCents <= 0 || !Number.isFinite(quantity)) {
+    return noop("The quote work item is missing its opportunity, rate or amount.");
+  }
+  const state = await sql<{ stage: string; quote_count: number }>`
+    select o.stage,
+           (select count(*)::int from documents d
+            where d.kind = 'quote' and d.related_id = o.id) as quote_count
+    from opportunities o where o.id = ${opportunityId}
+  `.then((rows) => rows[0]);
+  if (!state) return noop("That opportunity is no longer on file.");
+  if (state.stage !== "discovery") return noop("The opportunity has already moved past discovery.");
+  if (Number(state.quote_count) > 0) return noop("That opportunity already has a quote.");
+  const result = await applyProposedAction(
+    "close",
+    {
+      kind: "issue_quote",
+      title: `Quote · ${companyName}`,
+      rationale: `${item.reason} Every line is published and the customer has not been promised an outcome.`,
+      confidence: 0.93,
+      amountCents,
+      companyName,
+      relatedId: opportunityId,
+      payload: {
+        rateId,
+        location,
+        quantity,
+        scope: Array.isArray(item.payload.scope) ? item.payload.scope : [],
+      },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  return {
+    outcome:
+      result.status === "executed"
+        ? `Issued a published-rate quote to ${companyName}. It is waiting on the quote notice.`
+        : `The ${companyName} quote was not issued: ${result.status}. ${result.error ?? ""}`.trim(),
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
+/** Raise the invoice for won work that has an accepted quote. */
+const issueWonInvoice: Runner = async (item) => {
+  const sql = await getSql();
+  const opportunityId = str(item.payload.opportunityId);
+  const companyName = str(item.payload.companyName);
+  const valueCents = intOf(item.payload.valueCents);
+  if (!opportunityId || valueCents <= 0)
+    return noop("The invoice work item has no opportunity value.");
+  const record = await sql<{ stage: string; accepted: number; invoiced: number }>`
+    select o.stage,
+           (select count(*)::int from documents d
+            where d.kind = 'quote' and d.status = 'accepted' and d.related_id = o.id) as accepted,
+           (select count(*)::int from ledger_entries l
+            where l.kind = 'invoice' and l.related_id = o.id) as invoiced
+    from opportunities o where o.id = ${opportunityId}
+  `.then((rows) => rows[0]);
+  if (!record) return noop("That opportunity is no longer on file.");
+  if (record.stage !== "won") return noop("The opportunity is not won, so no invoice was raised.");
+  if (Number(record.accepted) === 0) return noop("There is no accepted quote for this work.");
+  if (Number(record.invoiced) > 0) return noop("This work already has an invoice.");
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "issue_invoice",
+      title: `Invoice · ${companyName}`,
+      rationale: `${item.reason} The invoice is for the accepted quote figure.`,
+      confidence: 0.95,
+      amountCents: valueCents,
+      companyName,
+      relatedId: opportunityId,
+      payload: { vatTreatment: "none" },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  return {
+    outcome:
+      result.status === "executed"
+        ? `Raised the ${companyName} invoice for ${formatZar(valueCents)}.`
+        : `The ${companyName} invoice was not raised: ${result.status}. ${result.error ?? ""}`.trim(),
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
+/** Email the customer the invoice the office has just raised. */
+const sendInvoiceNotice: Runner = async (item) => {
+  const invoiceId = str(item.payload.invoiceId);
+  const companyName = str(item.payload.companyName);
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "send_customer_mail",
+      title: `Invoice · ${companyName}`,
+      rationale: "The invoice is on file and the customer has not been sent it.",
+      confidence: 0.94,
+      amountCents: 0,
+      companyName,
+      relatedId: invoiceId,
+      payload: { template: "invoice", invoiceId },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome: `The invoice notice to ${companyName} was not sent: ${result.status}.`,
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  return {
+    outcome: result.delivery?.ok
+      ? `Sent ${companyName} their invoice.`
+      : `Prepared the ${companyName} invoice notice and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
+/** Acknowledge a cleared receipt. */
+const sendReceiptNotice: Runner = async (item) => {
+  const receiptId = str(item.payload.receiptId);
+  const invoiceId = str(item.payload.invoiceId);
+  const companyName = str(item.payload.companyName);
+  const result = await applyProposedAction(
+    "ledger",
+    {
+      kind: "send_customer_mail",
+      title: `Receipt · ${companyName}`,
+      rationale: "The payment has been matched and the customer has not been sent a receipt.",
+      confidence: 0.95,
+      amountCents: 0,
+      companyName,
+      relatedId: receiptId,
+      payload: { template: "receipt", receiptId, invoiceId },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome: `The receipt notice to ${companyName} was not sent: ${result.status}.`,
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  return {
+    outcome: result.delivery?.ok
+      ? `Sent ${companyName} their receipt.`
+      : `Prepared the ${companyName} receipt and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
 /** The weekly look at the recurring-revenue book. */
 const reviewSubscriptionHealth: Runner = async (item) => {
   const result = await applyProposedAction(
@@ -1476,6 +1682,8 @@ export const RUNNERS: Record<string, Runner> = {
   prospect_from_site_signals: prospectFromSiteSignals,
   draft_campaign: draftCampaign,
   advance_discovery: advanceDiscovery,
+  open_sales_opportunity: openSalesOpportunity,
+  issue_quote: issueQuote,
   draft_quote_followup: draftQuoteFollowUp,
   review_cold_proposal: reviewColdProposal,
   nudge_invoice: nudgeInvoice,
@@ -1491,6 +1699,9 @@ export const RUNNERS: Record<string, Runner> = {
   halt_broken_chain: haltBrokenChain,
   report_scope_drift: reportScopeDrift,
   bill_subscription_cycle: billSubscriptionCycle,
+  issue_won_invoice: issueWonInvoice,
+  send_invoice_notice: sendInvoiceNotice,
+  send_receipt_notice: sendReceiptNotice,
   fulfil_service_cycle: fulfilServiceCycle,
   send_service_notice: sendServiceNotice,
   send_payment_reminder: sendPaymentReminder,

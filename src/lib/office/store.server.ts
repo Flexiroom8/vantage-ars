@@ -1205,6 +1205,13 @@ async function executeAuthorized(
           ${amount}, ${action.rationale}, ${approvalId ?? null}
         )
       `;
+      if (leadId) {
+        await sql`
+          update leads
+          set stage = 'in_sales', updated_at = now()
+          where id = ${leadId} and stage <> 'lost'
+        `;
+      }
       break;
     }
     case "issue_quote": {
@@ -1310,7 +1317,23 @@ async function executeAuthorized(
         `;
         return { documentId };
       }
-      break;
+      // One-off work gets the same invoice document a cycle does. The
+      // document is deliberately written inside the governed action, not by a
+      // caller afterwards, so an invoice can never exist without its paper.
+      const documentId = randomUUID();
+      const summary = invoiceCopy(companyName || "Counterparty", amount, documentRef(documentId), {
+        treatment: parseVatTreatment(action.payload.vatTreatment),
+        netCents: amount - vat,
+        vatCents: vat,
+      });
+      await sql`
+        insert into documents (id, title, kind, status, summary, related_id)
+        values (
+          ${documentId}, ${`Invoice · ${companyName || "Counterparty"}`},
+          'invoice', 'approved_unsent', ${summary}, ${action.relatedId ?? null}
+        )
+      `;
+      return { documentId };
     }
     case "record_expense": {
       const id = randomUUID();
@@ -1492,6 +1515,7 @@ async function executeAuthorized(
         quoteDocumentId: String(action.payload.quoteDocumentId ?? "") || null,
         subscriptionId: String(action.payload.subscriptionId ?? "") || null,
         invoiceId: String(action.payload.invoiceId ?? "") || null,
+        receiptId: String(action.payload.receiptId ?? "") || null,
         quoteToken,
       });
       if (!draft.ok) throw new Error(draft.error);
@@ -1499,13 +1523,13 @@ async function executeAuthorized(
       await sql`
         insert into customer_notices (
           id, document_id, subscription_id, cycle_id, company_name, template,
-          recipient, subject, body, status, created_at
+          recipient, subject, body, status, created_at, related_id
         ) values (
           ${id}, ${String(action.payload.quoteDocumentId ?? "") || null},
           ${String(action.payload.subscriptionId ?? "") || null},
           ${String(action.payload.cycleId ?? "") || null},
           ${companyName || null}, ${template}, ${draft.recipient}, ${draft.subject},
-          ${draft.body}, 'approved_unsent', now()
+          ${draft.body}, 'approved_unsent', now(), ${action.relatedId ?? null}
         )
       `;
       return { documentId: id };

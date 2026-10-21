@@ -154,6 +154,13 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     order by document_id, created_at desc
   `;
 
+  const notices = await sql<Record<string, unknown>>`
+    select id, template, status, related_id, company_name, created_at
+    from customer_notices
+    order by created_at desc
+    limit ${LIST_LIMIT}
+  `;
+
   const subscriptions = await sql<Record<string, unknown>>`
     select id, company_name, plan_id, rate_id, cycle, price_cents, status,
            next_billing_at, started_at, contact_email
@@ -174,7 +181,8 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
 
   const delegationRow = await sql<Record<string, unknown>>`
     select id, label, status, max_amount_cents, max_actions_per_day, max_actions_per_month,
-           allowed_actions_json, allow_customer_mail, allow_auto_reconcile, require_accepted_quote
+           allowed_actions_json, allowed_rate_ids_json, allow_customer_mail,
+           allow_auto_reconcile, require_accepted_quote
     from delegations
     where status <> 'revoked'
     order by updated_at desc
@@ -255,6 +263,14 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
       kind: text(row.kind),
       status: text(row.status),
       relatedId: row.related_id ? text(row.related_id) : null,
+      createdAt: iso(row.created_at),
+    })),
+    notices: notices.map((row) => ({
+      id: text(row.id),
+      template: text(row.template),
+      status: text(row.status),
+      relatedId: row.related_id ? text(row.related_id) : null,
+      companyName: row.company_name ? text(row.company_name) : null,
       createdAt: iso(row.created_at),
     })),
     campaigns: campaigns.map((row) => ({
@@ -341,6 +357,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
           maxActionsPerDay: int(delegationRow[0].max_actions_per_day),
           maxActionsPerMonth: int(delegationRow[0].max_actions_per_month),
           allowedActions: parseActions(delegationRow[0].allowed_actions_json),
+          allowedRateIds: parseActions(delegationRow[0].allowed_rate_ids_json),
           allowCustomerMail: delegationRow[0].allow_customer_mail === true,
           allowAutoReconcile: delegationRow[0].allow_auto_reconcile === true,
           requireAcceptedQuote: delegationRow[0].require_accepted_quote !== false,

@@ -374,6 +374,14 @@ async function main() {
   check("the invoice raises cleanly", raised.ok, JSON.stringify(raised));
   const twice = await raiseQuoteInvoice(opp.id, "none");
   check("a second invoice for the same job is refused", twice.ok === false, JSON.stringify(twice));
+  const invoiceDocuments = await sql`
+    select id, status from documents where kind = 'invoice' and related_id = ${opp.id}
+  `;
+  check(
+    "the unpaid invoice was filed with its ledger entry",
+    invoiceDocuments.length === 1 && invoiceDocuments[0].status === "approved_unsent",
+    JSON.stringify(invoiceDocuments),
+  );
 
   const afterInvoice = await sql`select treasury_cents, receivable_cents from company_state`;
   check(
@@ -1444,13 +1452,17 @@ async function main() {
     Number(claimedSent[0].n) === 0,
     JSON.stringify(claimedSent),
   );
-  const noticeBook = await listCustomerNotices();
+  const noticeBook = (await listCustomerNotices()).filter(
+    (notice) => notice.companyName === customer,
+  );
   check(
     "the office keeps a record of every notice it prepared",
     noticeBook.length >= 1 &&
       noticeBook.every((notice) => notice.recipient === "admin@harbourpoint.example") &&
       noticeBook.every((notice) => notice.status !== "sent"),
-    JSON.stringify(noticeBook.map((notice) => `${notice.template}:${notice.status}`)),
+    JSON.stringify(
+      noticeBook.map((notice) => `${notice.template}:${notice.status}:${notice.recipient}`),
+    ),
   );
 
   // ── 33. Revocation takes effect immediately ───────────────────────────────
