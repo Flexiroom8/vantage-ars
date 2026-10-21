@@ -22,14 +22,20 @@ function ChatDesk() {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
 
-  async function loadThreads() {
-    const rows = await listOfficeChats();
-    setThreads(rows);
-    setActive((current) => current ?? rows[0]?.id ?? null);
-  }
-
   useEffect(() => {
-    void loadThreads().catch(() => toast.error("The chats could not be loaded."));
+    let cancelled = false;
+    listOfficeChats()
+      .then((rows) => {
+        if (cancelled) return;
+        setThreads(rows);
+        setActive((current) => current ?? rows[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("The chats could not be loaded.");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 1,800/hour authenticated: a chat desk should feel live. The helper still

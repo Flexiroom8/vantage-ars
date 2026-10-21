@@ -30,8 +30,8 @@ export function CountUp({
     started.current = true;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      setShown(value);
-      return;
+      const frame = requestAnimationFrame(() => setShown(value));
+      return () => cancelAnimationFrame(frame);
     }
     const start = performance.now();
     let raf = 0;

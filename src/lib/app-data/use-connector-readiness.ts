@@ -55,8 +55,11 @@ export function useRefetchWhenConnectorReady(
   useEffect(() => {
     if (!waiting) return;
     if (!isFramed()) {
-      setNotEmbedded(true);
-      return () => setNotEmbedded(false);
+      const ready = setTimeout(() => setNotEmbedded(true), 0);
+      return () => {
+        clearTimeout(ready);
+        setNotEmbedded(false);
+      };
     }
     let cancelled = false;
     let refetching = false;

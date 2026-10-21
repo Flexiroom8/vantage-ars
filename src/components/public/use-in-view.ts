@@ -9,8 +9,8 @@ export function useInView<T extends HTMLElement>(rootMargin = "0px 0px -12% 0px"
     const node = ref.current;
     if (!node) return;
     if (typeof IntersectionObserver === "undefined") {
-      setInView(true);
-      return;
+      const frame = requestAnimationFrame(() => setInView(true));
+      return () => cancelAnimationFrame(frame);
     }
     const observer = new IntersectionObserver(
       (entries) => {

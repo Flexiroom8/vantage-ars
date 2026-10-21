@@ -39,13 +39,12 @@ function ChatPanel() {
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const openIt = () => setOpen(true);
+    const openIt = () => {
+      setName(localStorage.getItem(NAME_KEY) ?? "");
+      setOpen(true);
+    };
     window.addEventListener("vantage-open-chat", openIt);
     return () => window.removeEventListener("vantage-open-chat", openIt);
-  }, []);
-
-  useEffect(() => {
-    setName(localStorage.getItem(NAME_KEY) ?? "");
   }, []);
 
   const signature = useRef("");

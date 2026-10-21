@@ -25,8 +25,8 @@ export function DecodeText({
   useEffect(() => {
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      setShown(text);
-      return;
+      const frame = requestAnimationFrame(() => setShown(text));
+      return () => cancelAnimationFrame(frame);
     }
     let alive = true;
     let step = 0;

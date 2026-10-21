@@ -15,7 +15,7 @@ export const getSignInOptions = createServerFn({ method: "GET" }).handler(
     const [{ oauthEnabled }, { emailAndPasswordEnabled }, { founderSetupOpen }] = await Promise.all(
       [import("./server"), import("./email-password"), import("./founder-setup")],
     );
-    let setupOpen = false;
+    let setupOpen: boolean;
     try {
       setupOpen = emailAndPasswordEnabled && (await founderSetupOpen());
     } catch {

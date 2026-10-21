@@ -42,9 +42,12 @@ export function useChatPolling(options: PollOptions): void {
   const pullRef = useRef(pull);
   const changeRef = useRef(onChange);
   const errorRef = useRef(onError);
-  pullRef.current = pull;
-  changeRef.current = onChange;
-  errorRef.current = onError;
+
+  useEffect(() => {
+    pullRef.current = pull;
+    changeRef.current = onChange;
+    errorRef.current = onError;
+  });
 
   useEffect(() => {
     if (!enabled) return;

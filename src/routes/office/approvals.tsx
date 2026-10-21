@@ -102,34 +102,38 @@ async function fetchApprovalContext(approvalId: string): Promise<ApprovalContext
 
 type ContextStatus = "loading" | "ready" | "unavailable";
 
+type LoadedContext = {
+  approvalId: string;
+  context: ApprovalContext | null;
+  status: Exclude<ContextStatus, "loading">;
+};
+
 function useApprovalContext(approvalId: string): {
   context: ApprovalContext | null;
   status: ContextStatus;
 } {
-  const [context, setContext] = useState<ApprovalContext | null>(null);
-  const [status, setStatus] = useState<ContextStatus>("loading");
+  const [loaded, setLoaded] = useState<LoadedContext | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setContext(null);
-    setStatus("loading");
     fetchApprovalContext(approvalId)
-      .then((loaded) => {
+      .then((context) => {
         if (cancelled) return;
-        setContext(loaded);
-        setStatus("ready");
+        setLoaded({ approvalId, context, status: "ready" });
       })
       .catch(() => {
         if (cancelled) return;
-        setContext(null);
-        setStatus("unavailable");
+        setLoaded({ approvalId, context: null, status: "unavailable" });
       });
     return () => {
       cancelled = true;
     };
   }, [approvalId]);
 
-  return { context, status };
+  if (loaded?.approvalId === approvalId) {
+    return { context: loaded.context, status: loaded.status };
+  }
+  return { context: null, status: "loading" };
 }
 
 // ── Plain-language helpers ───────────────────────────────────────────────────

@@ -50,6 +50,10 @@ type NoticeRow = {
 
 type NoticeStatus = "approved_unsent" | "sent" | "not_delivered";
 
+function readRevenueBook() {
+  return Promise.allSettled([getRevenue(), getCustomerNotices()]);
+}
+
 function RevenuePage() {
   const [book, setBook] = useState<RevenueBook | null>(null);
   const [notices, setNotices] = useState<NoticeRow[]>([]);
@@ -57,29 +61,44 @@ function RevenuePage() {
   const [bookError, setBookError] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [revenue, sent] = await Promise.allSettled([getRevenue(), getCustomerNotices()]);
-    if (revenue.status === "fulfilled") {
-      setBook(revenue.value);
-      setBookError(null);
-    } else {
-      setBook(null);
-      setBookError("The recurring-revenue book could not be read from this session.");
-    }
-    if (sent.status === "fulfilled") {
-      setNotices(sent.value);
-      setNoticeError(null);
-    } else {
-      setNotices([]);
-      setNoticeError("The customer mail record could not be read from this session.");
-    }
-    setLoading(false);
-  }, []);
+  const apply = useCallback(
+    (revenue: PromiseSettledResult<RevenueBook>, sent: PromiseSettledResult<NoticeRow[]>) => {
+      if (revenue.status === "fulfilled") {
+        setBook(revenue.value);
+        setBookError(null);
+      } else {
+        setBook(null);
+        setBookError("The recurring-revenue book could not be read from this session.");
+      }
+      if (sent.status === "fulfilled") {
+        setNotices(sent.value);
+        setNoticeError(null);
+      } else {
+        setNotices([]);
+        setNoticeError("The customer mail record could not be read from this session.");
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+    void readRevenueBook().then(([revenue, sent]) => {
+      if (cancelled) return;
+      apply(revenue, sent);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [apply]);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const [revenue, sent] = await readRevenueBook();
+    apply(revenue, sent);
+    setLoading(false);
+  }, [apply]);
 
   const metrics = book?.metrics ?? null;
   const subscriptions = book?.subscriptions ?? [];
@@ -106,7 +125,7 @@ function RevenuePage() {
             size="sm"
             className="ml-3"
             disabled={loading}
-            onClick={() => void load()}
+            onClick={() => void refresh()}
           >
             {loading ? "Reading…" : "Try again"}
           </Button>
@@ -150,7 +169,7 @@ function RevenuePage() {
               <SubscriptionsTable
                 rows={subscriptions}
                 planTitles={planTitles}
-                onEnded={() => void load()}
+                onEnded={() => void refresh()}
               />
             ) : (
               <EmptyState

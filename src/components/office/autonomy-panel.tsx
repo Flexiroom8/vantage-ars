@@ -46,8 +46,12 @@ const readAutonomy = createServerFn({ method: "GET" })
     const dead = described.filter(
       (item) => item.status === "abandoned" || item.status === "failed",
     );
+    const overdueMinutes = status.lastTickAt
+      ? Math.max(0, Math.round((Date.now() - Date.parse(status.lastTickAt)) / 60_000))
+      : null;
     return {
       lastTickAt: status.lastTickAt,
+      overdueMinutes,
       consecutiveFailures: status.consecutiveFailures,
       posture: status.posture,
       budget: status.budget,
@@ -172,9 +176,7 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
   }
 
   const dueNow = data.dueDuties.filter((duty) => duty.dueInMinutes <= 0);
-  const overdueMinutes = data.lastTickAt
-    ? Math.round((Date.now() - Date.parse(data.lastTickAt)) / 60_000)
-    : null;
+  const overdueMinutes = data.overdueMinutes;
   const stale = data.autonomyOn && (overdueMinutes === null || overdueMinutes > 180);
   const broken = data.consecutiveFailures >= 3;
 

@@ -84,7 +84,7 @@ function parseClaimedCents(value: string): number {
   if (!cleaned) return 0;
   const lastComma = cleaned.lastIndexOf(",");
   const lastDot = cleaned.lastIndexOf(".");
-  let normalised = cleaned;
+  let normalised: string;
   if (lastComma > lastDot) {
     normalised = `${cleaned.slice(0, lastComma).replace(/[.,]/g, "")}.${cleaned.slice(lastComma + 1)}`;
   } else if (lastDot > lastComma) {

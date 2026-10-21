@@ -409,6 +409,7 @@ export function ensureDbReady(): Promise<void> {
           "Run `npm run db:migrate` against that database (it runs automatically " +
           "during `npm run build` and on container start). Cause: " +
           (err instanceof Error ? err.message : String(err)),
+        { cause: err },
       );
     }
   })();
