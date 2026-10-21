@@ -11,12 +11,29 @@
  *   3. **Execute.** Drain each agent's queue through the governor, record every
  *      run, and keep the office's own bookkeeping current.
  *
+ * The pace is adaptive. An idle office drains a small budget, ordinary work
+ * gets the standard budget, and a queue or a waiting customer puts the office
+ * into surge, where customer-response duties run sooner and the drain budget
+ * rises. Repeated failures put it into recovery, where the budget shrinks. A
+ * circuit-breaker that has had a clean cooldown probes the database, the chain
+ * and the halt state, then resumes itself at the recovery budget.
+ *
  * The tick is safe to run concurrently and repeatedly: duties are deduped by a
  * database constraint, work items are claimed atomically, and the state row is
  * only advanced after the work is filed.
  */
 import { randomUUID } from "node:crypto";
 import { databaseHealth, getSql } from "../db";
+import {
+  autonomyBudget,
+  autonomySignals,
+  effectiveCadenceForPosture,
+  effectiveCadenceMinutes,
+  isAutonomyPosture,
+  RECOVERY_COOLDOWN_MINUTES,
+  shouldRecoverFromBreaker,
+  type AutonomyPosture,
+} from "./autonomy";
 import { COMPANY } from "./company";
 import { DUTY_CADENCE_MINUTES, DUTY_OWNER, DUTY_TITLES, planDuty, type DutyId } from "./duties";
 import { readDutyView } from "./office-view.server";
@@ -33,8 +50,6 @@ import {
 } from "./work-queue.server";
 import { ensureOffice, appendAudit } from "./store.server";
 
-/** How many items one tick will drain per agent. Keeps a tick bounded. */
-const MAX_ITEMS_PER_AGENT = 8;
 /** Consecutive failing ticks before the scheduler refuses to keep trying. */
 export const FAILURE_LIMIT = 5;
 
@@ -42,6 +57,9 @@ export type TickResult = {
   ok: boolean;
   ranAt: string;
   skipped?: string;
+  posture: AutonomyPosture;
+  budget: { maxItemsPerAgent: number; maxItemsTotal: number };
+  recovered: boolean;
   planned: number;
   executed: number;
   escalated: number;
@@ -73,24 +91,42 @@ async function readDutyState(): Promise<Record<string, string>> {
   }
 }
 
-async function writeDutyState(state: Record<string, string>, failures: number): Promise<void> {
+async function writeDutyState(
+  state: Record<string, string>,
+  failures: number,
+  posture: AutonomyPosture,
+  budget: number,
+): Promise<void> {
   const sql = await getSql();
   await sql`
-    insert into office_state (id, last_tick_at, last_tick_detail, duty_state_json, consecutive_failures)
-    values (${COMPANY.id}, now(), ${`tick recorded`}, ${JSON.stringify(state)}, ${failures})
+    insert into office_state (
+      id, last_tick_at, last_tick_detail, duty_state_json, consecutive_failures,
+      last_posture, last_budget
+    )
+    values (
+      ${COMPANY.id}, now(), ${`tick recorded`}, ${JSON.stringify(state)}, ${failures},
+      ${posture}, ${budget}
+    )
     on conflict (id) do update set
       last_tick_at = now(),
       duty_state_json = excluded.duty_state_json,
       consecutive_failures = excluded.consecutive_failures,
+      last_posture = excluded.last_posture,
+      last_budget = excluded.last_budget,
       updated_at = now()
   `;
 }
 
-function due(duty: DutyId, lastRun: string | undefined, now: string): boolean {
+function due(
+  duty: DutyId,
+  lastRun: string | undefined,
+  now: string,
+  cadenceMinutes: number,
+): boolean {
   if (!lastRun) return true;
   const elapsed = Date.parse(now) - Date.parse(lastRun);
   if (!Number.isFinite(elapsed)) return true;
-  return elapsed >= DUTY_CADENCE_MINUTES[duty] * 60_000;
+  return elapsed >= cadenceMinutes * 60_000;
 }
 
 export async function tick(options: { now?: string } = {}): Promise<TickResult> {
@@ -98,6 +134,9 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
   const empty: TickResult = {
     ok: true,
     ranAt: now,
+    posture: "idle",
+    budget: { maxItemsPerAgent: 0, maxItemsTotal: 0 },
+    recovered: false,
     planned: 0,
     executed: 0,
     escalated: 0,
@@ -120,28 +159,67 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
   }
 
   const sql = await getSql();
-  const prior = await sql<{ consecutive_failures: number }>`
-    select consecutive_failures from office_state where id = ${COMPANY.id}
+  const prior = await sql<{ consecutive_failures: number; last_tick_at: string | null }>`
+    select consecutive_failures, last_tick_at from office_state where id = ${COMPANY.id}
   `;
-  const consecutiveFailures = Number(prior[0]?.consecutive_failures ?? 0);
-  if (consecutiveFailures >= FAILURE_LIMIT) {
-    return {
-      ...empty,
-      ok: false,
-      skipped: "circuit-breaker",
-      detail: `The scheduler has failed ${consecutiveFailures} ticks in a row and is refusing to act. Inspect the office before it runs again.`,
-    };
+  const priorFailures = Number(prior[0]?.consecutive_failures ?? 0);
+  let consecutiveFailures = priorFailures;
+  const lastTickMs = prior[0]?.last_tick_at ? Date.parse(String(prior[0].last_tick_at)) : NaN;
+  const minutesSinceTick = Number.isFinite(lastTickMs)
+    ? (Date.parse(now) - lastTickMs) / 60_000
+    : null;
+  const chainBroken = !view.chainIntact;
+  let recovered = false;
+
+  if (consecutiveFailures >= FAILURE_LIMIT && !chainBroken) {
+    if (
+      !shouldRecoverFromBreaker(
+        minutesSinceTick,
+        consecutiveFailures,
+        FAILURE_LIMIT,
+        RECOVERY_COOLDOWN_MINUTES,
+      )
+    ) {
+      return {
+        ...empty,
+        ok: false,
+        skipped: "circuit-breaker",
+        detail: `The scheduler has failed ${consecutiveFailures} ticks in a row and is refusing to act. A clean probe is allowed after ${RECOVERY_COOLDOWN_MINUTES} minutes.`,
+      };
+    }
+    consecutiveFailures = 0;
+    recovered = true;
+    await appendAudit(
+      "scheduler_recovered",
+      "Scheduler recovered by self-check",
+      `The scheduler had failed ${priorFailures} ticks in a row. The database, audit chain and halt state were clean after ${Math.round(minutesSinceTick ?? RECOVERY_COOLDOWN_MINUTES)} minutes, so it cleared the breaker and resumed at the recovery budget.`,
+      "vantage",
+    );
   }
 
   // Anything a dead worker left mid-flight goes back on the queue.
-  const reclaimed = await releaseStaleWork();
+  const reclaimed = chainBroken ? 0 : await releaseStaleWork();
+
+  const signals = autonomySignals(view, consecutiveFailures);
+  const budget = autonomyBudget(signals, recovered || chainBroken);
 
   const dutyState = await readDutyState();
   let planned = 0;
 
   // ── Plan ────────────────────────────────────────────────────────────────────
   for (const duty of DUTY_IDS) {
-    if (!due(duty, dutyState[duty], now)) continue;
+    if (chainBroken) {
+      if (duty !== "seal_chain_verify") continue;
+    } else if (
+      !due(
+        duty,
+        dutyState[duty],
+        now,
+        effectiveCadenceMinutes(duty, DUTY_CADENCE_MINUTES[duty], budget),
+      )
+    ) {
+      continue;
+    }
     let work: ReturnType<typeof planDuty>;
     try {
       work = planDuty(duty, view);
@@ -170,14 +248,16 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
   let escalated = 0;
   let blocked = 0;
   let failed = 0;
+  let totalRun = 0;
 
-  const owners = [...new Set(DUTY_IDS.map((duty) => DUTY_OWNER[duty]))];
+  const owners = chainBroken ? ["seal"] : [...new Set(DUTY_IDS.map((duty) => DUTY_OWNER[duty]))];
   for (const agentId of owners) {
     let itemsRun = 0;
-    while (itemsRun < MAX_ITEMS_PER_AGENT) {
+    while (itemsRun < budget.maxItemsPerAgent && totalRun < budget.maxItemsTotal) {
       const item: WorkItem | null = await claimWork(agentId);
       if (!item) break;
       itemsRun += 1;
+      totalRun += 1;
       const runner = RUNNERS[item.kind];
       if (!runner) {
         await completeWork(
@@ -245,12 +325,22 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
 
   // Keep finished work from piling up forever: agent_runs is the durable history,
   // the work table is a queue.
-  const pruned = await pruneWork();
+  const pruned = chainBroken ? 0 : await pruneWork();
 
-  await writeDutyState(dutyState, failed > 0 ? consecutiveFailures + 1 : 0);
+  await writeDutyState(
+    dutyState,
+    failed > 0 ? consecutiveFailures + 1 : 0,
+    budget.posture,
+    budget.maxItemsTotal,
+  );
 
   const counts = await workCounts();
   const detail = [
+    `Pace: ${budget.posture} (${budget.maxItemsPerAgent} per agent, ${budget.maxItemsTotal} total).`,
+    recovered ? "The circuit breaker was cleared by a clean probe." : "",
+    chainBroken
+      ? "The audit chain does not verify; only SEAL ran and no ordinary work was planned."
+      : "",
     `Duties due and planned: ${planned} new item(s).`,
     ran.length
       ? ran.map((entry) => `${entry.owner}: ${entry.note}`).join(" ")
@@ -265,7 +355,20 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
     .filter(Boolean)
     .join(" ");
 
-  return { ok: true, ranAt: now, planned, executed, escalated, blocked, failed, ran, detail };
+  return {
+    ok: true,
+    ranAt: now,
+    posture: budget.posture,
+    budget: { maxItemsPerAgent: budget.maxItemsPerAgent, maxItemsTotal: budget.maxItemsTotal },
+    recovered,
+    planned,
+    executed,
+    escalated,
+    blocked,
+    failed,
+    ran,
+    detail,
+  };
 }
 
 async function recordRun(input: {
@@ -298,6 +401,8 @@ async function recordRun(input: {
 export type SchedulerStatus = {
   lastTickAt: string | null;
   consecutiveFailures: number;
+  posture: AutonomyPosture;
+  budget: number;
   dutyState: Record<string, string>;
   dueDuties: {
     duty: DutyId;
@@ -321,7 +426,8 @@ export type SchedulerStatus = {
 export async function schedulerStatus(): Promise<SchedulerStatus> {
   const sql = await getSql();
   const state = await sql<Record<string, unknown>>`
-    select last_tick_at, consecutive_failures, duty_state_json from office_state where id = ${COMPANY.id}
+    select last_tick_at, consecutive_failures, duty_state_json, last_posture, last_budget
+    from office_state where id = ${COMPANY.id}
   `.then((rows) => rows[0] ?? {});
   const queue = await workCounts();
   const runs = await sql<Record<string, unknown>>`
@@ -337,12 +443,16 @@ export async function schedulerStatus(): Promise<SchedulerStatus> {
     dutyState = {};
   }
 
+  const posture: AutonomyPosture = isAutonomyPosture(state.last_posture)
+    ? state.last_posture
+    : "idle";
   const now = Date.now();
   const dueDuties = DUTY_IDS.map((duty) => {
     const lastRunAt = dutyState[duty] ?? null;
     const elapsed = lastRunAt ? now - Date.parse(lastRunAt) : Infinity;
+    const cadence = effectiveCadenceForPosture(duty, DUTY_CADENCE_MINUTES[duty], posture);
     const dueInMinutes = Number.isFinite(elapsed)
-      ? Math.max(0, Math.round((DUTY_CADENCE_MINUTES[duty] * 60_000 - elapsed) / 60_000))
+      ? Math.max(0, Math.round((cadence * 60_000 - elapsed) / 60_000))
       : 0;
     return {
       duty,
@@ -356,6 +466,8 @@ export async function schedulerStatus(): Promise<SchedulerStatus> {
   return {
     lastTickAt: state.last_tick_at ? new Date(String(state.last_tick_at)).toISOString() : null,
     consecutiveFailures: Number(state.consecutive_failures ?? 0),
+    posture,
+    budget: Number(state.last_budget ?? 0),
     dutyState,
     dueDuties,
     queue,

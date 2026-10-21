@@ -13,6 +13,38 @@ actually on the books, is there a real thing worth doing?**
 An empty answer is a successful run. Most of the time, the honest answer is that
 nothing needed doing, and the office says so rather than manufacturing activity.
 
+## The pace
+
+The office does not run every tick at the same width. It reads the state it is
+about to work on and chooses a posture: `idle`, `steady`, `surge` or `recovery`.
+The posture sets how many items each agent may run, how many the tick may run in
+total, and whether customer-response duties may run at half their normal
+cadence. It never widens what an agent is allowed to do — the governor still
+sits in front of every action.
+
+| Posture  | Per agent | Per tick | Response cadence | Chosen when                                                                                              |
+| -------- | --------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| idle     | 4         | 24       | normal           | nothing is waiting                                                                                       |
+| steady   | 8         | 48       | normal           | ordinary queued or due work                                                                            |
+| surge    | 12        | 72       | half, floor 5m   | a live P0/P1 ticket, a customer waiting, an undelivered billed period, or a queue of 12 open / 8 due   |
+| recovery | 3         | 18       | normal           | three consecutive failing ticks, or the tick that clears the circuit breaker                            |
+
+A "customer waiting" is an unanswered inbound item older than thirty minutes or
+a chat older than twenty. An "undelivered billed period" is a period the office
+has invoiced but not yet delivered. These are facts from the office's own
+tables, not a target the scheduler invents. During a surge only duties that
+answer or deliver to a customer are accelerated: `foyer_intake`,
+`close_win_handoff`, `close_quote_notice`, `desk_acknowledge`,
+`desk_sla_watch`, `desk_chat_reply`, `desk_service_fulfilment`,
+`desk_service_notice`, `ledger_payment_notices` and
+`ledger_subscription_billing`.
+
+The budgets are per tick, not per day. The per-agent cap stops one agent from
+draining the whole tick; the total cap stops the tick from running until the
+timer fires again. Both are recorded with the posture on `office_state`, so the
+founder's autonomy panel shows the pace the scheduler actually chose rather than
+reconstructing it from the queue afterwards.
+
 ```
                  ┌──────────────┐
    GET           │  /api/cron   │  Bearer CRON_SECRET, AUTONOMY=on
@@ -245,11 +277,17 @@ Five independent brakes, any one of which is sufficient:
    plans anything while halted, and a halted office refuses queued approvals.
 2. **Database health.** A tick refuses to run if the database is unreachable or
    the schema is missing, rather than planning work it cannot record.
-3. **The audit chain.** SEAL verifies the whole hash chain every twelve hours. A
-   failure halts the office and alerts the founder, because an office that cannot
+3. **The audit chain.** Every tick refuses ordinary work when the chain does not
+   verify: only SEAL runs, and the seal duty halts the office. SEAL also verifies
+   the whole hash chain on its twelve-hour cadence, because an office that cannot
    prove what it did must not keep acting.
-4. **A circuit breaker.** Five consecutive failing ticks and the scheduler
-   refuses to act again until someone looks.
+4. **A circuit breaker, with a self-check.** Five consecutive failing ticks and
+   the scheduler refuses to act. After a thirty-minute cooldown it may make one
+   clean probe — the real database, the chain and the halt state — and if they
+   are healthy it clears the breaker, writes `scheduler_recovered` to the audit
+   chain and resumes at the recovery budget. If the probe is not clean, the
+   breaker stays closed. Three consecutive failures already slow the office to
+   the recovery budget before the breaker trips.
 5. **The governor.** Role separation, published pricing, dignity,
    non-discrimination, confidence floors, and the founder gates on cost, customer
    win, customer loss and marketing-to-sales handoff — applied to every single
@@ -322,5 +360,5 @@ npm run verify:office
 
 This boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did — 198 checks, no mocks, no
+asserts on what the real agents actually did — 208 checks, no mocks, no
 fixtures.

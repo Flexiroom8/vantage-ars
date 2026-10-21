@@ -49,6 +49,8 @@ const readAutonomy = createServerFn({ method: "GET" })
     return {
       lastTickAt: status.lastTickAt,
       consecutiveFailures: status.consecutiveFailures,
+      posture: status.posture,
+      budget: status.budget,
       autonomyOn: process.env.AUTONOMY?.trim().toLowerCase() === "on",
       dueDuties: status.dueDuties,
       recentRuns: status.recentRuns.slice(0, 8).map((run) => ({
@@ -78,6 +80,13 @@ const triggerRun = createServerFn({ method: "POST" })
   });
 
 type Autonomy = Awaited<ReturnType<typeof readAutonomy>>;
+
+const POSTURE_LABEL: Record<Autonomy["posture"], string> = {
+  idle: "Idle",
+  steady: "Steady",
+  surge: "Surge",
+  recovery: "Recovery",
+};
 
 export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
   const [data, setData] = useState<Autonomy | null>(null);
@@ -183,11 +192,17 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
         </Button>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-5">
         <Stat
           label="Last run"
           value={data.lastTickAt ? formatRelative(data.lastTickAt) : "never"}
           warn={stale}
+        />
+        <Stat
+          label="Pace"
+          value={POSTURE_LABEL[data.posture]}
+          hint={data.budget > 0 ? `${data.budget} items` : undefined}
+          warn={data.posture === "recovery"}
         />
         <Stat label="Queued" value={String(data.counts.open)} />
         <Stat
@@ -211,6 +226,13 @@ export function AutonomyPanel({ refreshToken }: { refreshToken?: number }) {
           The scheduler has not run in{" "}
           {overdueMinutes === null ? "this deployment" : `${overdueMinutes} minutes`}. Nothing will
           be planned or executed until it does.
+        </p>
+      ) : null}
+
+      {data.posture === "recovery" ? (
+        <p className="mt-4 border border-warn/30 bg-warn/5 px-3 py-2 text-xs text-warn">
+          Recovery pace: the office is limiting itself after repeated failures. It probes its
+          database, chain and halt state again after a cooldown, and resumes only if they are clean.
         </p>
       ) : null}
 

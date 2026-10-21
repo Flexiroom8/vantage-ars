@@ -530,6 +530,12 @@ async function main() {
     status.recentRuns.length > 5,
     String(status.recentRuns.length),
   );
+  check(
+    "the scheduler reports the pace it chose",
+    ["idle", "steady", "surge", "recovery"].includes(status.posture) &&
+      Number.isFinite(status.budget),
+    `${status.posture} / ${status.budget}`,
+  );
 
   // ── 18. Marketing finds demand in the site's own traffic ───────────────────
   // Real visitor records, exactly what the public site writes. Two visits to a
@@ -1718,6 +1724,72 @@ async function main() {
     String(head4[0].last_audit_hash),
   );
   check("the chain still verifies after the redrive", verdict4.ok, verdict4.detail);
+
+  // ── 23. A broken scheduler recovers itself after a clean probe ─────────────
+  await sql`
+    update office_state
+    set consecutive_failures = 5, last_tick_at = now() - interval '40 minutes'
+    where id = 'vantage-ars'
+  `;
+  const recoveryTick = await tick({ now: at() });
+  check("a cooled-down breaker allows a recovery tick", recoveryTick.ok, recoveryTick.detail);
+  check("the recovery is marked as such", recoveryTick.recovered, String(recoveryTick.recovered));
+  check(
+    "the recovery tick runs at the recovery pace",
+    recoveryTick.posture === "recovery",
+    String(recoveryTick.posture),
+  );
+  const recoveredState = await sql`
+    select consecutive_failures, last_posture, last_budget
+    from office_state where id = 'vantage-ars'
+  `;
+  check(
+    "the breaker is cleared after a clean probe",
+    Number(recoveredState[0]?.consecutive_failures ?? 99) < 5,
+    String(recoveredState[0]?.consecutive_failures),
+  );
+  check(
+    "the recovery pace is visible to the founder",
+    recoveredState[0]?.last_posture === "recovery" && Number(recoveredState[0]?.last_budget) === 18,
+    `${recoveredState[0]?.last_posture} / ${recoveredState[0]?.last_budget}`,
+  );
+  const recoveryEvents = await sql`
+    select kind, body, actor from audit_events where kind = 'scheduler_recovered'
+  `;
+  check(
+    "the recovery is on the audit chain",
+    recoveryEvents.length === 1,
+    String(recoveryEvents.length),
+  );
+  check(
+    "the chain records the failures that triggered recovery",
+    String(recoveryEvents[0]?.body ?? "").includes("5 ticks"),
+    String(recoveryEvents[0]?.body ?? ""),
+  );
+  check(
+    "the chain says the office recovered itself",
+    recoveryEvents[0]?.actor === "vantage",
+    String(recoveryEvents[0]?.actor ?? ""),
+  );
+
+  const chain5 = await sql`
+    select id, previous_hash, record_hash, created_at from (
+      select id, previous_hash, record_hash, created_at from audit_events
+      union all
+      select id, previous_hash, record_hash, created_at from decisions
+    ) c order by created_at asc
+  `;
+  const head5 = await sql`select last_audit_hash from company_state`;
+  const verdict5 = verifyChainLinks(
+    chain5.map((row) => ({
+      id: String(row.id),
+      previousHash: String(row.previous_hash),
+      recordHash: String(row.record_hash),
+      createdAt: new Date(row.created_at).toISOString(),
+    })),
+    String(head5[0].last_audit_hash),
+  );
+  check("the chain still verifies after self-recovery", verdict5.ok, verdict5.detail);
 
   // ── Result ─────────────────────────────────────────────────────────────────
   const passed = checks.length - failures;

@@ -141,6 +141,8 @@ export type OfficeHealth = {
     minutesSinceTick: number | null;
     overdue: boolean;
     consecutiveFailures: number;
+    posture: "idle" | "steady" | "surge" | "recovery";
+    budget: number;
     dutiesDue: number;
     duties: number;
   };
@@ -246,6 +248,8 @@ export async function officeHealth(options: { full?: boolean } = {}): Promise<Of
         minutesSinceTick: null,
         overdue: autonomyEnabled,
         consecutiveFailures: 0,
+        posture: "recovery",
+        budget: 0,
         dutiesDue: 0,
         duties: 0,
       },
@@ -379,6 +383,8 @@ export async function officeHealth(options: { full?: boolean } = {}): Promise<Of
       minutesSinceTick,
       overdue,
       consecutiveFailures: status.consecutiveFailures,
+      posture: status.posture,
+      budget: status.budget,
       dutiesDue: status.dueDuties.filter((duty) => duty.dueInMinutes <= 0).length,
       duties: status.dueDuties.length,
     },

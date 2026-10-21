@@ -2,6 +2,30 @@
 
 All notable changes to Vantage-ARS.
 
+## 4.7.0 — 2026-10-21
+
+### Added
+
+**The office chooses its own pace.** A new pure policy in `src/lib/office/autonomy.ts` reads the state the scheduler is about to work on — queued and due items, live P0/P1 tickets, inbound and chat waits, billed periods not yet delivered, and consecutive failures — and picks one of four postures. `idle` is a quiet office, `steady` is ordinary work, `surge` is a customer waiting or a queue building, and `recovery` follows repeated failure. Each posture sets a per-agent cap, a per-tick total and, during a surge, halves the cadence of the duties that answer or deliver to customers. The budgets are bounds on one tick, not a daily target, and they never widen the governor.
+
+**A broken scheduler can recover itself.** Five consecutive failing ticks still open the circuit breaker, but the breaker is no longer a dead end. After a thirty-minute cooldown one clean tick probes the real database, the audit chain and the halt state. If they are healthy it clears the failures, writes `scheduler_recovered` to the audit chain and resumes at the recovery budget; if not, it stays closed. The opportunistic nudge now permits that single probe, so an office with no person watching can come back on its own.
+
+**The audit chain is checked before every tick.** The docs claimed a broken chain stopped work, but the scheduler did not read `chainIntact`. It does now: when the chain fails to verify, no ordinary duty is planned, stale work is not reclaimed and only SEAL runs — and the SEAL duty halts the office.
+
+**The founder can see the pace.** The autonomy panel shows the posture and the tick budget, and warns when the office is in recovery. `schedulerStatus()` and `/api/health` carry the same fields. `migrations/0013_adaptive_autonomy.sql` stores `last_posture` and `last_budget` on `office_state`, so the panel reads what the scheduler actually did.
+
+### Changed
+
+**The scheduler's `TickResult` reports its decision.** `posture`, `budget` and `recovered` are part of the result, not inferred afterwards. The scheduler detail line names the pace, a recovery and a broken chain.
+
+**`writeDutyState()` records posture and budget** alongside the duty clock, and `due()` accepts the cadence the posture chose rather than always reading the base cadence.
+
+### Verification
+
+- `npm test`: 584 unit checks, then the real-office verification, exit 0.
+- `npm run verify:office`: 208 checks, including a forced breaker, a clean probe and recovery written to the chain.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` and `npm run build:ci`.
+
 ## 4.6.0 — 2026-10-21
 
 ### Added

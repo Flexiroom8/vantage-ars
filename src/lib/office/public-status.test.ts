@@ -6,7 +6,7 @@ function healthy(overrides: Partial<PublicStatusInput> = {}): PublicStatusInput 
   return {
     checkedAt: "2026-10-21T09:00:00.000Z",
     company: "Vantage-ARS",
-    version: "4.6.0",
+    version: "4.7.0",
     halted: false,
     database: { ok: true },
     chain: { ok: true },
@@ -24,7 +24,7 @@ describe("public status", () => {
     assert.equal(status.checks.length, 5);
     assert.ok(status.checks.every((check) => check.ok));
     assert.equal(status.checkedAt, "2026-10-21T09:00:00.000Z");
-    assert.equal(status.version, "4.6.0");
+    assert.equal(status.version, "4.7.0");
   });
 
   it("degrades when the database cannot be read", () => {
