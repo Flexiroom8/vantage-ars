@@ -14,7 +14,17 @@ describe("guard", () => {
     assert.equal(str("abcdef", 3), "abc");
   });
 
-  it("prefers edge headers and ignores a spoofed first forwarded hop", () => {
+  it("prefers platform headers and ignores a spoofed first forwarded hop", () => {
+    assert.equal(
+      clientKey(
+        headers({
+          "x-vercel-forwarded-for": "8.8.8.8",
+          "cf-connecting-ip": "1.2.3.4",
+          "x-forwarded-for": "9.9.9.9",
+        }),
+      ),
+      "8.8.8.8",
+    );
     assert.equal(
       clientKey(headers({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9" })),
       "1.2.3.4",

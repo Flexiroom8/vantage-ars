@@ -4,10 +4,13 @@ import { PublicFrame } from "@/components/public/site-frame";
 import { FormConfirmation } from "@/components/public/form-confirmation";
 import { EnquiryForm } from "@/components/public/enquiry-form";
 import {
+  CloudIcon,
   InfraIcon,
   LiveNode,
   NetworkIcon,
   QuoteIcon,
+  RestoreIcon,
+  ShieldIcon,
   SignalBars,
   VoipIcon,
 } from "@/components/public/motion-icons";
@@ -27,7 +30,15 @@ import { SERVICE_LINES, publicRateRows, rateAmount, ratesByIds } from "@/lib/off
 import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 import { COMPANY } from "@/lib/office/company";
 
-const LINE_ICONS = [VoipIcon, NetworkIcon, InfraIcon, SignalBars] as const;
+const LINE_ICONS = [
+  VoipIcon,
+  NetworkIcon,
+  InfraIcon,
+  SignalBars,
+  CloudIcon,
+  ShieldIcon,
+  RestoreIcon,
+] as const;
 
 /** Every service line, paired with the page that explains it. */
 const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
@@ -43,6 +54,8 @@ const MANAGED_RATE_IDS = [
   "handover-pack",
   "continuity-plan",
   "sla-review",
+  "quarterly-review",
+  "fault-pattern-review",
 ];
 
 const STEPS = [
@@ -511,6 +524,7 @@ function PaymentForm({ payment }: { payment: unknown }) {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (pending) return;
     setPending(true);
     setError(null);
 
@@ -641,7 +655,11 @@ function PaymentForm({ payment }: { payment: unknown }) {
         />
       </div>
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      ) : null}
 
       {allMethodsAwaitBankDetails(methods) ? (
         <p className="text-xs text-subtle">Bank details are sent with your quote or invoice.</p>

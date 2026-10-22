@@ -28,6 +28,7 @@ const ADVISED_ENV = [
   "PAYMENT_SWIFT",
   "GMAIL_SMTP_USER",
   "GMAIL_SMTP_APP_PASSWORD",
+  "FOUNDER_WEBHOOK_URL",
 ] as const;
 
 /**

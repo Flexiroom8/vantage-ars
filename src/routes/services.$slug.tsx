@@ -7,10 +7,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  CloudIcon,
   InfraIcon,
   NetworkIcon,
   NoTiesIcon,
   QuoteIcon,
+  RestoreIcon,
+  ShieldIcon,
   SignalBars,
   VoipIcon,
 } from "@/components/public/motion-icons";
@@ -32,6 +35,9 @@ const SLUG_ICONS = {
   networking: NetworkIcon,
   "it-infrastructure": InfraIcon,
   "managed-support": SignalBars,
+  "cloud-email": CloudIcon,
+  security: ShieldIcon,
+  "backup-recovery": RestoreIcon,
 } as const;
 
 const VALUE_PROPS = [

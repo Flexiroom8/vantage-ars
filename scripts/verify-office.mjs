@@ -248,6 +248,14 @@ async function main() {
       .every((doc) => doc.status === "draft"),
     JSON.stringify(internalDocs),
   );
+  const discoveryTitles = internalDocs
+    .filter((doc) => /Discovery/.test(doc.title))
+    .map((doc) => doc.title);
+  check(
+    "discovery is filed once per company, not on every scheduler tick",
+    new Set(discoveryTitles).size === discoveryTitles.length,
+    JSON.stringify(discoveryTitles),
+  );
 
   // ── 7. Sales issues a quote at the published rate, founder-gated ───────────
   const quote = await applyProposedAction(
@@ -340,6 +348,19 @@ async function main() {
     note: "Please proceed.",
   });
   check("the customer's acceptance closed the deal", answer.ok, JSON.stringify(answer));
+  const acceptedSnapshot = await sql`
+    select amount_cents, accepted_at from documents where id = ${quoteDoc[0].id}
+  `;
+  check(
+    "the accepted quote keeps the figure the customer agreed to",
+    Number(acceptedSnapshot[0]?.amount_cents) === answer.amountCents,
+    JSON.stringify(acceptedSnapshot),
+  );
+  check(
+    "the quote records when the customer accepted it",
+    Boolean(acceptedSnapshot[0]?.accepted_at),
+    JSON.stringify(acceptedSnapshot),
+  );
 
   const second = await answerPublicQuote(link.token, {
     outcome: "accepted",
@@ -1226,7 +1247,11 @@ async function main() {
       subscription.cycle === "monthly",
     JSON.stringify(subscription),
   );
-  const acceptedAt = new Date(quoteRow.created_at).toISOString();
+  const acceptedQuote = await sql`
+    select coalesce(accepted_at, created_at) as accepted_at
+    from documents where id = ${quoteRow.id}
+  `;
+  const acceptedAt = new Date(acceptedQuote[0].accepted_at).toISOString();
   check(
     "the subscription bills one cycle after the acceptance",
     Boolean(subscription) &&

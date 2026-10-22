@@ -34,13 +34,29 @@ const REPORTS_FAULTS = [
   "service-report",
   "handover-pack",
   "sla-review",
+  "quarterly-review",
+  "fault-pattern-review",
 ];
 
 /** Plans whose report states the faults resolved and the ones still open. */
-const REPORTS_RESOLVED = ["managed-support", "health-watch", "service-report", "handover-pack"];
+const REPORTS_RESOLVED = [
+  "managed-support",
+  "health-watch",
+  "service-report",
+  "handover-pack",
+  "quarterly-review",
+  "fault-pattern-review",
+];
 
 /** Plans whose report states the severity mix. */
-const REPORTS_SEVERITY = ["managed-support", "service-report", "handover-pack", "sla-review"];
+const REPORTS_SEVERITY = [
+  "managed-support",
+  "service-report",
+  "handover-pack",
+  "sla-review",
+  "quarterly-review",
+  "fault-pattern-review",
+];
 
 /** Plans whose report states the invoice count and the invoiced amount. */
 const REPORTS_BILLING = [
@@ -49,6 +65,7 @@ const REPORTS_BILLING = [
   "service-report",
   "billing-audit",
   "handover-pack",
+  "quarterly-review",
 ];
 
 function facts(overrides: Partial<ServiceFacts> = {}): ServiceFacts {
@@ -145,7 +162,7 @@ describe("the service report", () => {
     // can be attached to the wrong customer.
     //
     // Skipped, and reported: fulfilment.ts carries facts.companyName through
-    // emptyFacts() but never renders it — none of the seven builders in
+    // emptyFacts() but never renders it — none of the nine builders in
     // fulfilment.ts puts the customer in the body, and the report is mailed
     // with the subject "Your {plan} — {period}", which does not name the
     // customer either. The fix belongs in fulfilment.ts, not in this test.

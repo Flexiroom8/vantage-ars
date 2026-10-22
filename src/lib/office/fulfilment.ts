@@ -383,6 +383,82 @@ function slaReviewBody(facts: ServiceFacts): string {
   ].join("\n");
 }
 
+function quarterlyBody(facts: ServiceFacts): string {
+  const kinds = facts.historyKinds.length ? facts.historyKinds : facts.faultKinds;
+  const repeat = kinds.filter((kind) => kind.count > 1);
+  return [
+    `Quarterly infrastructure review — ${facts.periodLabel}`,
+    "",
+    line("Faults raised in the quarter", String(facts.ticketsOpened)),
+    line("Faults resolved in the quarter", String(facts.ticketsResolved)),
+    line("Faults still open on the record", String(facts.ticketsOpen)),
+    line("Severity mix", severityLine(facts.severityCounts)),
+    line("Faults on record for the account", String(facts.faultsOnRecord)),
+    line("Quotes issued", String(facts.quotesIssued)),
+    line("Invoices issued", `${facts.invoicesIssued} (${formatZar(facts.invoicedCents)})`),
+    line("Total invoiced in the quarter", formatZar(facts.invoicedCents)),
+    "",
+    "Failure points the record repeats",
+    list(
+      (repeat.length ? repeat : kinds).map(
+        (kind) => `${kind.label} — recorded ${kind.count} time(s)`,
+      ),
+    ),
+    "",
+    "Next quarter, in the order the record suggests",
+    list([
+      ...facts.openItems.map((item) => `Close the open item: ${item}`),
+      ...(repeat.length
+        ? repeat.map((kind) => `Investigate the repeated ${kind.label} failures (${kind.count}).`)
+        : ["No repeat failure is visible in the record yet."]),
+      "Agree which recommendation, if any, should be quoted as new work.",
+    ]),
+    "",
+    ...paragraph(
+      "This review is built from the office's own record for the quarter. It names what the record shows and does not claim a root cause it cannot evidence. Any recommendation that needs new work is quoted separately and is not authorised by this review.",
+    ),
+  ].join("\n");
+}
+
+function faultPatternBody(facts: ServiceFacts): string {
+  const kinds = facts.historyKinds.length ? facts.historyKinds : facts.faultKinds;
+  const ordered = kinds.slice().sort((a, b) => b.count - a.count);
+  const repeat = ordered.filter((kind) => kind.count > 1);
+  const share =
+    facts.measuredFaults > 0
+      ? `${Math.round((facts.withinTarget / facts.measuredFaults) * 100)}%`
+      : "not measurable";
+  return [
+    `Fault pattern and incident review — ${facts.periodLabel}`,
+    "",
+    line("Faults on record for the account", String(facts.faultsOnRecord)),
+    line("Faults resolved on record", String(facts.faultsResolvedOnRecord)),
+    line("Faults raised in the period", String(facts.ticketsOpened)),
+    line("Faults resolved in the period", String(facts.ticketsResolved)),
+    line("Faults still open on the record", String(facts.ticketsOpen)),
+    line("Severity mix", severityLine(facts.severityCounts)),
+    line("Faults with a measured resolution", String(facts.measuredFaults)),
+    line("Resolved inside our internal target", `${facts.withinTarget} (${share})`),
+    "",
+    "Fault kinds, most frequent first",
+    list(ordered.map((kind) => `${kind.label} — ${kind.count} recorded`)),
+    "",
+    "Repeated failure points",
+    list(
+      repeat.length
+        ? repeat.map((kind) => `${kind.label} — ${kind.count} recorded occurrences`)
+        : ["No fault kind appears more than once on the record."],
+    ),
+    "",
+    "Still open on the record",
+    list(facts.openItems),
+    "",
+    ...paragraph(
+      "This review reports patterns visible in the recorded faults and their measured resolution times. It does not claim a root cause beyond that record, and it does not promise that a repeated fault will not recur. Any remediation is new work and is quoted separately.",
+    ),
+  ].join("\n");
+}
+
 const BUILDERS: Record<string, (facts: ServiceFacts) => string> = {
   "managed-support": managedSupportBody,
   "health-watch": healthWatchBody,
@@ -391,6 +467,8 @@ const BUILDERS: Record<string, (facts: ServiceFacts) => string> = {
   "handover-pack": handoverBody,
   "continuity-plan": continuityBody,
   "sla-review": slaReviewBody,
+  "quarterly-review": quarterlyBody,
+  "fault-pattern-review": faultPatternBody,
 };
 
 /**
@@ -415,8 +493,11 @@ export function summariseService(plan: PlanDefinition, facts: ServiceFacts): str
     const unmatched = facts.rateFindings.filter((finding) => !finding.matched).length;
     return `${facts.rateFindings.length} invoice(s) reviewed, ${unmatched} not matched to a published rate line.`;
   }
-  if (plan.id === "sla-review") {
+  if (plan.id === "sla-review" || plan.id === "fault-pattern-review") {
     return `${facts.measuredFaults} measured fault(s), ${facts.withinTarget} inside the internal target.`;
+  }
+  if (plan.id === "quarterly-review") {
+    return `${facts.ticketsOpened} fault(s) raised this quarter, ${facts.openItems.length} open item(s) still on the record.`;
   }
   if (plan.id === "managed-support" || plan.id === "health-watch") {
     return `${facts.ticketsOpened} fault(s) raised, ${facts.ticketsResolved} resolved, ${facts.ticketsOpen} still open.`;

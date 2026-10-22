@@ -80,6 +80,47 @@ export function InfraIcon({ title, className, ...props }: IconProps) {
   );
 }
 
+/** Cloud services: a cloud with a small synchronising packet. */
+export function CloudIcon({ title, className, ...props }: IconProps) {
+  return (
+    <IconBase title={title} className={className} {...props}>
+      <path d="M7.2 18.5h9.4a3.8 3.8 0 0 0 .5-7.6A5.6 5.6 0 0 0 6.5 9.4a4.6 4.6 0 0 0 .7 9.1Z" />
+      <path d="M9 14.2h6" stroke="var(--color-accent)" />
+      <circle
+        className="mi-slide"
+        cx="9"
+        cy="14.2"
+        r="1.2"
+        fill="var(--color-accent)"
+        stroke="none"
+      />
+    </IconBase>
+  );
+}
+
+/** Security baseline: a shield with a recorded check. */
+export function ShieldIcon({ title, className, ...props }: IconProps) {
+  return (
+    <IconBase title={title} className={className} {...props}>
+      <path d="M12 3.5 19 6v5.6c0 4.2-2.7 7.2-7 8.9-4.3-1.7-7-4.7-7-8.9V6Z" />
+      <path className="mi-scan" d="m8.7 12 2.2 2.2 4.4-4.4" stroke="var(--color-accent)" />
+    </IconBase>
+  );
+}
+
+/** Backup and recovery: a circular restore arrow over a stacked store. */
+export function RestoreIcon({ title, className, ...props }: IconProps) {
+  return (
+    <IconBase title={title} className={className} {...props}>
+      <ellipse cx="12" cy="6.2" rx="6.5" ry="2.7" />
+      <path d="M5.5 6.2v5.1c0 1.5 2.9 2.7 6.5 2.7 1.3 0 2.6-.2 3.6-.6" />
+      <path d="M5.5 11.3v5.1c0 1.5 2.9 2.7 6.5 2.7" />
+      <path className="mi-scan" d="M19 14.2a3.7 3.7 0 1 1-1.1-2.6" stroke="var(--color-accent)" />
+      <path d="M19 10.5v3.7h-3.7" stroke="var(--color-accent)" />
+    </IconBase>
+  );
+}
+
 /** Signal strength bars, for status strips. */
 export function SignalBars({ title, className, ...props }: IconProps) {
   return (

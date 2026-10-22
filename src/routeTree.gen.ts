@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -22,6 +23,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as WorkRouteImport } from './routes/work'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiSiteSignalRouteImport } from './routes/api/site-signal'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as OfficeIndexRouteImport } from './routes/office/index'
 import { Route as OfficeApprovalsRouteImport } from './routes/office/approvals'
 import { Route as OfficeAuditRouteImport } from './routes/office/audit'
@@ -52,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesRoute = GuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -108,6 +115,11 @@ const ApiSiteSignalRoute = ApiSiteSignalRouteImport.update({
   id: '/api/site-signal',
   path: '/api/site-signal',
   getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => GuidesRoute,
 } as any)
 const OfficeIndexRoute = OfficeIndexRouteImport.update({
   id: '/',
@@ -218,6 +230,7 @@ const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -229,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/work': typeof WorkRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-signal': typeof ApiSiteSignalRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -254,6 +268,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
@@ -264,6 +279,7 @@ export interface FileRoutesByTo {
   '/work': typeof WorkRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-signal': typeof ApiSiteSignalRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -290,6 +306,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -301,6 +318,7 @@ export interface FileRoutesById {
   '/work': typeof WorkRoute
   '/api/health': typeof ApiHealthRoute
   '/api/site-signal': typeof ApiSiteSignalRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/office/approvals': typeof OfficeApprovalsRoute
   '/office/audit': typeof OfficeAuditRoute
   '/office/catalogue': typeof OfficeCatalogueRoute
@@ -328,6 +346,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/forgot-password'
+    | '/guides'
     | '/login'
     | '/office'
     | '/privacy'
@@ -339,6 +358,7 @@ export interface FileRouteTypes {
     | '/work'
     | '/api/health'
     | '/api/site-signal'
+    | '/guides/$slug'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -364,6 +384,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/forgot-password'
+    | '/guides'
     | '/login'
     | '/privacy'
     | '/rates'
@@ -374,6 +395,7 @@ export interface FileRouteTypes {
     | '/work'
     | '/api/health'
     | '/api/site-signal'
+    | '/guides/$slug'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -399,6 +421,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/forgot-password'
+    | '/guides'
     | '/login'
     | '/office'
     | '/privacy'
@@ -410,6 +433,7 @@ export interface FileRouteTypes {
     | '/work'
     | '/api/health'
     | '/api/site-signal'
+    | '/guides/$slug'
     | '/office/approvals'
     | '/office/audit'
     | '/office/catalogue'
@@ -436,6 +460,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GuidesRoute: typeof GuidesRouteWithChildren
   LoginRoute: typeof LoginRoute
   OfficeRoute: typeof OfficeRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
@@ -468,6 +493,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides': {
+      id: '/guides'
+      path: '/guides'
+      fullPath: '/guides'
+      preLoaderRoute: typeof GuidesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -546,6 +578,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/site-signal'
       preLoaderRoute: typeof ApiSiteSignalRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
+      parentRoute: typeof GuidesRoute
     }
     '/office/': {
       id: '/office/'
@@ -697,6 +736,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface GuidesRouteChildren {
+  GuidesSlugRoute: typeof GuidesSlugRoute
+}
+
+const GuidesRouteChildren: GuidesRouteChildren = {
+  GuidesSlugRoute: GuidesSlugRoute,
+}
+
+const GuidesRouteWithChildren =
+  GuidesRoute._addFileChildren(GuidesRouteChildren)
+
 interface OfficeRouteChildren {
   OfficeApprovalsRoute: typeof OfficeApprovalsRoute
   OfficeAuditRoute: typeof OfficeAuditRoute
@@ -741,6 +791,7 @@ const OfficeRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GuidesRoute: GuidesRouteWithChildren,
   LoginRoute: LoginRoute,
   OfficeRoute: OfficeRouteWithChildren,
   PrivacyRoute: PrivacyRoute,

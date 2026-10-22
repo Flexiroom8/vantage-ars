@@ -5,12 +5,14 @@ import { COMPANY } from "@/lib/office/company";
 import { formatNowClock } from "@/lib/office/money";
 import { LiveField } from "@/components/public/live-field";
 import { GlobeIcon, NoTiesIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
+import { SiteSearch } from "@/components/public/site-search";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { PUBLISHED_RATES } from "@/lib/office/catalogue";
 
 const nav = [
   { to: "/", hash: "services", label: "Services" },
   { to: "/work", hash: undefined, label: "Work" },
+  { to: "/guides", hash: undefined, label: "Guides" },
   { to: "/rates", hash: undefined, label: "Rates" },
   { to: "/support", hash: undefined, label: "Service desk" },
 ] as const;
@@ -127,6 +129,7 @@ export function PublicFrame({ children }: { children: ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
+            <SiteSearch />
             <Link
               to="/"
               hash="enquiry"
@@ -232,6 +235,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             </Link>
             <Link to="/rates" className="text-muted transition-colors hover:text-fg">
               Rates
+            </Link>
+            <Link to="/guides" className="text-muted transition-colors hover:text-fg">
+              Guides
             </Link>
             <Link to="/support" className="text-muted transition-colors hover:text-fg">
               Service desk

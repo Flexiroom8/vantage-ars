@@ -9,13 +9,19 @@ export function str(value: unknown, max = 5000): string {
 }
 
 /**
- * Pick the caller address. Prefer headers the edge sets itself
- * (cf-connecting-ip, x-real-ip). x-forwarded-for is client-appendable, so only
- * its LAST hop is used as a fallback; the first entry can be spoofed.
+ * Pick the caller address. Prefer headers the hosting platform sets itself.
+ * `x-vercel-forwarded-for` outranks `cf-connecting-ip` because Vercel passes
+ * arbitrary inbound headers through: on a Vercel deployment an attacker can
+ * send a fake `cf-connecting-ip`, but not a fake platform header. `x-real-ip`
+ * is next, and x-forwarded-for is the fallback; only its LAST hop is used,
+ * because the client can prepend entries to that list.
  */
 export function clientKey(headers: { get(name: string): string | null } | undefined): string {
   if (!headers) return "local";
-  const edge = headers.get("cf-connecting-ip")?.trim() || headers.get("x-real-ip")?.trim();
+  const edge =
+    headers.get("x-vercel-forwarded-for")?.trim() ||
+    headers.get("cf-connecting-ip")?.trim() ||
+    headers.get("x-real-ip")?.trim();
   if (edge) return edge.slice(0, 64);
   const hops =
     headers

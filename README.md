@@ -12,17 +12,17 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 - Postgres: Neon (or any Postgres) when `DATABASE_URL` is set, otherwise embedded PGLite
 - Better Auth (founder email and password), pdf-lib for quotes, Gmail SMTP for notices
 - Nine AI staff, each with a fixed role, working a durable queue on their own cadence
-- Seven productised services at published prices, and a standing founder delegation (ART-13) that lets the office deliver and bill them unattended
+- Nine productised services at published prices, and a standing founder delegation (ART-13) that lets the office deliver and bill them unattended
 
 ## What is in it
 
-| Area                | Routes                                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                       |
-| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                                     |
-| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                                         |
-| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                               |
+| Area                | Routes                                                                                                                                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                              |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                                                                                                                            |
+| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                                                                                                                                |
+| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                      |
 
 ## The office runs itself
 
@@ -66,12 +66,13 @@ none of them is on until it is saved.
 
 ## Productised services and recurring revenue
 
-Seven services are published with a fixed scope, a fixed price and a
+Nine services are published with a fixed scope, a fixed price and a
 deliverable the office can produce from its own records: the managed support
-plan and the remote health and spend watch, both monthly, and the service
-report, the billing and rate compliance audit, the infrastructure documentation
-and handover pack, the business continuity plan and the service level and
-response review, all one-off.
+plan and the remote health and spend watch, both monthly; the quarterly
+infrastructure review; and the service report, the billing and rate compliance
+audit, the infrastructure documentation and handover pack, the business
+continuity plan, the service level and response review and the fault pattern
+and incident review, all one-off.
 
 Because the office can deliver them and can bill them, they are recurring
 revenue rather than jobs. A subscription bills on its own cycle, the
@@ -98,7 +99,7 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 209 checks, no mocks and
+scheduler, and asserts on what the real agents did — 212 checks, no mocks and
 no sample data. If autonomy breaks, this fails.
 
 ## Environment
@@ -116,6 +117,7 @@ Everything is in [`.env.example`](.env.example). The ones that matter:
 | `AUTONOMY`                                                      | `on` lets the office act unattended. Anything else and only the button works.        |
 | `CRON_SECRET`                                                   | Bearer token the scheduler must present. 16+ characters.                             |
 | `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`                    | Founder notices.                                                                     |
+| `FOUNDER_WEBHOOK_URL`                                           | Optional HTTPS webhook for the same founder notices (Slack, Discord or generic).     |
 | `PAYMENT_*`                                                     | Bank details on the site and quotes.                                                 |
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff reasoning. Every autonomous duty works without it.                          |
 

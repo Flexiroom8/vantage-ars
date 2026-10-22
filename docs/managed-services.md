@@ -1,6 +1,6 @@
 # Managed services
 
-Vantage-ARS sells seven productised services. Each one has a fixed scope, a
+Vantage-ARS sells nine productised services. Each one has a fixed scope, a
 published price, and a deliverable the office can produce from its own records.
 That last part is the point: a service the office can deliver is a service the
 office can bill without a person in the loop, and a service it can bill on a
@@ -14,20 +14,22 @@ does not state it. The rate card group these plans sit in is described as:
 Nothing in this document promises monitoring, uptime or a service level. Those
 are the things a customer cannot verify and a business should not sell.
 
-## The seven services
+## The nine services
 
-| Service                                                          | Published price | Cycle   | What the customer receives                                                                                                                                 | What is excluded                                                                                                                                       |
-| ---------------------------------------------------------------- | --------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Managed support plan (`managed-support`)                         | R2,750 / month  | Monthly | A monthly managed service report, automatic triage of every fault raised, and a quarterly infrastructure review                                            | On-site work, hardware, third-party licences and carrier costs; after-hours work, which is quoted separately; anything outside the published rate card |
-| Remote health and spend watch (`health-watch`)                   | R990 / month    | Monthly | A monthly written watch report covering open faults, ageing tickets, response against our own targets, and everything invoiced in the period               | Monitoring of your live estate; on-site work and third-party costs                                                                                     |
-| Service report (`service-report`)                                | R690            | One-off | A report covering every fault raised, every quote issued and every invoice raised in the period, in plain language                                         | Any new work — this reports on work already done                                                                                                       |
-| Billing and rate compliance audit (`billing-audit`)              | R1,150          | One-off | An audit of the invoices issued in the period, each matched to the published rate line it came from, with anything that does not match called out          | Supplier and carrier invoices, which are not ours to audit                                                                                             |
-| Infrastructure documentation and handover pack (`handover-pack`) | R1,380          | One-off | A handover document built from the work the office has recorded: the equipment seen, the faults fixed, the configurations changed, and what is still open  | Site drawings and cabling schedules; anything we have not worked on and cannot see                                                                     |
-| Business continuity plan (`continuity-plan`)                     | R1,725          | One-off | A continuity plan built from your recorded fault history: the failure points we have actually seen, the order to recover them in, and the gaps             | A formal disaster recovery or compliance certification; penetration testing                                                                            |
-| Service level and response review (`sla-review`)                 | R690            | One-off | A review of the faults raised in the period, how long each took to pick up and resolve, and how that compares with our published internal response targets | A contractual SLA — we publish our targets, we do not sell a guarantee                                                                                 |
+| Service                                                          | Published price  | Cycle     | What the customer receives                                                                                                                                 | What is excluded                                                                                                                                       |
+| ---------------------------------------------------------------- | ---------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Managed support plan (`managed-support`)                         | R2,750 / month   | Monthly   | A monthly managed service report, automatic triage of every fault raised, and a quarterly infrastructure review                                            | On-site work, hardware, third-party licences and carrier costs; after-hours work, which is quoted separately; anything outside the published rate card |
+| Remote health and spend watch (`health-watch`)                   | R990 / month     | Monthly   | A monthly written watch report covering open faults, ageing tickets, response against our own targets, and everything invoiced in the period               | Monitoring of your live estate; on-site work and third-party costs                                                                                     |
+| Service report (`service-report`)                                | R690             | One-off   | A report covering every fault raised, every quote issued and every invoice raised in the period, in plain language                                         | Any new work — this reports on work already done                                                                                                       |
+| Billing and rate compliance audit (`billing-audit`)              | R1,150           | One-off   | An audit of the invoices issued in the period, each matched to the published rate line it came from, with anything that does not match called out          | Supplier and carrier invoices, which are not ours to audit                                                                                             |
+| Infrastructure documentation and handover pack (`handover-pack`) | R1,380           | One-off   | A handover document built from the work the office has recorded: the equipment seen, the faults fixed, the configurations changed, and what is still open  | Site drawings and cabling schedules; anything we have not worked on and cannot see                                                                     |
+| Business continuity plan (`continuity-plan`)                     | R1,725           | One-off   | A continuity plan built from your recorded fault history: the failure points we have actually seen, the order to recover them in, and the gaps             | A formal disaster recovery or compliance certification; penetration testing                                                                            |
+| Service level and response review (`sla-review`)                 | R690             | One-off   | A review of the faults raised in the period, how long each took to pick up and resolve, and how that compares with our published internal response targets | A contractual SLA — we publish our targets, we do not sell a guarantee                                                                                 |
+| Quarterly infrastructure review (`quarterly-review`)             | R1,725 / quarter | Quarterly | A quarterly review of the faults, changes, open items and spend on record, with a prioritised next-quarter list drawn from that record                     | Monitoring of your live estate, a contractual service level, or new work — anything recommended is quoted separately                                   |
+| Fault pattern and incident review (`fault-pattern-review`)       | R1,150           | One-off   | A review of repeat faults, their recorded resolution times, and the common failure points the record actually shows                                        | A root-cause claim the record cannot support; new work, monitoring or a contractual service level                                                      |
 
-Two of the seven are recurring. The office's billing arithmetic supports a
-quarterly cycle as well, but no plan is currently published on it.
+Three of the nine are recurring: two monthly and one quarterly. The quarterly
+review is a standalone product as well as part of the managed support plan.
 
 Each service is priced against its published rate line, and the plan id and the
 rate id are the same string: one line, one price. Before the office prices
@@ -78,6 +80,13 @@ The evidence behind each report:
 - **Service level and response review** — the faults raised, the severity mix,
   the faults for which a duration could be measured, how many of those fell
   inside the internal target, and the faults by kind.
+- **Quarterly infrastructure review** — the quarter's faults raised, resolved and
+  still open, the severity mix, the quarter's invoices and total, the failure
+  points the record repeats, and a next-quarter list that puts open items first
+  and repeated failures second. It does not claim a root cause it cannot show.
+- **Fault pattern and incident review** — every fault kind on record ordered by
+  frequency, the repeated kinds named with their counts, the measured resolution
+  time against the internal targets, and the open items still on the record.
 
 The response measurement is one elapsed duration per fault: from when the fault
 was opened to when the ticket was last updated, on resolved faults, compared
@@ -91,7 +100,7 @@ office produces it.
 
 ## The billing model
 
-The two recurring plans run on a schedule the subscription carries. A
+The three recurring plans run on a schedule the subscription carries. A
 subscription's period comes from its own next billing instant, the arithmetic
 is done in UTC, and the month arithmetic clamps to the last day of the target
 month, so a plan started on the 31st still bills on the 31st where the month is
@@ -136,7 +145,7 @@ server and two concurrent ticks therefore cannot bill the same month twice. The
 same applies to the delivery ticket opened on acceptance, which is inserted only
 when one does not already exist for that job.
 
-The five one-off services are ordered once rather than on a schedule. The quote
+The six one-off services are ordered once rather than on a schedule. The quote
 is priced from the published card and the invoice is raised once against the
 won job. The report is assembled from the same records by the same code, but a
 one-off opens no billing period, so nothing schedules it and no cycle produces

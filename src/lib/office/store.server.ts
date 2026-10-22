@@ -82,6 +82,7 @@ import type {
   ProposedAction,
   ProvisionCheck,
   ProvisionRow,
+  Reversibility,
   RevenueMetrics,
   SubscriptionRow,
   TicketRow,
@@ -780,6 +781,79 @@ async function hasAcceptedQuote(sql: Sql, companyName: string): Promise<boolean>
   return rows.length > 0;
 }
 
+async function hasWonOpportunityById(sql: Sql, opportunityId: string): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    select id from opportunities where id = ${opportunityId} and stage = 'won' limit 1
+  `;
+  return rows.length > 0;
+}
+
+async function hasAcceptedQuoteById(sql: Sql, opportunityId: string): Promise<boolean> {
+  const rows = await sql<{ id: string }>`
+    select id from documents
+    where kind = 'quote' and status = 'accepted' and related_id = ${opportunityId}
+    limit 1
+  `;
+  return rows.length > 0;
+}
+
+/**
+ * Resolve the opportunity an action is actually about.
+ *
+ * The governor used to ask only "does this customer have a won job or an
+ * accepted quote somewhere?", which let one accepted job authorise an invoice
+ * for a different job at the same customer. Follow the action's subject —
+ * opportunity, billing cycle, subscription, invoice or quote document — to the
+ * opportunity it belongs to, and fall back to the customer check only when the
+ * subject cannot be resolved.
+ */
+async function opportunityIdForAction(sql: Sql, action: ProposedAction): Promise<string | null> {
+  const payloadOpportunity =
+    typeof action.payload.opportunityId === "string" ? action.payload.opportunityId.trim() : "";
+  let candidate =
+    payloadOpportunity || (typeof action.relatedId === "string" ? action.relatedId.trim() : "");
+  for (let hop = 0; hop < 4 && candidate; hop += 1) {
+    const opportunity = await sql<{ id: string }>`
+      select id from opportunities where id = ${candidate} limit 1
+    `;
+    if (opportunity.length) return String(opportunity[0].id);
+
+    const cycle = await sql<{ subscription_id: string }>`
+      select subscription_id from billing_cycles where id = ${candidate} limit 1
+    `.then((rows) => rows[0]);
+    if (cycle?.subscription_id) {
+      candidate = String(cycle.subscription_id);
+      continue;
+    }
+
+    const subscription = await sql<{ opportunity_id: string | null }>`
+      select opportunity_id from subscriptions where id = ${candidate} limit 1
+    `.then((rows) => rows[0]);
+    if (subscription?.opportunity_id) {
+      candidate = String(subscription.opportunity_id);
+      continue;
+    }
+
+    const document = await sql<{ related_id: string | null }>`
+      select related_id from documents where id = ${candidate} limit 1
+    `.then((rows) => rows[0]);
+    if (document?.related_id && document.related_id !== candidate) {
+      candidate = String(document.related_id);
+      continue;
+    }
+
+    const invoice = await sql<{ related_id: string | null }>`
+      select related_id from ledger_entries where id = ${candidate} and kind = 'invoice' limit 1
+    `.then((rows) => rows[0]);
+    if (invoice?.related_id && invoice.related_id !== candidate) {
+      candidate = String(invoice.related_id);
+      continue;
+    }
+    break;
+  }
+  return null;
+}
+
 /**
  * Whether this customer actually contacted the office.
  *
@@ -1198,11 +1272,18 @@ async function executeAuthorized(
         `;
       }
       const id = randomUUID();
+      // The summary is the buyer's own words when the planner carries them.
+      // Quote selection reads this field, so replacing it with the agent's
+      // rationale would make the playbook choose from an agent-authored note.
+      const summary =
+        typeof action.payload.summary === "string" && action.payload.summary.trim()
+          ? action.payload.summary.trim().slice(0, 4000)
+          : action.rationale;
       await sql`
         insert into opportunities (id, lead_id, company_name, stage, value_cents, summary, handoff_approval_id)
         values (
           ${id}, ${leadId}, ${companyName || "Unnamed company"}, 'discovery',
-          ${amount}, ${action.rationale}, ${approvalId ?? null}
+          ${amount}, ${summary}, ${approvalId ?? null}
         )
       `;
       if (leadId) {
@@ -1216,11 +1297,13 @@ async function executeAuthorized(
     }
     case "issue_quote": {
       if (action.relatedId) {
+        // Do not overwrite the opportunity summary: it carries the buyer's
+        // words, and both the quote playbook and later duties read it. Only the
+        // stage and the accepted figure change here.
         await sql`
           update opportunities
           set stage = 'proposal',
               value_cents = ${amount},
-              summary = ${action.rationale},
               updated_at = now()
           where id = ${action.relatedId}
         `;
@@ -1229,22 +1312,37 @@ async function executeAuthorized(
       const body = quoteDocumentBody(quoteId, action);
       const rateId =
         typeof action.payload.rateId === "string" ? action.payload.rateId.trim() : null;
+      // Snapshot the figure the customer was actually quoted. An invoice later
+      // reads this, not a mutable opportunity value that a later stage change
+      // could overwrite.
       await sql`
-        insert into documents (id, title, kind, status, summary, related_id, rate_id)
-        values (${quoteId}, ${action.title}, 'quote', 'approved_unsent', ${body}, ${action.relatedId ?? null}, ${rateId})
+        insert into documents (id, title, kind, status, summary, related_id, rate_id, amount_cents)
+        values (${quoteId}, ${action.title}, 'quote', 'approved_unsent', ${body}, ${action.relatedId ?? null}, ${rateId}, ${amount})
       `;
       break;
     }
     case "advance_opportunity": {
       if (action.relatedId) {
-        await sql`
-          update opportunities
-          set stage = ${String(action.payload.stage ?? "proposal")},
-              value_cents = ${amount || 0},
-              summary = ${action.rationale},
-              updated_at = now()
-          where id = ${action.relatedId}
-        `;
+        // A discovery pack is not a re-pricing. When the planner says to keep
+        // the record, the opportunity's value and the buyer's summary stay put;
+        // otherwise the old behaviour (stage, value and rationale) applies.
+        if (action.payload.keepSummary === true) {
+          await sql`
+            update opportunities
+            set stage = ${String(action.payload.stage ?? "proposal")},
+                updated_at = now()
+            where id = ${action.relatedId}
+          `;
+        } else {
+          await sql`
+            update opportunities
+            set stage = ${String(action.payload.stage ?? "proposal")},
+                value_cents = ${amount || 0},
+                summary = ${action.rationale},
+                updated_at = now()
+            where id = ${action.relatedId}
+          `;
+        }
       }
       break;
     }
@@ -1282,6 +1380,17 @@ async function executeAuthorized(
         if (!claimed.length) {
           throw new Error("That billing period has already been invoiced.");
         }
+      }
+      // A one-off subject may only carry one invoice. The database has a partial
+      // unique index for this, but checking here records a useful refusal instead
+      // of a raw constraint error if two requests race.
+      if (!cycleId && action.relatedId) {
+        const already = await sql<{ id: string }>`
+          select id from ledger_entries
+          where kind = 'invoice' and related_id = ${action.relatedId}
+          limit 1
+        `;
+        if (already.length) throw new Error("This work already has an invoice.");
       }
       const id = randomUUID();
       const given = action.payload.vatCents;
@@ -1364,6 +1473,17 @@ async function executeAuthorized(
     }
     case "record_inbound_payment": {
       const id = randomUUID();
+      // A receipt belongs to at most one invoice. The outside check is not
+      // enough when two callers race; this one runs under the audit-chain lock
+      // and inside the same transaction as the money movement.
+      if (action.relatedId) {
+        const already = await sql<{ id: string }>`
+          select id from ledger_entries
+          where kind = 'receipt' and related_id = ${action.relatedId}
+          limit 1
+        `;
+        if (already.length) throw new Error("A receipt is already recorded for this invoice.");
+      }
       // Cash may only ever be credited against money that is actually owed. The
       // old code did `treasury += amount` unconditionally and then floored the
       // receivable at zero, so a duplicated receipt — or a payment recorded
@@ -1378,6 +1498,39 @@ async function executeAuthorized(
         insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
         values (${id}, 'receipt', ${companyName || "Counterparty"}, ${applied}, 0, 'cleared', ${action.rationale}, ${action.relatedId ?? null})
       `;
+      if (action.relatedId) {
+        const invoice = await sql<{ vat_cents: number }>`
+          select vat_cents from ledger_entries
+          where id = ${action.relatedId} and kind = 'invoice'
+          for update
+        `.then((rows) => rows[0]);
+        if (!invoice) throw new Error("That invoice is not on file.");
+        await sql`
+          update ledger_entries set status = 'paid'
+          where id = ${action.relatedId} and kind = 'invoice'
+        `;
+        await sql`
+          update billing_cycles
+          set status = 'paid', paid_at = now()
+          where invoice_id = ${action.relatedId} and status <> 'paid'
+        `;
+        // The customer-facing receipt is written in this transaction too, so a
+        // payment can never exist without the paper that acknowledges it.
+        const receiptId = randomUUID();
+        const invoiceVat = num(invoice.vat_cents);
+        await sql`
+          insert into documents (id, title, kind, status, summary, related_id)
+          select ${receiptId}, ${`Receipt · ${companyName || "Counterparty"}`}, 'receipt',
+                 'recorded', ${receiptCopy(companyName || "Counterparty", applied, {
+                   treatment: invoiceVat > 0 ? "included" : "none",
+                   netCents: applied - invoiceVat,
+                   vatCents: invoiceVat,
+                 })}, ${action.relatedId}
+          where not exists (
+            select 1 from documents where kind = 'receipt' and related_id = ${action.relatedId}
+          )
+        `;
+      }
       break;
     }
     case "open_ticket": {
@@ -1441,10 +1594,13 @@ async function executeAuthorized(
         values (${id}, ${action.title}, 'service_report', 'delivered', ${report}, ${cycleId || null})
       `;
       if (cycleId) {
+        // Cash can arrive before the report is produced. Keep the paid status in
+        // that case: fulfilment is still owed, but the period is settled.
         await sql`
           update billing_cycles
-          set status = 'fulfilled', report_document_id = ${id}, fulfilled_at = now()
-          where id = ${cycleId} and status in ('pending', 'invoiced')
+          set status = case when status = 'paid' then 'paid' else 'fulfilled' end,
+              report_document_id = ${id}, fulfilled_at = now()
+          where id = ${cycleId} and status in ('pending', 'invoiced', 'paid')
         `;
       }
       return { documentId: id };
@@ -1455,6 +1611,15 @@ async function executeAuthorized(
       const priceCents = Math.max(0, Math.round(Number(action.payload.priceCents ?? 0)));
       if (!planId || !rateId || priceCents <= 0) {
         throw new Error("A subscription needs a plan, a rate line, and a price.");
+      }
+      const opportunityId = String(action.payload.opportunityId ?? action.relatedId ?? "");
+      if (opportunityId) {
+        const already = await sql<{ id: string }>`
+          select id from subscriptions
+          where opportunity_id = ${opportunityId} and status <> 'cancelled'
+          limit 1
+        `;
+        if (already.length) throw new Error("That job already has a subscription.");
       }
       const id = randomUUID();
       const cycle = String(action.payload.cycle ?? "monthly");
@@ -2066,45 +2231,73 @@ export async function applyProposedAction(
   delivery?: { ok: boolean; detail?: string };
 }> {
   const autonomous = observation.autonomous === true;
-  const result = await withChain(async (tx) => {
-    const company = await loadCompanyTx(tx);
-    const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
-    // A delegation is the office acting for itself. A founder action is not
-    // covered by one, and must never consume the office's autonomous budget.
-    const delegation = autonomous ? await readDelegationTx(tx) : null;
-    const usage = autonomous && delegation ? await readDelegationUsageTx(tx, delegation.id) : null;
-    const extras = {
-      approvedHandoff: companyName ? await hasApprovedHandoff(tx, companyName) : false,
-      opportunityWon: companyName ? await hasWonOpportunity(tx, companyName) : false,
-      acceptedQuote: companyName ? await hasAcceptedQuote(tx, companyName) : false,
-      realEnquiry: companyName ? await hasRealEnquiry(tx, companyName) : false,
-      founderInitiated: !autonomous,
-      delegation,
-      delegationUsage: usage
-        ? { usedToday: usage.usedToday, usedThisMonth: usage.usedThisMonth }
-        : undefined,
-    };
-    const auth = authorizeAction(action, agentId, company, extras);
+  /**
+   * A failed execution must roll the whole transaction back. The decision is
+   * then recorded in its own transaction, after the rollback, so the office
+   * still has an audit trail without committing the half-finished action that
+   * caused the failure.
+   */
+  let failure: { error: string; trace: ProvisionCheck[]; reversibility: Reversibility } | null =
+    null;
+  let result: {
+    decisionId: string;
+    approvalId?: string;
+    status: DecisionRow["status"];
+    error?: string;
+    documentId?: string;
+  };
+  try {
+    result = await withChain(async (tx) => {
+      const company = await loadCompanyTx(tx);
+      const companyName = (action.companyName || String(action.payload.companyName ?? "")).trim();
+      // A delegation is the office acting for itself. A founder action is not
+      // covered by one, and must never consume the office's autonomous budget.
+      const delegation = autonomous ? await readDelegationTx(tx) : null;
+      const usage =
+        autonomous && delegation ? await readDelegationUsageTx(tx, delegation.id) : null;
+      // Resolve the subject first: "won" and "accepted" must describe the job in
+      // this action, not merely another job at the same customer.
+      const subjectOpportunityId = await opportunityIdForAction(tx, action);
+      const extras = {
+        approvedHandoff: companyName ? await hasApprovedHandoff(tx, companyName) : false,
+        opportunityWon: subjectOpportunityId
+          ? await hasWonOpportunityById(tx, subjectOpportunityId)
+          : companyName
+            ? await hasWonOpportunity(tx, companyName)
+            : false,
+        acceptedQuote: subjectOpportunityId
+          ? await hasAcceptedQuoteById(tx, subjectOpportunityId)
+          : companyName
+            ? await hasAcceptedQuote(tx, companyName)
+            : false,
+        realEnquiry: companyName ? await hasRealEnquiry(tx, companyName) : false,
+        founderInitiated: !autonomous,
+        delegation,
+        delegationUsage: usage
+          ? { usedToday: usage.usedToday, usedThisMonth: usage.usedThisMonth }
+          : undefined,
+      };
+      const auth = authorizeAction(action, agentId, company, extras);
 
-    if (auth.verdict === "deny") {
-      const decisionId = await recordDecisionTx(tx, {
-        agentId,
-        action,
-        status: "blocked",
-        trace: auth.trace,
-        reversibility: auth.reversibility,
-        observation: { ...observation, reason: auth.reason },
-      });
-      await appendAuditTx(tx, "decision_blocked", action.title, auth.reason, agentId);
-      return { decisionId, status: "blocked" as const };
-    }
+      if (auth.verdict === "deny") {
+        const decisionId = await recordDecisionTx(tx, {
+          agentId,
+          action,
+          status: "blocked",
+          trace: auth.trace,
+          reversibility: auth.reversibility,
+          observation: { ...observation, reason: auth.reason },
+        });
+        await appendAuditTx(tx, "decision_blocked", action.title, auth.reason, agentId);
+        return { decisionId, status: "blocked" as const };
+      }
 
-    if (auth.verdict === "review") {
-      const approvalId = randomUUID();
-      const risk = riskOfAction(action);
-      const gate = gateOutcomeFor(action, risk);
-      const policyVersion = policyVersionOf(company);
-      await tx`
+      if (auth.verdict === "review") {
+        const approvalId = randomUUID();
+        const risk = riskOfAction(action);
+        const gate = gateOutcomeFor(action, risk);
+        const policyVersion = policyVersionOf(company);
+        await tx`
         insert into approvals (
           id, kind, title, rationale, amount_cents, agent_id, company_name, status,
           risk_score, constitutional_trace_json, action_json, policy_version
@@ -2115,55 +2308,55 @@ export async function applyProposedAction(
           ${JSON.stringify(auth.trace)}, ${JSON.stringify(action)}, ${policyVersion}
         )
       `;
-      const decisionId = await recordDecisionTx(tx, {
-        agentId,
-        action,
-        status: "escalated",
-        trace: auth.trace,
-        reversibility: auth.reversibility,
-        observation: { ...observation, reason: auth.reason, approvalId },
-      });
-      // A legal action is opened with its §71 test already written down, so the
-      // record exists before the founder is asked rather than after they have
-      // answered. The gate is open because nobody has judged the case yet.
-      if (gate.legal) {
-        await writeGateRecordTx(tx, {
-          approvalId,
-          decisionId,
-          gate,
-          policyVersion,
+        const decisionId = await recordDecisionTx(tx, {
+          agentId,
+          action,
+          status: "escalated",
+          trace: auth.trace,
+          reversibility: auth.reversibility,
+          observation: { ...observation, reason: auth.reason, approvalId },
         });
+        // A legal action is opened with its §71 test already written down, so the
+        // record exists before the founder is asked rather than after they have
+        // answered. The gate is open because nobody has judged the case yet.
+        if (gate.legal) {
+          await writeGateRecordTx(tx, {
+            approvalId,
+            decisionId,
+            gate,
+            policyVersion,
+          });
+        }
+        await appendAuditTx(
+          tx,
+          "approval_opened",
+          action.title,
+          `${auth.reason} Gate: ${auth.approvalKind ?? "review"}.`,
+          agentId,
+        );
+        // Mail is best-effort and happens after commit: a slow SMTP call must not
+        // hold the audit lock open.
+        void notifyApproval({
+          gate: auth.approvalKind ?? "review",
+          title: action.title,
+          reason: auth.reason,
+          amountCents: action.amountCents,
+          companyName,
+        });
+        return { decisionId, approvalId, status: "escalated" as const };
       }
-      await appendAuditTx(
-        tx,
-        "approval_opened",
-        action.title,
-        `${auth.reason} Gate: ${auth.approvalKind ?? "review"}.`,
-        agentId,
-      );
-      // Mail is best-effort and happens after commit: a slow SMTP call must not
-      // hold the audit lock open.
-      void notifyApproval({
-        gate: auth.approvalKind ?? "review",
-        title: action.title,
-        reason: auth.reason,
-        amountCents: action.amountCents,
-        companyName,
-      });
-      return { decisionId, approvalId, status: "escalated" as const };
-    }
 
-    let decisionId: string;
-    let documentId: string | undefined;
-    try {
-      const executed = await executeAuthorized(tx, agentId, action);
-      documentId = executed.documentId;
-      // The delegation is spent here, in the same transaction that took the
-      // action, so the caps are counted from real rows and a retried tick
-      // cannot slip past them.
-      if (auth.delegation && delegation) {
-        const now = new Date();
-        await tx`
+      let decisionId: string;
+      let documentId: string | undefined;
+      try {
+        const executed = await executeAuthorized(tx, agentId, action);
+        documentId = executed.documentId;
+        // The delegation is spent here, in the same transaction that took the
+        // action, so the caps are counted from real rows and a retried tick
+        // cannot slip past them.
+        if (auth.delegation && delegation) {
+          const now = new Date();
+          await tx`
           insert into delegation_usage (
             id, delegation_id, action_kind, amount_cents, company_name, usage_day, usage_month
           ) values (
@@ -2172,47 +2365,66 @@ export async function applyProposedAction(
             ${now.toISOString().slice(0, 7)}
           )
         `;
-      }
-      decisionId = await recordDecisionTx(tx, {
-        agentId,
-        action,
-        status: "executed",
-        trace: auth.trace,
-        reversibility: auth.reversibility,
-        observation,
-        delegationId: auth.delegation?.id ?? null,
-      });
-      await appendAuditTx(tx, "decision_executed", action.title, action.rationale, agentId);
-      // An execution that carries consequence is signed for. Tier 1–3 only:
-      // a receipt for a routine note would be noise.
-      const risk = riskOfAction(action);
-      if (risk.tier === 1 || risk.tier === 2 || risk.tier === 3) {
-        await writeDecisionReceiptTx(tx, {
-          decisionId,
-          action,
-          risk,
+        }
+        decisionId = await recordDecisionTx(tx, {
           agentId,
+          action,
+          status: "executed",
+          trace: auth.trace,
+          reversibility: auth.reversibility,
+          observation,
           delegationId: auth.delegation?.id ?? null,
-          approvedBy: auth.delegation ? auth.delegation.label : null,
         });
+        await appendAuditTx(tx, "decision_executed", action.title, action.rationale, agentId);
+        // An execution that carries consequence is signed for. Tier 1–3 only:
+        // a receipt for a routine note would be noise.
+        const risk = riskOfAction(action);
+        if (risk.tier === 1 || risk.tier === 2 || risk.tier === 3) {
+          await writeDecisionReceiptTx(tx, {
+            decisionId,
+            action,
+            risk,
+            agentId,
+            delegationId: auth.delegation?.id ?? null,
+            approvedBy: auth.delegation ? auth.delegation.label : null,
+          });
+        }
+      } catch (error) {
+        // Re-throw so the outer transaction rolls back every write the action
+        // made before it failed. Recording the blocked decision inside this
+        // transaction would commit those partial writes, which is exactly the
+        // half-applied ledger state this function claims to prevent.
+        failure = {
+          error: error instanceof Error ? error.message : "Execution failed.",
+          trace: auth.trace,
+          reversibility: auth.reversibility,
+        };
+        throw error;
       }
-    } catch (error) {
-      // The transaction rolls back, so nothing was executed. Record the refusal
-      // so the failure is visible in the audit trail rather than silent.
-      const reason = error instanceof Error ? error.message : "Execution failed.";
+      return { decisionId, status: "executed" as const, documentId };
+    });
+  } catch (error) {
+    const failed = failure as {
+      error: string;
+      trace: ProvisionCheck[];
+      reversibility: Reversibility;
+    } | null;
+    if (!failed) throw error;
+    // The action's writes are gone. Record the refusal in a fresh transaction so
+    // the failure is visible in the audit chain rather than silent.
+    result = await withChain(async (tx) => {
       const failedId = await recordDecisionTx(tx, {
         agentId,
         action,
         status: "blocked",
-        trace: auth.trace,
-        reversibility: auth.reversibility,
-        observation: { ...observation, reason, executionError: true },
+        trace: failed.trace,
+        reversibility: failed.reversibility,
+        observation: { ...observation, reason: failed.error, executionError: true },
       });
-      await appendAuditTx(tx, "decision_blocked", action.title, reason, agentId);
-      return { decisionId: failedId, status: "blocked" as const, error: reason };
-    }
-    return { decisionId, status: "executed" as const, documentId };
-  });
+      await appendAuditTx(tx, "decision_blocked", action.title, failed.error, agentId);
+      return { decisionId: failedId, status: "blocked" as const, error: failed.error };
+    });
+  }
 
   // A customer email is sent after the transaction commits, so a slow SMTP
   // call can never hold the audit-chain lock open. The notice is already on
@@ -2745,7 +2957,8 @@ async function closeOpportunity(input: {
     `;
     await tx`
       update documents
-      set status = ${won ? "accepted" : "declined"}
+      set status = ${won ? "accepted" : "declined"},
+          accepted_at = ${won ? new Date().toISOString() : null}
       where id = ${quote.id}
     `;
     if (won) {
@@ -3058,7 +3271,17 @@ export async function raiseQuoteInvoice(
   }
   const opportunityCompany = String(record.company_name);
   const treatment = parseVatTreatment(vatTreatment);
-  const figure = quoteInvoice(num(record.value_cents), treatment);
+  // Invoice the figure the customer accepted, not the opportunity's current
+  // value (which a later stage update can overwrite). Old quotes written before
+  // amounts were snapshotted fall back to the opportunity.
+  const accepted = await sql<{ amount_cents: number | null }>`
+    select amount_cents from documents
+    where kind = 'quote' and status = 'accepted' and related_id = ${opportunityId}
+    order by coalesce(accepted_at, created_at) desc
+    limit 1
+  `.then((rows) => rows[0]);
+  const acceptedCents = num(accepted?.amount_cents) || num(record.value_cents);
+  const figure = quoteInvoice(acceptedCents, treatment);
   if (!figure.ok) return figure;
 
   // Guard against a double submit booking two invoices. This must query the whole
@@ -3116,7 +3339,6 @@ export async function recordInvoiceReceipt(
     return { ok: false, error: "That invoice is not awaiting payment." };
   }
   const counterparty = String(record.counterparty);
-  const invoiceVat = num(record.vat_cents);
   const figure = receiptForInvoice(num(record.amount_cents));
   if (!figure.ok) return figure;
 
@@ -3145,19 +3367,9 @@ export async function recordInvoiceReceipt(
   if (result.status !== "executed") {
     return { ok: false, error: result.error ?? "The receipt was not recorded." };
   }
-  await sql`update ledger_entries set status = 'paid' where id = ${invoiceId} and kind = 'invoice'`;
-  const text = receiptCopy(counterparty, figure.cents, {
-    treatment: invoiceVat > 0 ? "included" : "none",
-    netCents: figure.cents - invoiceVat,
-    vatCents: invoiceVat,
-  });
-  await sql`
-    insert into documents (id, title, kind, status, summary, related_id)
-    select ${randomUUID()}, ${`Receipt · ${counterparty}`}, 'receipt', 'recorded', ${text}, ${invoiceId}
-    where not exists (
-      select 1 from documents where kind = 'receipt' and related_id = ${invoiceId}
-    )
-  `;
+  // The money movement, invoice status, cycle status and receipt document are
+  // written inside the action transaction. Only the human-readable audit note
+  // is added afterwards.
   await appendAudit("payment_received", counterparty, figure.memo, "founder");
   return { ok: true };
 }
@@ -3536,12 +3748,19 @@ export async function startSubscriptionForOpportunity(
   `;
   if (existing.length) return { ok: false, error: "That job already has a subscription." };
 
-  const quote = await sql<{ id: string; created_at: string }>`
-    select id, created_at from documents
+  const quote = await sql<{ id: string; accepted_at: string | null; created_at: string }>`
+    select id, accepted_at, created_at from documents
     where kind = 'quote' and status = 'accepted' and related_id = ${opportunityId}
-    order by created_at desc limit 1
+    order by coalesce(accepted_at, created_at) desc limit 1
   `.then((rows) => rows[0]);
-  const acceptedAt = quote?.created_at ? iso(quote.created_at) : new Date().toISOString();
+  // Bill from the moment the customer accepted, not the day the quote was
+  // written. A quote accepted weeks later must not create a period that began
+  // before the customer agreed to it.
+  const acceptedAt = quote?.accepted_at
+    ? iso(quote.accepted_at)
+    : quote?.created_at
+      ? iso(quote.created_at)
+      : new Date().toISOString();
   const periodStart = nextCycleStart(acceptedAt, plan.cycle);
   const { email, name } = await resolveRecipient(sql, String(opportunity.company_name));
 

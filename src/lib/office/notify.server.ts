@@ -1,22 +1,30 @@
 import { randomUUID } from "node:crypto";
 import { getSql } from "../db";
+import { env } from "../env";
 import type { FounderNotice } from "./notice";
 import { sendFounderMail } from "./smtp.server";
+import { postFounderWebhook } from "./webhook";
 
 export async function deliverFounderNotice(notice: FounderNotice): Promise<void> {
-  let status = "not_delivered";
-  let detail = "Gmail SMTP is not connected. The customer was not emailed.";
+  let mailOk = false;
+  let mailDetail = "Gmail SMTP is not connected. No mail was sent.";
   try {
     const result = await sendFounderMail(notice.subject, notice.body);
     if (result.ok) {
-      status = "sent";
-      detail = "Sent through Gmail SMTP. The customer was not copied.";
+      mailOk = true;
+      mailDetail = "Sent through Gmail SMTP.";
     } else if (result.error) {
-      detail = result.error;
+      mailDetail = result.error;
     }
   } catch {
-    detail = "Gmail SMTP could not be reached. The customer was not emailed.";
+    mailDetail = "Gmail SMTP could not be reached. No mail was sent.";
   }
+
+  const webhook = env("FOUNDER_WEBHOOK_URL")
+    ? await postFounderWebhook(notice)
+    : { ok: false, detail: "" };
+  const status = mailOk || webhook.ok ? "sent" : "not_delivered";
+  const detail = [mailDetail, webhook.detail].filter(Boolean).join(" ");
 
   try {
     const sql = await getSql();

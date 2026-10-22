@@ -22,12 +22,12 @@ total, and whether customer-response duties may run at half their normal
 cadence. It never widens what an agent is allowed to do — the governor still
 sits in front of every action.
 
-| Posture  | Per agent | Per tick | Response cadence | Chosen when                                                                                              |
-| -------- | --------- | -------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| idle     | 4         | 24       | normal           | nothing is waiting                                                                                       |
-| steady   | 8         | 48       | normal           | ordinary queued or due work                                                                            |
-| surge    | 12        | 72       | half, floor 5m   | a live P0/P1 ticket, a customer waiting, an undelivered billed period, or a queue of 12 open / 8 due   |
-| recovery | 3         | 18       | normal           | three consecutive failing ticks, or the tick that clears the circuit breaker                            |
+| Posture  | Per agent | Per tick | Response cadence | Chosen when                                                                                          |
+| -------- | --------- | -------- | ---------------- | ---------------------------------------------------------------------------------------------------- |
+| idle     | 4         | 24       | normal           | nothing is waiting                                                                                   |
+| steady   | 8         | 48       | normal           | ordinary queued or due work                                                                          |
+| surge    | 12        | 72       | half, floor 5m   | a live P0/P1 ticket, a customer waiting, an undelivered billed period, or a queue of 12 open / 8 due |
+| recovery | 3         | 18       | normal           | three consecutive failing ticks, or the tick that clears the circuit breaker                         |
 
 A "customer waiting" is an unanswered inbound item older than thirty minutes or
 a chat older than twenty. An "undelivered billed period" is a period the office
@@ -93,7 +93,7 @@ outside its owner's role.
 | SIGNAL  | `signal_qualify_leads`        | 3h      | Scores every lead on what the buyer actually wrote                                                                                                                                                  |
 | SIGNAL  | `signal_handoff`              | 2h      | Files a founder-gated sales handoff for genuine buying intent                                                                                                                                       |
 | CLOSE   | `close_discovery`             | 4h      | Opens a qualified lead that came in through a real channel, and writes a discovery checklist against a live opportunity                                                                             |
-| CLOSE   | `close_quote`                 | 60m     | Issues a published-rate quote for a real enquiry when a delegation covers quoting. The line comes from the quote playbook, never from the model.                                                     |
+| CLOSE   | `close_quote`                 | 60m     | Issues a published-rate quote for a real enquiry when a delegation covers quoting. The line comes from the quote playbook, never from the model.                                                    |
 | CLOSE   | `close_quote_followup`        | 12h     | Drafts a follow-up once a real quote has waited two days                                                                                                                                            |
 | CLOSE   | `close_stale_proposal`        | 24h     | Reports a proposal with no movement for fourteen days                                                                                                                                               |
 | CLOSE   | `close_win_handoff`           | 60m     | Flags a won deal with delivery open and no invoice                                                                                                                                                  |
@@ -111,7 +111,7 @@ outside its owner's role.
 | LEDGER  | `ledger_start_subscription`   | 4h      | Starts the subscription a customer bought: a won opportunity with an accepted quote for a recurring plan and no subscription yet                                                                    |
 | LEDGER  | `ledger_subscription_billing` | 60m     | Invoices each subscription whose own billing date has passed, using the period the subscription says                                                                                                |
 | LEDGER  | `ledger_dunning`              | 4h      | Reminds a customer about an invoice open for seven days or more, and only while a delegation allows it. After nine weeks the office stops emailing about it and the invoice is left to the founder. |
-| LEDGER  | `ledger_billing`              | 30m     | Invoices won work with an accepted quote, then sends the invoice and, once money is matched, the receipt. Only under a delegation that covers billing and customer email.                             |
+| LEDGER  | `ledger_billing`              | 30m     | Invoices won work with an accepted quote, then sends the invoice and, once money is matched, the receipt. Only under a delegation that covers billing and customer email.                           |
 | KEEP    | `keep_records`                | 12h     | Reports a won deal with no quote, invoice or receipt filed                                                                                                                                          |
 | KEEP    | `keep_subscription_review`    | 168h    | Reviews the recurring-revenue book weekly: subscriptions past their billing date, and whether the published prices still match the plans the office sells                                           |
 | SEAL    | `seal_chain_verify`           | 12h     | **Halts the office** if the audit chain does not verify                                                                                                                                             |
@@ -362,5 +362,5 @@ npm run verify:office
 
 This boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did — 209 checks, no mocks, no
+asserts on what the real agents actually did — 212 checks, no mocks, no
 fixtures.

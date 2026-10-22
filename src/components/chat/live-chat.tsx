@@ -1,6 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { MessageCircle, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { postPublicChat, readPublicChat } from "@/lib/office/api";
@@ -37,6 +37,25 @@ function ChatPanel() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback(() => {
+    setOpen(false);
+    // Return focus to the control that opened the panel, so a keyboard user is
+    // not left at the top of the document after Escape.
+    requestAnimationFrame(() => trigger.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    closeButton.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, close]);
 
   useEffect(() => {
     const openIt = () => {
@@ -81,6 +100,7 @@ function ChatPanel() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (pending) return;
     const id = threadId();
     localStorage.setItem(NAME_KEY, name);
     setPending(true);
@@ -106,27 +126,37 @@ function ChatPanel() {
     <div className="site fixed bottom-4 left-4 z-40">
       {open ? (
         <section
-          aria-label="Live chat"
+          role="dialog"
+          aria-labelledby="live-chat-title"
           className="panel mb-3 flex h-[28rem] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl"
         >
           <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div className="flex items-center gap-2.5">
               <LivePulse />
               <div>
-                <p className="text-lg font-semibold">Ask us</p>
+                <p id="live-chat-title" className="text-lg font-semibold">
+                  Ask us
+                </p>
                 <p className="text-xs text-muted">A quote is sent separately.</p>
               </div>
             </div>
             <button
+              ref={closeButton}
               type="button"
               className="text-muted hover:text-fg"
               aria-label="Close chat"
-              onClick={() => setOpen(false)}
+              onClick={close}
             >
               <X className="size-4" />
             </button>
           </header>
-          <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+          <div
+            ref={scroller}
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+            className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
+          >
             {lines.length === 0 ? (
               <p className="text-sm text-muted">
                 Tell us what is going wrong. We will point you to the next step. A written quote is
@@ -172,12 +202,19 @@ function ChatPanel() {
                 {pending ? "…" : "Send"}
               </Button>
             </div>
-            {error ? <p className="text-xs text-danger">{error}</p> : null}
+            {error ? (
+              <p role="alert" className="text-xs text-danger">
+                {error}
+              </p>
+            ) : null}
           </form>
         </section>
       ) : (
         <button
+          ref={trigger}
           type="button"
+          aria-haspopup="dialog"
+          aria-expanded={open}
           onClick={() => setOpen(true)}
           className="group fixed bottom-5 left-5 flex cursor-pointer items-center gap-3"
         >

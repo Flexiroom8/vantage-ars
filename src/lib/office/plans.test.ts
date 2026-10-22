@@ -30,13 +30,14 @@ function plan(id: string): PlanDefinition {
   return found;
 }
 
-const RECURRING: string[] = ["managed-support", "health-watch"];
+const RECURRING: string[] = ["managed-support", "health-watch", "quarterly-review"];
 const ONE_OFF: string[] = [
   "service-report",
   "billing-audit",
   "handover-pack",
   "continuity-plan",
   "sla-review",
+  "fault-pattern-review",
 ];
 
 describe("the productised service list", () => {

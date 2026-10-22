@@ -70,6 +70,7 @@ export function EnquiryForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (pending) return;
     setPending(true);
     setError(null);
 

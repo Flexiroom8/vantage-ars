@@ -181,6 +181,48 @@ const PLAN_LIST: PlanDefinition[] = [
     ],
     excludes: ["A contractual SLA — we publish our targets, we do not sell a guarantee"],
   },
+  {
+    id: "quarterly-review",
+    title: "Quarterly infrastructure review",
+    rateId: "quarterly-review",
+    cycle: "quarterly",
+    priceCents: ratePriceCents("quarterly-review"),
+    headline: "Every quarter, the record turned into a short list of what to fix next.",
+    deliverable:
+      "A quarterly review of the faults, changes, open items and spend already on your record, with a prioritised plan for the next quarter.",
+    automatic: true,
+    humanLabour: null,
+    includes: [
+      "Faults and repeat failure points from the quarter",
+      "Open items and the spend already invoiced",
+      "A prioritised next-quarter list drawn from the record",
+    ],
+    excludes: [
+      "Monitoring of your live estate or a contractual service level",
+      "New work — anything recommended is quoted separately",
+    ],
+  },
+  {
+    id: "fault-pattern-review",
+    title: "Fault pattern and incident review",
+    rateId: "fault-pattern-review",
+    cycle: "once",
+    priceCents: ratePriceCents("fault-pattern-review"),
+    headline: "The faults that keep coming back, named from the record rather than guessed.",
+    deliverable:
+      "A review of repeat faults, the time the record shows they took to resolve, and the common failure points the office has actually seen.",
+    automatic: true,
+    humanLabour: null,
+    includes: [
+      "Repeat fault kinds and how often each was recorded",
+      "Measured resolution time against our internal targets",
+      "The open items still on the record",
+    ],
+    excludes: [
+      "A root-cause claim the record cannot support",
+      "New work, monitoring or a contractual service level",
+    ],
+  },
 ];
 
 export const PLANS: PlanDefinition[] = PLAN_LIST;

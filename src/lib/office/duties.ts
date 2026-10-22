@@ -68,6 +68,9 @@ export type QuoteView = {
   createdAt: string;
   /** The published rate line the quote came from, when it is known. */
   rateId?: string | null;
+  /** The figure the customer was quoted, snapshotted when the quote was written. */
+  amountCents?: number;
+  acceptedAt?: string | null;
 };
 
 export type TicketView = {
@@ -172,6 +175,7 @@ export type BillingCycleView = {
   documentId: string | null;
   reportDocumentId: string | null;
   notifiedAt: string | null;
+  lastNoticeAttemptAt?: string | null;
 };
 
 export type DelegationView = {
@@ -1059,8 +1063,17 @@ function planDiscovery(view: DutyView): PlannedWork[] {
   const alreadyQuoted = new Set(
     view.quotes.filter((quote) => quote.relatedId).map((quote) => quote.relatedId as string),
   );
+  const discoveryFiled = new Set(
+    view.documents
+      .filter(
+        (doc) =>
+          doc.kind === "internal" && doc.relatedId && doc.title.startsWith("Discovery checklist"),
+      )
+      .map((doc) => doc.relatedId as string),
+  );
   for (const opp of view.opportunities) {
     if (opp.stage !== "discovery") continue;
+    if (discoveryFiled.has(opp.id)) continue;
     // When the office can price the quote itself, the quote duty owns this
     // opportunity. Advancing discovery as well would move the stage twice.
     if (!alreadyQuoted.has(opp.id) && autoQuoteFor(view, opp)) continue;
@@ -1445,7 +1458,7 @@ function planSubscriptionBilling(view: DutyView): PlannedWork[] {
  */
 function planServiceFulfilment(view: DutyView): PlannedWork[] {
   return view.billingCycles
-    .filter((cycle) => cycle.status === "invoiced")
+    .filter((cycle) => cycle.status === "invoiced" || cycle.status === "paid")
     .filter((cycle) => !cycle.reportDocumentId)
     .map((cycle) => ({
       agentId: "desk",
@@ -1472,9 +1485,20 @@ function planServiceFulfilment(view: DutyView): PlannedWork[] {
  * email that closes the loop.
  */
 function planServiceNotice(view: DutyView): PlannedWork[] {
+  const RETRY_AFTER_MS = 6 * 60 * 60 * 1000;
+  // The attempt stamp comes from the database clock, so compare it with the
+  // real clock rather than the injected view clock. In production they are the
+  // same; in the deterministic verifier the view clock runs far ahead, and
+  // using it here would retry every tick.
+  const nowMs = Date.now();
   return view.billingCycles
-    .filter((cycle) => cycle.status === "fulfilled")
-    .filter((cycle) => !cycle.notifiedAt)
+    .filter((cycle) => cycle.status === "fulfilled" || cycle.status === "paid")
+    .filter((cycle) => !cycle.notifiedAt && Boolean(cycle.reportDocumentId))
+    .filter(
+      (cycle) =>
+        !cycle.lastNoticeAttemptAt ||
+        nowMs - Date.parse(cycle.lastNoticeAttemptAt) >= RETRY_AFTER_MS,
+    )
     .map((cycle) => ({
       agentId: "desk",
       kind: "send_service_notice",
@@ -1520,10 +1544,14 @@ function planBilling(view: DutyView): PlannedWork[] {
 
   for (const opp of view.opportunities) {
     if (opp.stage !== "won" || opp.valueCents <= 0) continue;
-    if (opp.valueCents > billingCap) continue;
     if (invoiceByRelated.has(opp.id)) continue;
     const quote = accepted.find((item) => item.relatedId === opp.id);
     if (!quote) continue;
+    // The accepted quote is the figure that will be invoiced, so the delegation
+    // cap must be tested against it rather than a mutable opportunity value.
+    const invoiceCents =
+      quote.amountCents && quote.amountCents > 0 ? quote.amountCents : opp.valueCents;
+    if (invoiceCents > billingCap) continue;
     work.push({
       agentId: "ledger",
       kind: "issue_won_invoice",
@@ -1533,7 +1561,7 @@ function planBilling(view: DutyView): PlannedWork[] {
         opportunityId: opp.id,
         companyName: opp.companyName,
         quoteDocumentId: quote.id,
-        valueCents: opp.valueCents,
+        valueCents: invoiceCents,
       },
       dedupeKey: `won-invoice:${opp.id}`,
     });
@@ -1604,11 +1632,23 @@ function planDunning(view: DutyView): PlannedWork[] {
   if (!view.delegation || view.delegation.status !== "active") return [];
   if (!view.delegation.allowCustomerMail) return [];
   if (!view.delegation.allowedActions.includes("send_customer_mail")) return [];
+  const lastReminder = new Map<string, string>();
+  for (const notice of view.notices) {
+    if (notice.template !== "payment_reminder" || !notice.relatedId) continue;
+    const previous = lastReminder.get(notice.relatedId);
+    if (!previous || Date.parse(notice.createdAt) > Date.parse(previous)) {
+      lastReminder.set(notice.relatedId, notice.createdAt);
+    }
+  }
   return view.ledger
     .filter((row) => row.kind === "invoice" && row.status === "issued")
     .filter((row) => {
       const days = ageMinutes(row.createdAt, view.now) / DAY;
       return days >= 7 && days < 63;
+    })
+    .filter((row) => {
+      const sentAt = lastReminder.get(row.id);
+      return !sentAt || ageMinutes(sentAt, view.now) >= 7 * DAY;
     })
     .map((row) => ({
       agentId: "ledger",

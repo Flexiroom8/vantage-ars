@@ -206,6 +206,7 @@ function AnswerForm({
 
   async function send(outcome: "accepted" | "declined", event?: FormEvent) {
     event?.preventDefault();
+    if (pending) return;
     setError(null);
     setPending(outcome);
     try {

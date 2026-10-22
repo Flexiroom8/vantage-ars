@@ -77,7 +77,7 @@ function WorkPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="font-serif text-4xl tracking-[-0.03em] sm:text-5xl">Where this applies</h2>
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
-            Four lines of work
+            {SERVICE_PAGES.length} lines of work
           </p>
         </div>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">

@@ -192,6 +192,56 @@ export const PUBLISHED_RATES: PublishedRate[] = [
     offered: true,
   },
   {
+    id: "cloud-admin",
+    title: "Cloud and email administration",
+    scope:
+      "Administer customer-approved Microsoft 365, Google Workspace or email security settings, mail flow, users, groups and shared mailboxes.",
+    price: "R690 / hour",
+    basis:
+      "Remote only. 30-minute minimum, then 15-minute increments. Licences, vendor support and mailbox data recovery are excluded.",
+    offered: true,
+  },
+  {
+    id: "security-baseline",
+    title: "Security baseline review",
+    scope:
+      "Review identity, email authentication, endpoint protection, administrator access and backup readiness against a written baseline, with a prioritised findings report.",
+    price: "R1,725",
+    basis:
+      "One review per order, remote. Not penetration testing, not forensic work and not a compliance certification.",
+    offered: true,
+  },
+  {
+    id: "backup-review",
+    title: "Backup and recovery readiness review",
+    scope:
+      "Review the backups and restore path the customer says are in place, and report what exists, what is untested and what is missing.",
+    price: "R1,380",
+    basis:
+      "One review per order, remote. No data recovery, no guarantee of recoverability, and no changes made without a separate approved quote.",
+    offered: true,
+  },
+  {
+    id: "quarterly-review",
+    title: "Quarterly infrastructure review",
+    scope:
+      "A quarterly review of recorded faults, changes, open items and spend, with a prioritised plan for the next quarter.",
+    price: "R1,725 / quarter",
+    basis:
+      "One review per quarter, built from our records. Remote only. Not monitoring and not a contractual service level.",
+    offered: true,
+  },
+  {
+    id: "fault-pattern-review",
+    title: "Fault pattern and incident review",
+    scope:
+      "A review of repeat faults and their recorded resolution times, naming the common failure points the record actually shows.",
+    price: "R1,150",
+    basis:
+      "One review per order, built from recorded faults. It makes no root-cause claim beyond the record and includes no new work.",
+    offered: true,
+  },
+  {
     id: "third-party",
     title: "Hardware, software, and carrier services",
     scope: "Third-party products or services needed for an approved job.",
@@ -236,6 +286,24 @@ export const SERVICE_LINES = [
     summary: "Monthly plans and written reports, produced and billed without you chasing anyone.",
     price: "From R690 / month",
   },
+  {
+    number: "05",
+    title: "Cloud & email",
+    summary: "Microsoft 365, Google Workspace, mail flow and the identity that guards them.",
+    price: "From R690 / hour",
+  },
+  {
+    number: "06",
+    title: "Security & continuity",
+    summary: "A written baseline, a realistic recovery path, and the gaps named before they bite.",
+    price: "From R1,725",
+  },
+  {
+    number: "07",
+    title: "Backup & recovery",
+    summary: "What is backed up, what has never been tested, and what is still missing.",
+    price: "From R1,380",
+  },
 ] as const;
 
 export const PUBLIC_RATE_IDS = [
@@ -250,6 +318,11 @@ export const PUBLIC_RATE_IDS = [
   "managed-support",
   "health-watch",
   "service-report",
+  "cloud-admin",
+  "security-baseline",
+  "backup-review",
+  "quarterly-review",
+  "fault-pattern-review",
 ] as const;
 
 export function ratesByIds(ids: readonly string[]) {
@@ -266,7 +339,14 @@ export const RATE_GROUPS = [
   {
     title: "Labour",
     note: "Charged by time. A written quote states the hours and the VAT treatment.",
-    ids: ["remote-support", "onsite-support", "after-hours", "assessment", "voip-diagnosis"],
+    ids: [
+      "remote-support",
+      "onsite-support",
+      "after-hours",
+      "assessment",
+      "voip-diagnosis",
+      "cloud-admin",
+    ],
   },
   {
     title: "Quoted work",
@@ -279,6 +359,8 @@ export const RATE_GROUPS = [
       "pbx-install",
       "infra-assessment",
       "infra-change",
+      "security-baseline",
+      "backup-review",
     ],
   },
   {
@@ -292,6 +374,8 @@ export const RATE_GROUPS = [
       "handover-pack",
       "continuity-plan",
       "sla-review",
+      "quarterly-review",
+      "fault-pattern-review",
     ],
   },
   {

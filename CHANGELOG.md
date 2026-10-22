@@ -2,6 +2,60 @@
 
 All notable changes to Vantage-ARS.
 
+## 4.8.0 — 2026-10-22
+
+### Added
+
+**Three more public service lines.** Cloud & email covers Microsoft 365 and Google Workspace administration, mail flow and identity. Security & continuity covers a written baseline review across identity, email authentication, administrator access, endpoint protection and backup readiness. Backup & recovery covers what is protected, what has been tested and what is missing. All three have their own service page, published rates, structured data, sitemap entry, traffic tracking, and search results. None claims to be penetration testing, monitoring, a recovery guarantee or a service level.
+
+**Two more productised services.** The quarterly infrastructure review turns the quarter's faults, open items and spend into a prioritised next-quarter list, and is a standalone recurring plan as well as part of the managed support plan. The fault pattern and incident review names the faults that repeat and the resolution times the record can measure. Both are assembled by the office from its own records; the agent never writes the customer's report.
+
+**Site-wide search.** A search dialog in the public header, opened with the button, `/` or Ctrl/⌘ K, searches the site's own published copy: services, rates, guides, common answers and fixed pages. It never reads an office record, a customer document or an unpublished draft. Results are keyboard navigable and fall back to the service desk when nothing matches.
+
+**Five field guides.** `/guides` publishes plain-language notes on one-way VoIP audio, backing up versus recovering, Wi-Fi drops, firewall changes and preparing for remote support. Each guide carries Article, FAQ and breadcrumb structured data, a related-service link, a stated boundary and no promise about an individual system.
+
+**A second path for founder notices.** `FOUNDER_WEBHOOK_URL` optionally posts the same founder notices to an HTTPS webhook (Slack, Discord or any receiver accepting `text` or `content`). SMTP and the webhook can both run; the notice is marked sent when either succeeds, and a failed webhook does not undo the office action. Only HTTPS URLs without embedded credentials are accepted.
+
+### Changed
+
+**Dependencies refreshed.** PGlite 0.5.11 and the current compatible TanStack Router, Start and router-plugin releases are pinned. TypeScript 7 is deliberately not adopted while `typescript-eslint` still declares support below 6.1.
+
+**The catalogue, docs and site now agree.** The managed-services guide, business scope, README, rates page, sitemap, tracked paths and footer all describe nine productised services and the new public service pages. The home and work pages no longer hard-code a four-line catalogue.
+
+### Verification
+
+- `npm test`: 620 unit checks plus the real-office verification, exit 0.
+- `npm run verify:office`: 212 checks, no mocks and no sample data.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` and `npm run build:ci`.
+
+## 4.7.1 — 2026-10-22
+
+### Fixed
+
+**A failed action can no longer leave half its writes behind.** `applyProposedAction` used to catch execution errors inside the audit transaction and record the refusal there, which committed whatever the action had already written. The error now rolls the transaction back and the blocked decision is recorded in a separate transaction, so a refusal is visible without leaving a partial invoice, receipt or subscription on the books.
+
+**A quote's price is no longer read from a mutable opportunity.** `documents.amount_cents` snapshots the figure the customer was quoted, and `documents.accepted_at` records when they accepted. Invoices for won work use the snapshot, and subscriptions bill from acceptance rather than from the day the quote was written.
+
+**Money can only be recorded once per invoice.** A receipt is guarded inside the action transaction and by a unique database index, and the receipt document, invoice status and billing-cycle status are written together with the money movement.
+
+**Won work and accepted quotes are now checked per job.** The governor follows a billing cycle, subscription, invoice or quote document back to the opportunity it belongs to, instead of accepting any won job or accepted quote at the same customer. The delegated billing cap is tested against the accepted quote's snapshot, so a later opportunity edit cannot push an invoice past the limit.
+
+**Recurring billing waits instead of duplicating.** A pending period is retried, a settled period advances the clock, and an invoice awaiting founder approval is not re-filed every tick. If the founder rejects the invoice, the period is closed and the subscription moves on instead of re-opening the same approval forever. A paid period still receives its report and notice.
+
+**A failed service notice is retried, not forgotten.** Delivery failure no longer stamps the cycle as notified; the attempt is recorded and the notice is retried later instead of being re-sent every tick.
+
+**Discovery and dunning stop repeating.** A discovery checklist already on file suppresses further discovery work, and the checklist no longer overwrites the buyer's summary or re-prices the opportunity. Dunning reminders are suppressed for seven days after the last reminder, even though the previous work item is closed.
+
+**Public health and error pages leak less.** `/api/health` returns the public projection to anonymous callers and the full document only to a founder session or the cron secret. Public error pages no longer render a server error message. The site-view beacon no longer holds a request open for a nine-second scheduler tick. Rate limiting prefers platform-set client headers, and the public quote view and answer limits are now shared through the database rather than held only in one process.
+
+**Accessibility and metadata corrections.** The live chat is a labelled dialog with a live log, Escape closes it and focus returns to the trigger. Public forms ignore a second submit while one is in flight. The hreflang alternate points at the current page, not the site root.
+
+### Verification
+
+- `npm test`: unit checks plus the real-office verification, exit 0.
+- `npm run verify:office`: 212 checks, including quote snapshots, one-time discovery and a single service notice after a failed delivery.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` and `npm run build:ci`.
+
 ## 4.7.0 — 2026-10-21
 
 ### Added

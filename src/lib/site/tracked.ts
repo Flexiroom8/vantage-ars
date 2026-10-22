@@ -17,6 +17,15 @@ export const TRACKED_PATHS = [
   "/services/networking",
   "/services/it-infrastructure",
   "/services/managed-support",
+  "/services/cloud-email",
+  "/services/security",
+  "/services/backup-recovery",
+  "/guides",
+  "/guides/one-way-audio",
+  "/guides/backup-is-not-recovery",
+  "/guides/wifi-drops",
+  "/guides/change-without-rollback",
+  "/guides/prepare-for-remote-support",
 ] as const;
 
 const TRACKED = new Set<string>(TRACKED_PATHS);

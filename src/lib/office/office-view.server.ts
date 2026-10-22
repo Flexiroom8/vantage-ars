@@ -50,6 +50,10 @@ const PUBLISHED_PATHS = [
   "/services/voip",
   "/services/networking",
   "/services/it-infrastructure",
+  "/services/managed-support",
+  "/services/cloud-email",
+  "/services/security",
+  "/services/backup-recovery",
 ];
 
 /**
@@ -94,7 +98,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     >`select * from ledger_entries order by created_at desc limit ${LIST_LIMIT}`,
     sql<
       Record<string, unknown>
-    >`select id, title, kind, status, related_id, created_at, rate_id from documents order by created_at desc limit ${LIST_LIMIT}`,
+    >`select id, title, kind, status, related_id, created_at, rate_id, amount_cents, accepted_at from documents order by created_at desc limit ${LIST_LIMIT}`,
     sql<
       Record<string, unknown>
     >`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
@@ -172,7 +176,8 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
 
   const billingCycles = await sql<Record<string, unknown>>`
     select id, subscription_id, company_name, plan_id, amount_cents, status,
-           period_start, period_end, invoice_id, document_id, report_document_id, notified_at
+           period_start, period_end, invoice_id, document_id, report_document_id,
+           notified_at, last_notice_attempt_at
     from billing_cycles
     where status in ('pending', 'invoiced', 'fulfilled')
     order by created_at asc
@@ -237,6 +242,11 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
         relatedId: row.related_id ? text(row.related_id) : null,
         createdAt: iso(row.created_at),
         rateId: row.rate_id ? text(row.rate_id) : null,
+        amountCents:
+          row.amount_cents === null || row.amount_cents === undefined
+            ? undefined
+            : int(row.amount_cents),
+        acceptedAt: row.accepted_at ? iso(row.accepted_at) : null,
       })),
     tickets: tickets.map((row) => ({
       id: text(row.id),
@@ -347,6 +357,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
       documentId: row.document_id ? text(row.document_id) : null,
       reportDocumentId: row.report_document_id ? text(row.report_document_id) : null,
       notifiedAt: row.notified_at ? iso(row.notified_at) : null,
+      lastNoticeAttemptAt: row.last_notice_attempt_at ? iso(row.last_notice_attempt_at) : null,
     })),
     delegation: delegationRow.length
       ? {

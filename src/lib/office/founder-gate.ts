@@ -15,6 +15,11 @@ function tokenFrom(context: { bearerToken?: string }): string | undefined {
   return context.bearerToken;
 }
 
+/** Resolve a bearer token (or the request cookie) to the founder. */
+export async function isFounderToken(token?: string): Promise<boolean> {
+  return founderFromToken(token);
+}
+
 /** Lets the office page render a locked door instead of private records. */
 export const officeAccessMiddleware = createMiddleware({ type: "function" })
   .client(async ({ next }) => {

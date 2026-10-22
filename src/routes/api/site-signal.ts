@@ -31,10 +31,11 @@ export const Route = createFileRoute("/api/site-signal")({
           // Fall through to 204. Analytics never break a page.
         }
         // A real page view means someone is on the site; if the scheduler has
-        // fallen behind, this is a free chance to catch up. The beacon caller
-        // never waits on this response, so the tick may use its full budget.
+        // fallen behind, this is a free chance to catch up. Start the tick but
+        // never hold a public request open for it: a visitor (or a flood of
+        // them) must not be able to pin server threads for nine seconds.
         try {
-          await nudgeScheduler({ data: { waitMs: 9_000 } });
+          await nudgeScheduler({ data: { waitMs: 0 } });
         } catch {
           // Analytics never break a page — and never fail on the office either.
         }

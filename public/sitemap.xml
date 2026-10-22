@@ -5,6 +5,15 @@
   <url><loc>https://vantage-ars.co.za/services/networking</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/it-infrastructure</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/managed-support</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://vantage-ars.co.za/services/cloud-email</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://vantage-ars.co.za/services/security</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://vantage-ars.co.za/services/backup-recovery</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides/one-way-audio</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides/backup-is-not-recovery</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides/wifi-drops</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides/change-without-rollback</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/guides/prepare-for-remote-support</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://vantage-ars.co.za/rates</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://vantage-ars.co.za/work</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://vantage-ars.co.za/support</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>

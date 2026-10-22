@@ -5,7 +5,14 @@
 import { rateAmountLabel } from "@/lib/office/catalogue";
 
 export type ServicePage = {
-  slug: "voip" | "networking" | "it-infrastructure" | "managed-support";
+  slug:
+    | "voip"
+    | "networking"
+    | "it-infrastructure"
+    | "managed-support"
+    | "cloud-email"
+    | "security"
+    | "backup-recovery";
   number: string;
   title: string;
   metaTitle: string;
@@ -216,6 +223,161 @@ export const SERVICE_PAGES: ServicePage[] = [
       {
         q: "Is on-site work part of the plan?",
         a: "No. The plan is remote only. On-site work is quoted separately at the published on-site rate, and travel is agreed before anyone is booked.",
+      },
+    ],
+  },
+  {
+    slug: "cloud-email",
+    number: "05",
+    title: "Cloud & email",
+    metaTitle: "Microsoft 365, Google Workspace & email support · Vantage-ARS",
+    description:
+      "Mail flow, deliverability, users, shared mailboxes and identity for Microsoft 365 and Google Workspace. Remote administration from R690 an hour.",
+    lead: "Cloud mail and identity are easy to set up and hard to keep tidy. We work on the tenant you already have: users, groups, shared mailboxes, mail flow, authentication and the administrator access around them.",
+    symptoms: [
+      "Mail that is delayed, rejected or lands in spam",
+      "A new starter, leaver or shared mailbox to configure",
+      "MFA, password resets or administrator access that needs repair",
+      "Mail flow rules that nobody can explain any more",
+      "A tenant that grew without a naming or access plan",
+    ],
+    approach: [
+      {
+        title: "Check the tenant and the domain",
+        body: "We look at the records, mail flow, authentication and the access you can lawfully provide. We do not ask for passwords in a message.",
+      },
+      {
+        title: "Fix or change what was agreed",
+        body: "The written quote names the users, mailboxes, rules and checks in scope. Licence and vendor fees are separate.",
+      },
+      {
+        title: "Test and hand over",
+        body: "Agreed checks are run after the change, and the result is recorded in the completion note.",
+      },
+    ],
+    rateIds: ["cloud-admin", "remote-support", "security-baseline"],
+    excluded: [
+      "Microsoft 365, Google Workspace or other licence fees",
+      "Mailbox data recovery and vendor-side restoration guarantees",
+      "Vendor support that only the provider can give",
+      "A 24/7 response or an uptime promise",
+    ],
+    faqs: [
+      {
+        q: "Do you resell Microsoft 365 or Google Workspace?",
+        a: "No. You keep your own tenant and licences. We administer what you already own, and any licence or vendor charge stays on your account and is itemised separately.",
+      },
+      {
+        q: "Can you recover a deleted mailbox?",
+        a: "We can check the recovery options your provider exposes, but we do not promise data recovery. Mailbox restoration is a separate, explicitly quoted job, and the provider may charge for it.",
+      },
+      {
+        q: "How is this priced?",
+        a: `Cloud and email administration is ${rateAmountLabel("cloud-admin")} an hour remote, with a 30-minute minimum and then 15-minute increments. A security baseline review is a separate fixed ${rateAmountLabel("security-baseline")} review.`,
+      },
+    ],
+  },
+  {
+    slug: "security",
+    number: "06",
+    title: "Security & continuity",
+    metaTitle: "Security baseline & continuity review · Vantage-ARS",
+    description:
+      "A written review of identity, email authentication, administrator access, endpoint protection and backup readiness. Fixed from R1,380, with no penetration testing.",
+    lead: "Most small offices do not need a security programme. They need to know which basic controls are missing, which ones are untested, and what to fix first. We review the controls we can see and write down the gaps.",
+    symptoms: [
+      "MFA is on for some accounts but nobody knows which",
+      "Email authentication was set up once and never checked",
+      "Too many people hold administrator access",
+      "A backup runs, but nobody has tested a restore",
+      "A continuity plan exists only in somebody's head",
+    ],
+    approach: [
+      {
+        title: "Agree the baseline",
+        body: "We name the controls in scope: identity, email authentication, administrator access, endpoint protection and backup readiness.",
+      },
+      {
+        title: "Review what is actually configured",
+        body: "We check the configuration you can lawfully show us. This is a baseline review, not penetration testing or forensic work.",
+      },
+      {
+        title: "Report the gaps in order",
+        body: "You get a prioritised written report. Remediation is separate new work, quoted before anything changes.",
+      },
+    ],
+    rateIds: ["security-baseline", "backup-review", "continuity-plan", "remote-support"],
+    excludedTitle: "Not what this review is",
+    excluded: [
+      "Penetration testing, vulnerability exploitation or forensic investigation",
+      "A compliance certification or a legal opinion",
+      "Incident response, security operations or 24/7 monitoring",
+      "Remediation work, which is quoted separately",
+    ],
+    faqs: [
+      {
+        q: "Is this a penetration test?",
+        a: "No. A baseline review checks written controls and configuration against a baseline. It does not test, exploit or certify anything, and we do not sell penetration testing.",
+      },
+      {
+        q: "Will you tell us what to fix first?",
+        a: `Yes. The fixed ${rateAmountLabel("security-baseline")} review ends with a prioritised findings report. Anything that needs changing is new work, quoted separately and approved before it starts.`,
+      },
+      {
+        q: "Can you handle the backups too?",
+        a: `The backup and recovery readiness review is a separate fixed ${rateAmountLabel("backup-review")} review. It reports what exists, what has been tested and what is missing; it does not guarantee that data can be recovered.`,
+      },
+    ],
+  },
+  {
+    slug: "backup-recovery",
+    number: "07",
+    title: "Backup & recovery",
+    metaTitle: "Backup & recovery readiness review · Vantage-ARS",
+    description:
+      "A written review of what is backed up, what has been tested, and what is missing. Fixed R1,380. No data recovery guarantee and no monitoring promise.",
+    lead: "A backup is not a recovery plan. We review what you say is protected, whether a restore has actually been tested, and what the record cannot show. The result is a short written gap list, not a promise that data can be recovered.",
+    symptoms: [
+      "A backup job reports success, but no restore has been tried",
+      "Nobody can say which systems and data are actually covered",
+      "Backups live on the same device or in the same building as the originals",
+      "The recovery steps are known by one person",
+      "A continuity plan has never been written down",
+    ],
+    approach: [
+      {
+        title: "List what is protected",
+        body: "We record the systems, data and accounts you say are covered, and where the copies live.",
+      },
+      {
+        title: "Check the restore path",
+        body: "We review whether a restore has been tested and what the evidence shows. We do not perform a recovery as part of the review.",
+      },
+      {
+        title: "Name the gaps",
+        body: "You get a written list of what exists, what is untested and what is missing, ordered by the risk the record shows.",
+      },
+    ],
+    rateIds: ["backup-review", "continuity-plan", "remote-support", "onsite-support"],
+    excludedTitle: "What this review does not include",
+    excluded: [
+      "Data recovery, restoration or a guarantee that data can be recovered",
+      "Backup software, storage, hardware or offsite services",
+      "Building and testing a new backup system, which is quoted separately",
+      "Live monitoring of your backups or an uptime promise",
+    ],
+    faqs: [
+      {
+        q: "Will you recover our data if it is lost?",
+        a: "No. This review reports on the recovery path; it does not recover data and does not guarantee recoverability. Recovery is a separate job, quoted after the facts are known.",
+      },
+      {
+        q: "What do we receive?",
+        a: `A written review listing the systems and data you say are covered, whether a restore has been tested, and the gaps the record shows. It is a fixed ${rateAmountLabel("backup-review")} review.`,
+      },
+      {
+        q: "Can you write the continuity plan as well?",
+        a: `Yes. The business continuity plan is a separate ${rateAmountLabel("continuity-plan")} product, built from the faults and open items already on your record. It is not a formal disaster recovery certification.`,
       },
     ],
   },

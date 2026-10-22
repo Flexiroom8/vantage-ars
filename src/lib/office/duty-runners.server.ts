@@ -477,6 +477,10 @@ const writeContentBrief: Runner = async (item, view) => {
     "/services/voip",
     "/services/networking",
     "/services/it-infrastructure",
+    "/services/managed-support",
+    "/services/cloud-email",
+    "/services/security",
+    "/services/backup-recovery",
   ].filter((path) => !paths.has(path));
   const summary = [
     `Brief for the next owned-site piece. Written because ${item.reason}`,
@@ -592,6 +596,19 @@ const draftCampaign: Runner = async (item) => {
 const advanceDiscovery: Runner = async (item) => {
   const opportunityId = str(item.payload.opportunityId);
   const companyName = str(item.payload.companyName);
+  const sql = await getSql();
+  const checklistTitle = `Discovery checklist · ${companyName}`;
+  // Discovery is a one-time pack, not a per-tick ritual. If the checklist is
+  // already on file the work is done, even though the opportunity stays in
+  // discovery until it can be priced.
+  const existing = await sql<{ id: string }>`
+    select id from documents
+    where kind = 'internal' and related_id = ${opportunityId} and title = ${checklistTitle}
+    limit 1
+  `;
+  if (existing.length) {
+    return noop(`Discovery for ${companyName} is already on file.`);
+  }
   const result = await applyProposedAction(
     "close",
     {
@@ -607,25 +624,30 @@ const advanceDiscovery: Runner = async (item) => {
       amountCents: 0,
       companyName,
       relatedId: opportunityId,
-      payload: { stage: "discovery" },
+      // Keep the buyer's summary and the current value: a discovery pack is not
+      // a re-pricing, and overwriting them loses the enquiry detail the quote
+      // playbook later reads.
+      payload: { stage: "discovery", keepSummary: true },
     },
     { source: "scheduler", workItem: item.id },
   );
-  await fileDocument({
-    title: `Discovery checklist · ${companyName}`,
-    kind: "internal",
-    status: "draft",
-    summary: [
-      `Discovery checklist for ${companyName}.`,
-      "1. Which systems are in scope, and which are explicitly not?",
-      "2. Who administers them, and do we have lawful access?",
-      "3. What is the acceptance check for 'fixed'?",
-      "4. What schedule can the customer accept?",
-      "5. Which published rate applies: remote or on-site?",
-      "6. Are travel, hardware, licences or carrier charges needed? They are quoted separately.",
-    ].join("\n"),
-    relatedId: opportunityId,
-  });
+  if (result.status === "executed") {
+    await fileDocument({
+      title: checklistTitle,
+      kind: "internal",
+      status: "draft",
+      summary: [
+        `Discovery checklist for ${companyName}.`,
+        "1. Which systems are in scope, and which are explicitly not?",
+        "2. Who administers them, and do we have lawful access?",
+        "3. What is the acceptance check for 'fixed'?",
+        "4. What schedule can the customer accept?",
+        "5. Which published rate applies: remote or on-site?",
+        "6. Are travel, hardware, licences or carrier charges needed? They are quoted separately.",
+      ].join("\n"),
+      relatedId: opportunityId,
+    });
+  }
   return {
     outcome: `Discovery recorded for ${companyName}: ${result.status}`,
     executed: result.status === "executed" ? 1 : 0,
@@ -1097,31 +1119,61 @@ const billSubscriptionCycle: Runner = async (item) => {
     where subscription_id = ${subscriptionId} and period_start = ${periodStart}
     limit 1
   `;
+  let cycleId: string;
   if (existing.length) {
-    await advanceSubscription(sql, subscriptionId, window.end);
-    return noop(
-      `The ${planId} period starting ${periodStart.slice(0, 10)} was already billed (${existing[0].status}).`,
-    );
-  }
-
-  const cycleId = randomUUID();
-  await sql`
-    insert into billing_cycles (
-      id, subscription_id, company_name, plan_id, rate_id, period_start, period_end,
-      amount_cents, status, created_at
-    ) values (
-      ${cycleId}, ${subscriptionId}, ${companyName}, ${planId}, ${rateId},
-      ${periodStart}, ${window.end}, ${priceCents}, 'pending', now()
-    )
-    on conflict (subscription_id, period_start) do nothing
-  `;
-  const claimed = await sql<{ id: string }>`
-    select id from billing_cycles
-    where id = ${cycleId}
-  `;
-  if (!claimed.length) {
-    await advanceSubscription(sql, subscriptionId, window.end);
-    return noop(`The ${planId} period starting ${periodStart.slice(0, 10)} was already billed.`);
+    const status = existing[0].status;
+    if (status !== "pending") {
+      await advanceSubscription(sql, subscriptionId, window.end);
+      return noop(
+        `The ${planId} period starting ${periodStart.slice(0, 10)} was already billed (${status}).`,
+      );
+    }
+    // The period exists but was never invoiced. If the founder is still looking
+    // at the approval, wait for them instead of filing a second one every tick.
+    const latestApproval = await sql<{ status: string }>`
+      select status from approvals
+      where action_json->>'kind' = 'issue_invoice'
+        and (
+          action_json->>'relatedId' = ${existing[0].id}
+          or action_json->'payload'->>'cycleId' = ${existing[0].id}
+        )
+      order by created_at desc
+      limit 1
+    `.then((rows) => rows[0]);
+    if (latestApproval?.status === "pending") {
+      return noop(`The ${companyName} invoice is waiting on founder approval.`);
+    }
+    if (latestApproval?.status === "rejected") {
+      // A refused invoice must not be re-proposed every ten minutes. Close the
+      // period and move the subscription on; the founder can bill it by hand.
+      await sql`
+        update billing_cycles set status = 'cancelled'
+        where id = ${existing[0].id} and status = 'pending'
+      `;
+      await advanceSubscription(sql, subscriptionId, window.end);
+      return noop(`The founder rejected the ${companyName} invoice, so the period was closed.`);
+    }
+    cycleId = existing[0].id;
+  } else {
+    cycleId = randomUUID();
+    await sql`
+      insert into billing_cycles (
+        id, subscription_id, company_name, plan_id, rate_id, period_start, period_end,
+        amount_cents, status, created_at
+      ) values (
+        ${cycleId}, ${subscriptionId}, ${companyName}, ${planId}, ${rateId},
+        ${periodStart}, ${window.end}, ${priceCents}, 'pending', now()
+      )
+      on conflict (subscription_id, period_start) do nothing
+    `;
+    const claimed = await sql<{ id: string }>`
+      select id from billing_cycles
+      where id = ${cycleId}
+    `;
+    if (!claimed.length) {
+      await advanceSubscription(sql, subscriptionId, window.end);
+      return noop(`The ${planId} period starting ${periodStart.slice(0, 10)} was already billed.`);
+    }
   }
 
   const result = await applyProposedAction(
@@ -1271,14 +1323,19 @@ const sendServiceNotice: Runner = async (item) => {
       blocked: result.status === "blocked" ? 1 : 0,
     };
   }
-  await sql`
-    update billing_cycles
-    set status = 'notified', notified_at = now(), notice_document_id = ${result.documentId ?? null}
-    where id = ${cycleId} and status = 'fulfilled'
-  `;
-  // The office never claims to have emailed a customer it did not email. The
-  // notice is written down either way, but the record says which happened.
+  // The office never claims to have emailed a customer it did not email. A
+  // failed delivery leaves the cycle fulfilled so the notice duty retries it,
+  // and records the attempt time so that retry waits instead of hammering the
+  // mail server on every tick.
   if (result.delivery?.ok) {
+    await sql`
+      update billing_cycles
+      set status = case when status = 'fulfilled' then 'notified' else status end,
+          notified_at = now(),
+          notice_document_id = ${result.documentId ?? null},
+          last_notice_attempt_at = now()
+      where id = ${cycleId}
+    `;
     return {
       outcome: `Sent ${companyName} their report and invoice.`,
       executed: 1,
@@ -1286,6 +1343,12 @@ const sendServiceNotice: Runner = async (item) => {
       blocked: 0,
     };
   }
+  await sql`
+    update billing_cycles
+    set notice_document_id = ${result.documentId ?? null},
+        last_notice_attempt_at = now()
+    where id = ${cycleId}
+  `;
   return {
     outcome: `Prepared the ${companyName} notice and wrote it down, but the message was not sent: ${result.delivery?.detail ?? "the mail server refused it"}. The customer was not emailed.`,
     executed: 1,
@@ -1388,7 +1451,23 @@ const startSubscriptionCycle: Runner = async (item) => {
   const rateId = str(item.payload.rateId);
   const cycle = str(item.payload.cycle, "monthly");
   const priceCents = intOf(item.payload.priceCents);
-  const acceptedAt = str(item.payload.acceptedAt) || new Date().toISOString();
+  const quoteDocumentId = str(item.payload.quoteDocumentId);
+  const quote = quoteDocumentId
+    ? await sql<{ accepted_at: string | Date | null; created_at: string | Date }>`
+        select accepted_at, created_at from documents
+        where id = ${quoteDocumentId} and kind = 'quote'
+      `.then((rows) => rows[0])
+    : undefined;
+  // The driver may hand back either a Date or an ISO string. `String(date)`
+  // drops milliseconds, which is enough to make the billing instant disagree
+  // with the acceptance instant by part of a second.
+  const acceptance = quote?.accepted_at ?? quote?.created_at;
+  const acceptedAt =
+    acceptance instanceof Date
+      ? acceptance.toISOString()
+      : acceptance
+        ? new Date(acceptance).toISOString()
+        : new Date().toISOString();
   const plan = planById(planId);
   if (!plan) return noop(`No productised service is called "${planId}".`);
   if (priceCents !== plan.priceCents) {
@@ -1529,18 +1608,29 @@ const issueWonInvoice: Runner = async (item) => {
   const valueCents = intOf(item.payload.valueCents);
   if (!opportunityId || valueCents <= 0)
     return noop("The invoice work item has no opportunity value.");
-  const record = await sql<{ stage: string; accepted: number; invoiced: number }>`
+  const record = await sql<{
+    stage: string;
+    accepted: number;
+    invoiced: number;
+    quote_amount_cents: number | null;
+  }>`
     select o.stage,
            (select count(*)::int from documents d
             where d.kind = 'quote' and d.status = 'accepted' and d.related_id = o.id) as accepted,
            (select count(*)::int from ledger_entries l
-            where l.kind = 'invoice' and l.related_id = o.id) as invoiced
+            where l.kind = 'invoice' and l.related_id = o.id) as invoiced,
+           (select d.amount_cents from documents d
+            where d.kind = 'quote' and d.status = 'accepted' and d.related_id = o.id
+            order by coalesce(d.accepted_at, d.created_at) desc limit 1) as quote_amount_cents
     from opportunities o where o.id = ${opportunityId}
   `.then((rows) => rows[0]);
   if (!record) return noop("That opportunity is no longer on file.");
   if (record.stage !== "won") return noop("The opportunity is not won, so no invoice was raised.");
   if (Number(record.accepted) === 0) return noop("There is no accepted quote for this work.");
   if (Number(record.invoiced) > 0) return noop("This work already has an invoice.");
+  // The accepted quote is the authority for the figure. The opportunity value is
+  // only a fallback for quotes written before amounts were snapshotted.
+  const invoiceCents = Number(record.quote_amount_cents ?? 0) || valueCents;
   const result = await applyProposedAction(
     "ledger",
     {
@@ -1548,7 +1638,7 @@ const issueWonInvoice: Runner = async (item) => {
       title: `Invoice · ${companyName}`,
       rationale: `${item.reason} The invoice is for the accepted quote figure.`,
       confidence: 0.95,
-      amountCents: valueCents,
+      amountCents: invoiceCents,
       companyName,
       relatedId: opportunityId,
       payload: { vatTreatment: "none" },
@@ -1558,7 +1648,7 @@ const issueWonInvoice: Runner = async (item) => {
   return {
     outcome:
       result.status === "executed"
-        ? `Raised the ${companyName} invoice for ${formatZar(valueCents)}.`
+        ? `Raised the ${companyName} invoice for ${formatZar(invoiceCents)}.`
         : `The ${companyName} invoice was not raised: ${result.status}. ${result.error ?? ""}`.trim(),
     executed: result.status === "executed" ? 1 : 0,
     escalated: result.status === "escalated" ? 1 : 0,

@@ -14,7 +14,7 @@ import {
   founderQuoteAnswerNotice,
 } from "./notice";
 import { parseCustomerAnswer, plausibleToken } from "./quote-link";
-import { founderMiddleware, officeAccessMiddleware } from "./founder-gate";
+import { founderMiddleware, isFounderToken, officeAccessMiddleware } from "./founder-gate";
 import { priceQuote, type QuoteLocation } from "./quote";
 import { operateFloor } from "./floor.server";
 import {
@@ -936,7 +936,11 @@ export const getCustomerQuote = createServerFn({ method: "GET" })
     if (!plausibleToken(data.token))
       return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
     const key = callerKey(await currentRequest());
-    if (!quoteViewLimiter.allow(key)) {
+    if (
+      !(await durableAllow(await getSql(), "quote_view", key, 60, 60 * 60 * 1000, Date.now(), () =>
+        quoteViewLimiter.allow(key),
+      ))
+    ) {
       return {
         ok: false as const,
         error: "Too many requests from this connection. Try again in a while.",
@@ -955,7 +959,17 @@ export const answerCustomerQuote = createServerFn({ method: "POST" })
     if (!plausibleToken(token))
       return { ok: false as const, error: "This quote link is not valid. Ask us for a new one." };
     const key = callerKey(await currentRequest());
-    if (!quoteAnswerLimiter.allow(key)) {
+    if (
+      !(await durableAllow(
+        await getSql(),
+        "quote_answer",
+        key,
+        10,
+        60 * 60 * 1000,
+        Date.now(),
+        () => quoteAnswerLimiter.allow(key),
+      ))
+    ) {
       return {
         ok: false as const,
         error: "Too many attempts from this connection. Try again later.",
@@ -1047,6 +1061,30 @@ export const getOfficeHealth = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<OfficeHealth> => {
     const { officeHealth } = await import("./health.server");
     return officeHealth({ full: context.founder === true });
+  });
+
+/**
+ * Health for a plain server route such as `/api/health`.
+ *
+ * Route handlers are bundled for the client environment too, so they cannot
+ * import a `*.server` module directly. This server function does the founder
+ * and cron-secret check inside the server graph and returns the scope with the
+ * document, allowing the route to project the public view without ever
+ * importing auth internals.
+ */
+export const getOfficeHealthForRequest = createServerFn({ method: "GET" })
+  .validator((input: { token?: string }) => ({ token: str(input?.token, 4096) }))
+  .handler(async ({ data }): Promise<{ full: boolean; health: OfficeHealth }> => {
+    const { officeHealth } = await import("./health.server");
+    let full = false;
+    const configured = process.env.CRON_SECRET?.trim() ?? "";
+    if (data.token && configured) {
+      const { createHash, timingSafeEqual } = await import("node:crypto");
+      const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+      full = timingSafeEqual(digest(data.token), digest(configured));
+    }
+    if (!full) full = await isFounderToken(data.token || undefined);
+    return { full, health: await officeHealth({ full }) };
   });
 
 /**
