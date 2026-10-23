@@ -399,9 +399,13 @@ the repository is not evidence of anything.
 **What the founder sees.** `/office/approvals` shows the risk tier, the
 five-question gate, the precedent matches and their effect, the reason codes
 and the reasoning box, so the ruling is made with the record in front of it
-rather than from memory. The `pre-exposure reasoning` is required before a
-legal gate can be answered at all: the case is not exposed until the founder
-has written down why it may be.
+rather than from memory. `/office/governance` reads the three tables together:
+the rulings, the gates and the receipts, with each signature checked at read
+time and the placeholder-key state stated plainly. A skipped approval is closed
+without a ruling, so its gate record remains visibly undecided.
+
+The `pre-exposure reasoning` is required before a legal gate can be answered at
+all: the case is not exposed until the founder has written down why it may be.
 
 ## What is deliberately not implemented
 
@@ -470,7 +474,7 @@ npm run verify:office
 
 It boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did: 218 checks, no mocks, no
+asserts on what the real agents actually did: 231 checks, no mocks, no
 fixtures. It runs in CI on every push.
 
 It exercises the delegation and the subscription path end to end: the office

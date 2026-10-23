@@ -20,6 +20,7 @@ import {
 } from "@/lib/office/invoice";
 import { Select } from "@/components/ui/select";
 import { formatDateTime, formatZar } from "@/lib/office/money";
+import { ledgerToCsv } from "@/lib/office/csv";
 
 export const Route = createFileRoute("/office/ledger")({
   component: LedgerPage,
@@ -91,7 +92,19 @@ function LedgerPage() {
       />
 
       <section className="mt-8">
-        <h2 className="mb-3 font-serif text-2xl">Journal</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-serif text-2xl">Journal</h2>
+          {snapshot.ledger.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv("vantage-ledger.csv", ledgerToCsv(snapshot.ledger))}
+            >
+              Export journal CSV
+            </Button>
+          ) : null}
+        </div>
         {snapshot.ledger.length === 0 ? (
           <EmptyState
             title="No entries"
@@ -513,4 +526,13 @@ function PaymentNote({ current }: { current: string }) {
       </form>
     </Card>
   );
+}
+
+function downloadCsv(filename: string, body: string) {
+  const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

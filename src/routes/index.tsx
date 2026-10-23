@@ -283,9 +283,12 @@ function HomePage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-4xl sm:text-5xl">Seven service lines, one desk</h2>
 
-          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
-            Pick what stopped
-          </p>
+          <Link
+            to="/services"
+            className="font-mono text-xs tracking-[0.18em] text-subtle uppercase transition-colors hover:text-accent"
+          >
+            All seven lines →
+          </Link>
         </div>
 
         <div className="mt-8 border-t border-border">

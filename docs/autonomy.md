@@ -240,8 +240,10 @@ the whole loop on its own, once a delegation covers it.
    goes through the governor like any other invoice, so the delegation caps and
    the money guards apply exactly as they do to a founder-raised invoice.
 5. **The deliverable is produced from the office's own records.** The report is
-   assembled from tickets, quotes, invoices and measured response times, and
-   filed as a document. The agent asks for the deliverable and the office
+   assembled from tickets, quotes, invoices, support time and measured response
+   times, and filed as a document. When the founder has logged support time for
+   the period, the report uses it; otherwise it labels the remote-hours figure as
+   an estimate. The agent asks for the deliverable and the office
    produces it; it never writes the customer's text. Where the office holds no
    record of something, the report says so rather than filling the gap.
 6. **The customer is emailed.** The notice duty sends the report to an address
@@ -362,5 +364,5 @@ npm run verify:office
 
 This boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did — 218 checks, no mocks, no
+asserts on what the real agents actually did — 231 checks, no mocks, no
 fixtures.

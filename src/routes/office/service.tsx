@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
+import { ServiceTimePanel } from "@/components/office/service-time-panel";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,8 @@ function ServicePage() {
           </p>
         </Card>
       </div>
+
+      <ServiceTimePanel />
 
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Cases</h2>

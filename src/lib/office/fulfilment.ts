@@ -2,12 +2,12 @@
  * Service fulfilment — turning the office's own records into something a
  * customer can read.
  *
- * Every number in a report comes from a row the office already holds. One
- * figure is worked out rather than read, and the report says so wherever it
- * gives that figure: the office keeps no time per fault, so the remote hours
- * are estimated from the faults resolved. Nothing is extrapolated, and
- * nothing is promised. When the office has no record of something, the
- * report says so rather than filling the gap.
+ * Every number in a report comes from a row the office already holds. Remote
+ * hours are recorded when the founder has logged time for the account and
+ * period. When no time entries exist, the report falls back to an estimate
+ * from the faults resolved and says so wherever it gives the figure. Nothing
+ * is extrapolated silently, and nothing is promised. When the office has no
+ * record of something, the report says so rather than filling the gap.
  *
  * The reports deliberately avoid the words that turn a measurement into a
  * promise. A report states what happened; it never says what will happen, and
@@ -86,11 +86,14 @@ export type ServiceFacts = {
   /** The remote hours the plan includes for the period. */
   includedHours: number;
   /**
-   * The remote hours worked in the period, estimated from the faults
-   * resolved. The office records no time per fault, so a report that gives
-   * this figure has to label it an estimate.
+   * The remote hours worked in the period. Read from time entries when any
+   * exist, otherwise estimated from the faults resolved.
    */
   hoursUsed: number;
+  /** Where `hoursUsed` came from, so the report can label it honestly. */
+  hoursBasis: "recorded" | "estimated";
+  /** How many time entries the recorded figure was read from. */
+  timeEntries: number;
   /** The kinds of fault raised inside the period. */
   faultKinds: FaultKind[];
   /** The kinds of every fault on record for the account. */
@@ -121,6 +124,8 @@ export function emptyFacts(companyName: string, periodLabel: string): ServiceFac
     openItems: [],
     includedHours: 0,
     hoursUsed: 0,
+    hoursBasis: "estimated",
+    timeEntries: 0,
     faultKinds: [],
     historyKinds: [],
     faultsOnRecord: 0,
@@ -195,12 +200,21 @@ function managedSupportBody(facts: ServiceFacts): string {
   const support: string[] = [];
   if (facts.includedHours > 0) {
     support.push(line("Included remote hours", String(facts.includedHours)));
-    support.push(
-      line(
-        "Remote hours used",
-        `an estimate of ${facts.hoursUsed} hours, worked out at ${allowancePhrase()} (${facts.ticketsResolved} faults). The office records no time per fault, so this is an estimate, not a measured figure.`,
-      ),
-    );
+    if (facts.hoursBasis === "recorded") {
+      support.push(
+        line(
+          "Remote hours used",
+          `${facts.hoursUsed} hours recorded from ${facts.timeEntries} time entr${facts.timeEntries === 1 ? "y" : "ies"}.`,
+        ),
+      );
+    } else {
+      support.push(
+        line(
+          "Remote hours used",
+          `an estimate of ${facts.hoursUsed} hours, worked out at ${allowancePhrase()} (${facts.ticketsResolved} faults). The office records no time per ticket, so this is an estimate, not a measured figure.`,
+        ),
+      );
+    }
   } else {
     support.push(line("Faults handled in the period", String(facts.ticketsResolved)));
   }

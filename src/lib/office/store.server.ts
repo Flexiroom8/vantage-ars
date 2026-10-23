@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { getSql, type Sql } from "../db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
@@ -93,6 +93,7 @@ import type {
   ProvisionRow,
   Reversibility,
   RevenueMetrics,
+  ServiceTimeRow,
   SubscriptionRow,
   TicketRow,
   Json,
@@ -2068,6 +2069,148 @@ export async function listDecisionEpisodes(limit = 50): Promise<DecisionEpisodeR
   return rows.map(mapDecisionEpisode);
 }
 
+/** The §71 gate record, as the founder's record explorer reads it. */
+export type GateRecordRow = {
+  id: string;
+  approvalId: string;
+  decisionId: string | null;
+  questions: GateAnswer[];
+  legal: boolean;
+  failedQuestion: string | null;
+  reasoning: string | null;
+  evidenceShown: string | null;
+  policyVersion: string;
+  exposureAt: string;
+  decidedAt: string | null;
+  createdAt: string;
+};
+
+/** A signed execution receipt, with the signature checked at read time. */
+export type DecisionReceiptRow = {
+  id: string;
+  decisionId: string;
+  actionKind: string;
+  amountCents: number;
+  riskTier: string;
+  delegationId: string | null;
+  approvedBy: string | null;
+  approvalId: string | null;
+  chainHead: string;
+  signatureValid: boolean;
+  signedAt: string;
+};
+
+export type GovernanceRecord = {
+  episodes: DecisionEpisodeRow[];
+  gates: GateRecordRow[];
+  receipts: DecisionReceiptRow[];
+  /** Whether receipts are signed with a deployment secret or the local placeholder. */
+  receiptKey: "environment" | "placeholder";
+};
+
+function questionsOf(value: unknown): GateAnswer[] {
+  const parsed = parseJson<unknown>(value, []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const row = entry as Record<string, unknown>;
+    const question = typeof row.question === "string" ? row.question : "";
+    if (!question) return [];
+    return [
+      {
+        question: question as GateAnswer["question"],
+        passed: row.passed === true,
+        detail: typeof row.detail === "string" ? row.detail : "",
+      },
+    ];
+  });
+}
+
+/**
+ * The gate's written record, newest first.
+ *
+ * A row with no `decided_at` is an open gate: the case reached a human and the
+ * human has not ruled yet. Skipping an approval leaves that shape visible
+ * rather than pretending a decision was made.
+ */
+export async function listGateRecords(limit = 100): Promise<GateRecordRow[]> {
+  await ensureOffice();
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from gate_records
+    order by created_at desc, id desc
+    limit ${Math.max(1, Math.min(Math.trunc(limit) || 1, 500))}
+  `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    approvalId: String(row.approval_id),
+    decisionId: row.decision_id ? String(row.decision_id) : null,
+    questions: questionsOf(row.questions_json),
+    legal: row.legal === true,
+    failedQuestion: row.failed_question ? String(row.failed_question) : null,
+    reasoning: row.pre_exposure_reasoning ? String(row.pre_exposure_reasoning) : null,
+    evidenceShown: row.evidence_shown ? String(row.evidence_shown) : null,
+    policyVersion: String(row.policy_version ?? ""),
+    exposureAt: iso(row.exposure_at ?? row.created_at),
+    decidedAt: row.decided_at ? iso(row.decided_at) : null,
+    createdAt: iso(row.created_at),
+  }));
+}
+
+function signatureValid(payloadJson: string, signature: string): boolean {
+  const expected = createHmac("sha256", receiptSigningKey()).update(payloadJson).digest();
+  const given = /^[0-9a-f]+$/i.test(signature) ? Buffer.from(signature, "hex") : Buffer.alloc(0);
+  return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+/**
+ * The signed receipts, newest first, each checked against the deployment key.
+ *
+ * A valid signature proves the receipt was written by this office. When the
+ * office is running on the local placeholder key, the screen says so: the
+ * signature is structurally valid but not evidence against a third party.
+ */
+export async function listDecisionReceipts(limit = 100): Promise<DecisionReceiptRow[]> {
+  await ensureOffice();
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from decision_receipts
+    order by signed_at desc, id desc
+    limit ${Math.max(1, Math.min(Math.trunc(limit) || 1, 500))}
+  `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    decisionId: String(row.decision_id),
+    actionKind: String(row.action_kind),
+    amountCents: num(row.amount_cents),
+    riskTier: String(row.risk_tier ?? ""),
+    delegationId: row.delegation_id ? String(row.delegation_id) : null,
+    approvedBy: row.approved_by ? String(row.approved_by) : null,
+    approvalId: row.approval_id ? String(row.approval_id) : null,
+    chainHead: String(row.chain_head ?? ""),
+    signatureValid: signatureValid(String(row.payload_json ?? ""), String(row.signature ?? "")),
+    signedAt: iso(row.signed_at),
+  }));
+}
+
+/** The whole governance record in one read, so the explorer cannot split it. */
+export async function readGovernanceRecord(limit = 100): Promise<GovernanceRecord> {
+  const [episodes, gates, receipts] = await Promise.all([
+    listDecisionEpisodes(limit),
+    listGateRecords(limit),
+    listDecisionReceipts(limit),
+  ]);
+  return {
+    episodes,
+    gates,
+    receipts,
+    receiptKey:
+      process.env.BETTER_AUTH_SECRET?.trim() || process.env.CRON_SECRET?.trim()
+        ? "environment"
+        : "placeholder",
+  };
+}
+
 /**
  * Everything the founder needs to decide one approval.
  *
@@ -2716,6 +2859,107 @@ export async function resolveApproval(input: {
       note || "Founder approved. Action executed inside the authorised envelope.",
       "founder",
     );
+    return { ok: true };
+  });
+}
+
+/** Log support time against an account, in whole minutes. */
+export async function logServiceTime(input: {
+  companyName: string;
+  minutes: number;
+  note: string;
+  workedAt?: string;
+}): Promise<{ ok: true; entry: ServiceTimeRow } | { ok: false; error: string }> {
+  await ensureOffice();
+  const company = input.companyName.trim().slice(0, 160);
+  const minutes = Math.trunc(input.minutes);
+  const note = input.note.trim().slice(0, 500);
+  if (company.length < 2) return { ok: false, error: "Name the account this time belongs to." };
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) {
+    return { ok: false, error: "Enter between 1 and 1440 minutes." };
+  }
+  if (note.length < 3) return { ok: false, error: "Write a short note for the time entry." };
+  const workedAt = input.workedAt ? new Date(`${input.workedAt}T12:00:00.000Z`) : new Date();
+  if (Number.isNaN(workedAt.getTime())) return { ok: false, error: "That work date is not valid." };
+  if (workedAt.getTime() > Date.now() + 86_400_000) {
+    return { ok: false, error: "Work time cannot be logged in the future." };
+  }
+  const id = randomUUID();
+  const sql = await getSql();
+  await sql`
+    insert into service_time_entries (id, company_name, minutes, note, worked_at)
+    values (${id}, ${company}, ${minutes}, ${note}, ${workedAt.toISOString()})
+  `;
+  await appendAudit(
+    "service_time_logged",
+    `Support time · ${company}`,
+    `${minutes} minute${minutes === 1 ? "" : "s"}: ${note}`,
+    "founder",
+  );
+  return {
+    ok: true,
+    entry: {
+      id,
+      companyName: company,
+      minutes,
+      note,
+      workedAt: workedAt.toISOString(),
+      createdAt: workedAt.toISOString(),
+    },
+  };
+}
+
+/** Recent support-time entries, newest first. */
+export async function listServiceTime(limit = 50): Promise<ServiceTimeRow[]> {
+  await ensureOffice();
+  const sql = await getSql();
+  const rows = await sql<Record<string, unknown>>`
+    select * from service_time_entries
+    order by worked_at desc, id desc
+    limit ${Math.max(1, Math.min(Math.trunc(limit) || 1, 200))}
+  `;
+  return rows.map((row) => ({
+    id: String(row.id),
+    companyName: String(row.company_name),
+    minutes: num(row.minutes),
+    note: String(row.note ?? ""),
+    workedAt: iso(row.worked_at),
+    createdAt: iso(row.created_at),
+  }));
+}
+
+/**
+ * Close a waiting approval without deciding it.
+ *
+ * A skip is not an approval and not a rejection. Nothing is executed, no
+ * precedent is written, and a §71 gate record stays visibly undecided. The
+ * audit entry names the act for what it was, so "no decision" cannot later be
+ * read as a quiet refusal.
+ */
+export async function skipApproval(input: {
+  approvalId: string;
+  note?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  await ensureOffice();
+  const note =
+    (input.note ?? "").trim() ||
+    "Skipped by the founder without an approve or reject ruling. Nothing was executed.";
+  return withChain(async (tx) => {
+    const row = await tx<Record<string, unknown>>`
+      select id, title, status from approvals where id = ${input.approvalId} for update
+    `.then((rows) => rows[0]);
+    if (!row) return { ok: false, error: "Approval not found." };
+    if (String(row.status) !== "pending") {
+      return { ok: false, error: "That approval has already been resolved." };
+    }
+    const claimed = await tx<{ id: string }>`
+      update approvals
+        set status = 'skipped', resolution_note = ${note}, resolved_at = now()
+        where id = ${input.approvalId} and status = 'pending'
+        returning id
+    `;
+    if (!claimed.length) return { ok: false, error: "That approval has already been resolved." };
+    await appendAuditTx(tx, "approval_skipped", String(row.title), note, "founder");
     return { ok: true };
   });
 }

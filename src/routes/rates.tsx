@@ -2,7 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { pageHead, businessJsonLd, breadcrumbJsonLd, offerCatalogJsonLd } from "../lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
+import { Button } from "@/components/ui/button";
 import { SignalBars } from "@/components/public/motion-icons";
+import { toast } from "sonner";
 import { RATE_GROUPS, rateAmount, ratesByIds } from "../lib/office/catalogue";
 import { cn } from "../lib/utils";
 
@@ -40,6 +42,23 @@ export const Route = createFileRoute("/rates")({
 
 function RatesPage() {
   const [active, setActive] = useState(0);
+  const [generating, setGenerating] = useState(false);
+
+  async function downloadRateCard() {
+    if (generating) return;
+    setGenerating(true);
+    try {
+      const [{ buildRateCardPdf, RATE_CARD_FILENAME }, { downloadPdf }] = await Promise.all([
+        import("@/lib/site/rate-card-pdf"),
+        import("@/lib/office/quote-pdf"),
+      ]);
+      downloadPdf(await buildRateCardPdf(), RATE_CARD_FILENAME);
+    } catch {
+      toast.error("The rate card could not be generated.");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   useEffect(() => {
     const sections = GROUPS.map((group) => document.getElementById(`rate-${group.id}`)).filter(
@@ -83,6 +102,15 @@ function RatesPage() {
           produced from our own records, and are remote only. Nothing in the managed group is a
           monitoring service, an uptime promise or a contractual service level.
         </p>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-6"
+          disabled={generating}
+          onClick={() => void downloadRateCard()}
+        >
+          {generating ? "Generating…" : "Download rate card PDF"}
+        </Button>
       </article>
 
       <nav

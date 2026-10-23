@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { decideApproval } from "@/lib/office/api";
+import { decideApproval, skipApproval } from "@/lib/office/api";
+import { approvalAgeDays } from "@/lib/office/approvals";
 import { AGENT_BY_ID } from "@/lib/office/agents";
 import { GATE_QUESTION_LABELS, MIN_REASONING_CHARS, REASON_CODES } from "@/lib/office/gate71";
 import { formatDate, formatDateTime, formatZar } from "@/lib/office/money";
@@ -197,6 +198,7 @@ function ApprovalsPage() {
   const snapshot = useOfficeSnapshot();
   const pending = snapshot.approvals.filter((a) => a.status === "pending");
   const resolved = snapshot.approvals.filter((a) => a.status !== "pending");
+  const stale = pending.filter((item) => approvalAgeDays(item.createdAt) >= 7).length;
 
   return (
     <div className="enter-up mx-auto max-w-3xl">
@@ -205,6 +207,12 @@ function ApprovalsPage() {
         title="Approve only what the constitution cannot."
         description="Cost, customer win, customer loss, and marketing-to-sales handoffs stop here. Everything else already ran. Where the decision reaches a person, your reasoning is written down before you decide."
       />
+      {stale > 0 ? (
+        <p className="mb-4 rounded-xl border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn">
+          {stale} approval{stale === 1 ? " has" : "s have"} been waiting seven days or more. An
+          approval is not consent to act late; skip it if it no longer matters.
+        </p>
+      ) : null}
       <MailNote notices={snapshot.notices} mail={snapshot.mail} />
       {pending.length === 0 ? (
         <EmptyState
@@ -231,7 +239,17 @@ function ApprovalsPage() {
                   <p className="text-sm">{item.title}</p>
                   <p className="text-xs text-muted">{formatDateTime(item.createdAt)}</p>
                 </div>
-                <Badge variant={item.status === "approved" ? "ok" : "danger"}>{item.status}</Badge>
+                <Badge
+                  variant={
+                    item.status === "approved"
+                      ? "ok"
+                      : item.status === "skipped"
+                        ? "default"
+                        : "danger"
+                  }
+                >
+                  {item.status}
+                </Badge>
               </li>
             ))}
           </ul>
@@ -249,7 +267,7 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
   const [reasoning, setReasoning] = useState("");
   const [evidenceShown, setEvidenceShown] = useState("");
   const [error, setError] = useState("");
-  const [pending, setPending] = useState<"approved" | "rejected" | null>(null);
+  const [pending, setPending] = useState<"approved" | "rejected" | "skipped" | null>(null);
   const agent = AGENT_BY_ID[item.agentId];
 
   const base = `approval-${item.id}`;
@@ -276,6 +294,26 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
     if (evidenceShown.trim() === "") missing.push("record the evidence you were shown");
   }
   const approveBlocked = missing.length > 0;
+
+  async function skip() {
+    setError("");
+    setPending("skipped");
+    try {
+      const result = await skipApproval({
+        data: { approvalId: item.id, note: note.trim() || undefined },
+      });
+      if (!result.ok) {
+        setError(result.error ?? "Could not skip.");
+        return;
+      }
+      toast.success("Skipped. Nothing was executed and no precedent was written.");
+      await router.invalidate();
+    } catch {
+      setError("The skip could not be recorded — check the audit ledger before retrying.");
+    } finally {
+      setPending(null);
+    }
+  }
 
   async function resolve(decision: "approved" | "rejected") {
     setError("");
@@ -350,7 +388,10 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
         </div>
         <div className="col-span-2">
           <dt className="text-xs uppercase tracking-[0.14em] text-muted">Filed</dt>
-          <dd className="mt-1 text-muted">{formatDateTime(item.createdAt)}</dd>
+          <dd className="mt-1 text-muted">
+            {formatDateTime(item.createdAt)} · waiting {approvalAgeDays(item.createdAt)} day
+            {approvalAgeDays(item.createdAt) === 1 ? "" : "s"}
+          </dd>
         </div>
       </dl>
 
@@ -417,6 +458,14 @@ function ApprovalCard({ item }: { item: ApprovalRow }) {
       ) : null}
 
       <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button
+          variant="ghost"
+          disabled={pending !== null}
+          onClick={() => void skip()}
+          className="sm:mr-auto"
+        >
+          {pending === "skipped" ? "Skipping…" : "Skip without deciding"}
+        </Button>
         <Button
           variant="outline"
           disabled={pending !== null}

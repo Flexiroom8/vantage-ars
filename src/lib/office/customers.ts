@@ -1,3 +1,4 @@
+import { csvCell } from "./csv";
 import { planById } from "./plans";
 
 export type CustomerActivitySource = "inbound" | "lead" | "opportunity";
@@ -312,12 +313,6 @@ export function summarizeCustomerAccounts(accounts: CustomerAccount[]): Customer
 
 export function planLabel(planId: string): string {
   return planById(planId)?.title ?? planId;
-}
-
-function csvCell(value: string | number | null): string {
-  if (value === null) return "";
-  const text = String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
 export function customerAccountsToCsv(accounts: CustomerAccount[]): string {

@@ -18,6 +18,7 @@ import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RatesRouteImport } from './routes/rates'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
@@ -34,6 +35,7 @@ import { Route as OfficeConstitutionRouteImport } from './routes/office/constitu
 import { Route as OfficeCustomersRouteImport } from './routes/office/customers'
 import { Route as OfficeDelegationsRouteImport } from './routes/office/delegations'
 import { Route as OfficeFloorRouteImport } from './routes/office/floor'
+import { Route as OfficeGovernanceRouteImport } from './routes/office/governance'
 import { Route as OfficeInboxRouteImport } from './routes/office/inbox'
 import { Route as OfficeLedgerRouteImport } from './routes/office/ledger'
 import { Route as OfficeMarketingRouteImport } from './routes/office/marketing'
@@ -43,6 +45,7 @@ import { Route as OfficeSalesRouteImport } from './routes/office/sales'
 import { Route as OfficeServiceRouteImport } from './routes/office/service'
 import { Route as OfficeTechnicalRouteImport } from './routes/office/technical'
 import { Route as QTokenRouteImport } from './routes/q.$token'
+import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
 import { Route as ApiAiStatusRouteImport } from './routes/api/ai/status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -91,6 +94,11 @@ const RatesRoute = RatesRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatusRoute = StatusRouteImport.update({
@@ -173,6 +181,11 @@ const OfficeFloorRoute = OfficeFloorRouteImport.update({
   path: '/floor',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeGovernanceRoute = OfficeGovernanceRouteImport.update({
+  id: '/governance',
+  path: '/governance',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeInboxRoute = OfficeInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
@@ -218,10 +231,15 @@ const QTokenRoute = QTokenRouteImport.update({
   path: '/q/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServicesIndexRoute = ServicesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ServicesRoute,
+} as any)
 const ServicesSlugRoute = ServicesSlugRouteImport.update({
-  id: '/services/$slug',
-  path: '/services/$slug',
-  getParentRoute: () => rootRouteImport,
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => ServicesRoute,
 } as any)
 const ApiAiStatusRoute = ApiAiStatusRouteImport.update({
   id: '/api/ai/status',
@@ -249,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/services': typeof ServicesRouteWithChildren
   '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
@@ -264,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
+  '/office/governance': typeof OfficeGovernanceRoute
   '/office/inbox': typeof OfficeInboxRoute
   '/office/ledger': typeof OfficeLedgerRoute
   '/office/marketing': typeof OfficeMarketingRoute
@@ -275,6 +295,7 @@ export interface FileRoutesByFullPath {
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/office/': typeof OfficeIndexRoute
+  '/services/': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/floor': typeof ApiCronFloorRoute
@@ -303,6 +324,7 @@ export interface FileRoutesByTo {
   '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
+  '/office/governance': typeof OfficeGovernanceRoute
   '/office/inbox': typeof OfficeInboxRoute
   '/office/ledger': typeof OfficeLedgerRoute
   '/office/marketing': typeof OfficeMarketingRoute
@@ -314,6 +336,7 @@ export interface FileRoutesByTo {
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/office': typeof OfficeIndexRoute
+  '/services': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/floor': typeof ApiCronFloorRoute
@@ -329,6 +352,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/services': typeof ServicesRouteWithChildren
   '/status': typeof StatusRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
@@ -344,6 +368,7 @@ export interface FileRoutesById {
   '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
+  '/office/governance': typeof OfficeGovernanceRoute
   '/office/inbox': typeof OfficeInboxRoute
   '/office/ledger': typeof OfficeLedgerRoute
   '/office/marketing': typeof OfficeMarketingRoute
@@ -355,6 +380,7 @@ export interface FileRoutesById {
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
   '/office/': typeof OfficeIndexRoute
+  '/services/': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/cron/floor': typeof ApiCronFloorRoute
@@ -371,6 +397,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/rates'
     | '/reset-password'
+    | '/services'
     | '/status'
     | '/support'
     | '/terms'
@@ -386,6 +413,7 @@ export interface FileRouteTypes {
     | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
+    | '/office/governance'
     | '/office/inbox'
     | '/office/ledger'
     | '/office/marketing'
@@ -397,6 +425,7 @@ export interface FileRouteTypes {
     | '/q/$token'
     | '/services/$slug'
     | '/office/'
+    | '/services/'
     | '/api/ai/status'
     | '/api/auth/$'
     | '/api/cron/floor'
@@ -425,6 +454,7 @@ export interface FileRouteTypes {
     | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
+    | '/office/governance'
     | '/office/inbox'
     | '/office/ledger'
     | '/office/marketing'
@@ -436,6 +466,7 @@ export interface FileRouteTypes {
     | '/q/$token'
     | '/services/$slug'
     | '/office'
+    | '/services'
     | '/api/ai/status'
     | '/api/auth/$'
     | '/api/cron/floor'
@@ -450,6 +481,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/rates'
     | '/reset-password'
+    | '/services'
     | '/status'
     | '/support'
     | '/terms'
@@ -465,6 +497,7 @@ export interface FileRouteTypes {
     | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
+    | '/office/governance'
     | '/office/inbox'
     | '/office/ledger'
     | '/office/marketing'
@@ -476,6 +509,7 @@ export interface FileRouteTypes {
     | '/q/$token'
     | '/services/$slug'
     | '/office/'
+    | '/services/'
     | '/api/ai/status'
     | '/api/auth/$'
     | '/api/cron/floor'
@@ -491,6 +525,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   RatesRoute: typeof RatesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ServicesRoute: typeof ServicesRouteWithChildren
   StatusRoute: typeof StatusRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
@@ -498,7 +533,6 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiSiteSignalRoute: typeof ApiSiteSignalRoute
   QTokenRoute: typeof QTokenRoute
-  ServicesSlugRoute: typeof ServicesSlugRoute
   ApiAiStatusRoute: typeof ApiAiStatusRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronFloorRoute: typeof ApiCronFloorRoute
@@ -567,6 +601,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/status': {
@@ -681,6 +722,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeFloorRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/office/governance': {
+      id: '/office/governance'
+      path: '/governance'
+      fullPath: '/office/governance'
+      preLoaderRoute: typeof OfficeGovernanceRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/office/inbox': {
       id: '/office/inbox'
       path: '/inbox'
@@ -744,12 +792,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/services/': {
+      id: '/services/'
+      path: '/'
+      fullPath: '/services/'
+      preLoaderRoute: typeof ServicesIndexRouteImport
+      parentRoute: typeof ServicesRoute
+    }
     '/services/$slug': {
       id: '/services/$slug'
-      path: '/services/$slug'
+      path: '/$slug'
       fullPath: '/services/$slug'
       preLoaderRoute: typeof ServicesSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ServicesRoute
     }
     '/api/ai/status': {
       id: '/api/ai/status'
@@ -795,6 +850,7 @@ interface OfficeRouteChildren {
   OfficeCustomersRoute: typeof OfficeCustomersRoute
   OfficeDelegationsRoute: typeof OfficeDelegationsRoute
   OfficeFloorRoute: typeof OfficeFloorRoute
+  OfficeGovernanceRoute: typeof OfficeGovernanceRoute
   OfficeInboxRoute: typeof OfficeInboxRoute
   OfficeLedgerRoute: typeof OfficeLedgerRoute
   OfficeMarketingRoute: typeof OfficeMarketingRoute
@@ -815,6 +871,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeCustomersRoute: OfficeCustomersRoute,
   OfficeDelegationsRoute: OfficeDelegationsRoute,
   OfficeFloorRoute: OfficeFloorRoute,
+  OfficeGovernanceRoute: OfficeGovernanceRoute,
   OfficeInboxRoute: OfficeInboxRoute,
   OfficeLedgerRoute: OfficeLedgerRoute,
   OfficeMarketingRoute: OfficeMarketingRoute,
@@ -829,6 +886,20 @@ const OfficeRouteChildren: OfficeRouteChildren = {
 const OfficeRouteWithChildren =
   OfficeRoute._addFileChildren(OfficeRouteChildren)
 
+interface ServicesRouteChildren {
+  ServicesSlugRoute: typeof ServicesSlugRoute
+  ServicesIndexRoute: typeof ServicesIndexRoute
+}
+
+const ServicesRouteChildren: ServicesRouteChildren = {
+  ServicesSlugRoute: ServicesSlugRoute,
+  ServicesIndexRoute: ServicesIndexRoute,
+}
+
+const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
+  ServicesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   FindRoute: FindRoute,
@@ -839,6 +910,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   RatesRoute: RatesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ServicesRoute: ServicesRouteWithChildren,
   StatusRoute: StatusRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
@@ -846,7 +918,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiSiteSignalRoute: ApiSiteSignalRoute,
   QTokenRoute: QTokenRoute,
-  ServicesSlugRoute: ServicesSlugRoute,
   ApiAiStatusRoute: ApiAiStatusRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronFloorRoute: ApiCronFloorRoute,

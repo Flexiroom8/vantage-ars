@@ -37,7 +37,7 @@ export type AgentStatus = "idle" | "working" | "blocked" | "halted";
 export type AutonomyLevel = "A0" | "A1" | "A2" | "A3";
 export type ApprovalKind =
   "cost" | "sales_handoff" | "customer_win" | "customer_loss" | "constraint_margin";
-export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "skipped";
 export type DecisionStatus = "authorized" | "executed" | "blocked" | "escalated";
 export type Reversibility =
   "fully_reversible" | "costly_reversible" | "partially_reversible" | "irreversible";
@@ -250,6 +250,69 @@ export type DecisionRow = {
   previousHash: string;
   recordHash: string;
   createdAt: string;
+};
+
+export type ServiceTimeRow = {
+  id: string;
+  companyName: string;
+  minutes: number;
+  note: string;
+  workedAt: string;
+  createdAt: string;
+};
+
+export type GateRecordRow = {
+  id: string;
+  approvalId: string;
+  decisionId: string | null;
+  questions: { question: string; passed: boolean; detail: string }[];
+  legal: boolean;
+  failedQuestion: string | null;
+  reasoning: string | null;
+  evidenceShown: string | null;
+  policyVersion: string;
+  exposureAt: string;
+  decidedAt: string | null;
+  createdAt: string;
+};
+
+export type DecisionReceiptRow = {
+  id: string;
+  decisionId: string;
+  actionKind: string;
+  amountCents: number;
+  riskTier: string;
+  delegationId: string | null;
+  approvedBy: string | null;
+  approvalId: string | null;
+  chainHead: string;
+  signatureValid: boolean;
+  signedAt: string;
+};
+
+export type GovernanceEpisodeRow = {
+  id: string;
+  actionKind: string;
+  companyName: string | null;
+  amountCents: number;
+  amountBand: string | null;
+  stage: string | null;
+  policyVersion: string | null;
+  outcome: "approved" | "rejected";
+  reasonCode: string;
+  reasoning: string;
+  exceptionConditions: string | null;
+  laterOutcome: string | null;
+  decidedAt: string;
+  decisionId: string | null;
+  agentId: string | null;
+};
+
+export type GovernanceRecord = {
+  episodes: GovernanceEpisodeRow[];
+  gates: GateRecordRow[];
+  receipts: DecisionReceiptRow[];
+  receiptKey: "environment" | "placeholder";
 };
 
 export type AuditRow = {

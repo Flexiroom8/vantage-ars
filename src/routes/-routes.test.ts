@@ -19,6 +19,8 @@ const EXPECTED: Record<string, string> = {
   "privacy.tsx": '"/privacy"',
   "q.$token.tsx": '"/q/$token"',
   "rates.tsx": '"/rates"',
+  "services.tsx": '"/services"',
+  "services.index.tsx": '"/services/"',
   "services.$slug.tsx": '"/services/$slug"',
   "status.tsx": '"/status"',
   "support.tsx": '"/support"',

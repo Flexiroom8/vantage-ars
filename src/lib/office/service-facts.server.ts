@@ -2,11 +2,11 @@
  * The facts behind a service report.
  *
  * Every number in a customer-facing report comes from here, and every number
- * here is read from a row the office holds. One figure is worked out rather
- * than read: the office keeps no time per fault, so the remote hours are
- * estimated from the faults resolved, and the report says so wherever it
- * gives that figure. A customer whose records we do not have gets a report
- * that says so rather than a report that invents a history.
+ * here is read from a row the office holds. Remote hours are read from logged
+ * time entries when the founder has recorded any for the account and period;
+ * otherwise they are estimated from the faults resolved, and the report says
+ * so. A customer whose records we do not have gets a report that says so
+ * rather than a report that invents a history.
  */
 import type { Sql } from "../db";
 import type { PlanDefinition } from "./plans";
@@ -187,10 +187,26 @@ export async function collectServiceFacts(
 
   facts.rateFindings = await rateFindings(sql, invoices, key);
   facts.includedHours = includedHours(input.plan);
-  // The office records no time per fault, so the remote hours worked in the
-  // period are worked out from the faults resolved. The report states the
-  // allowance and calls the figure an estimate.
-  facts.hoursUsed = facts.ticketsResolved * ESTIMATED_HOURS_PER_FAULT;
+  // Recorded support time wins. Only when the founder has not logged any time
+  // for this account and period does the report fall back to the fault-count
+  // estimate, and it labels that figure as an estimate.
+  const time = await sql<{ minutes: number; n: number }>`
+    select coalesce(sum(minutes), 0)::int as minutes, count(*)::int as n
+    from service_time_entries
+    where lower(company_name) = ${key}
+      and worked_at >= ${input.periodStart} and worked_at < ${input.periodEnd}
+  `.then((rows) => rows[0]);
+  const recordedMinutes = Number(time?.minutes ?? 0);
+  const entries = Number(time?.n ?? 0);
+  if (entries > 0) {
+    facts.hoursUsed = Math.round((recordedMinutes / 60) * 100) / 100;
+    facts.hoursBasis = "recorded";
+    facts.timeEntries = entries;
+  } else {
+    facts.hoursUsed = facts.ticketsResolved * ESTIMATED_HOURS_PER_FAULT;
+    facts.hoursBasis = "estimated";
+    facts.timeEntries = 0;
+  }
   return facts;
 }
 

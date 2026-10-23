@@ -67,7 +67,7 @@ export const Route = createFileRoute("/services/$slug")({
         businessJsonLd(),
         breadcrumbJsonLd([
           { name: "Home", path: "/" },
-          { name: "Services", path: "/" },
+          { name: "Services", path: "/services" },
           { name: loaderData.title, path: `/services/${loaderData.slug}` },
         ]),
         offerCatalogJsonLd({

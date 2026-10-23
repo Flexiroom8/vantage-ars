@@ -106,6 +106,8 @@ function facts(overrides: Partial<ServiceFacts> = {}): ServiceFacts {
     openItems: ["Site link still down", "Hand the firewall rules over"],
     includedHours: 8,
     hoursUsed: 6,
+    hoursBasis: "estimated" as const,
+    timeEntries: 0,
     faultKinds: [
       { label: "Dropped calls", count: 4 },
       { label: "Slow Wi-Fi", count: 2 },
@@ -226,6 +228,21 @@ describe("the service report", () => {
   it("says so when there is nothing open", () => {
     const report = buildServiceReport(plan("service-report"), facts({ openItems: [] }));
     assert.equal(report.includes("(none recorded)"), true);
+  });
+
+  it("uses recorded support time when it has it", () => {
+    const report = buildServiceReport(
+      plan("managed-support"),
+      facts({ hoursUsed: 6.5, hoursBasis: "recorded", timeEntries: 3 }),
+    );
+    assert.equal(report.includes("6.5 hours recorded from 3 time entries"), true);
+    assert.equal(report.includes("estimate"), false);
+  });
+
+  it("labels the fault-count fallback as an estimate", () => {
+    const report = buildServiceReport(plan("managed-support"), facts());
+    assert.equal(report.includes("an estimate of 6 hours"), true);
+    assert.equal(report.includes("not a measured figure"), true);
   });
 
   it("still reads as a report when the record is empty", () => {

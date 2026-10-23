@@ -9,6 +9,7 @@ import { formatNowClock, formatZar } from "@/lib/office/format";
 import type { OfficeSnapshot } from "@/lib/office/types";
 import { cn } from "@/lib/utils";
 import { UserButton } from "@/lib/auth/gates";
+import { OfficeSearch } from "@/components/office/office-search";
 
 type AppShellProps = {
   snapshot?: OfficeSnapshot | null;
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/office/revenue", label: "Revenue" },
   { href: "/office/delegations", label: "Delegation" },
   { href: "/office/constitution", label: "Constitution" },
+  { href: "/office/governance", label: "Record" },
   { href: "/office/audit", label: "Audit" },
   { href: "/office/metrics", label: "Metrics" },
 ];
@@ -41,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
 const GOVERNANCE_HREFS = new Set([
   "/office/delegations",
   "/office/constitution",
+  "/office/governance",
   "/office/audit",
   "/office/metrics",
 ]);
@@ -292,6 +295,8 @@ export function AppShell({ snapshot, children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-3">
+              {snapshot ? <OfficeSearch snapshot={snapshot} compact /> : null}
+
               <span className="hidden font-mono text-[9px] uppercase tracking-[0.15em] text-muted sm:inline">
                 {halted ? "Halted" : "A3 live"}
               </span>
@@ -317,6 +322,8 @@ export function AppShell({ snapshot, children }: AppShellProps) {
               </div>
 
               <div className="flex items-center gap-6">
+                {snapshot ? <OfficeSearch snapshot={snapshot} shortcut /> : null}
+
                 <div className="text-right">
                   <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-muted">
                     SAST

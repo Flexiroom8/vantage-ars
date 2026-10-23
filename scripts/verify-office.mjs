@@ -566,6 +566,112 @@ async function main() {
     `${status.posture} / ${status.budget}`,
   );
 
+  // ── 17b. Governance, support time and an explicit skip ─────────────────────
+  const { logServiceTime, listServiceTime, readGovernanceRecord, skipApproval } =
+    await import("../src/lib/office/store.server.ts");
+  const { collectServiceFacts } = await import("../src/lib/office/service-facts.server.ts");
+
+  const logged = await logServiceTime({
+    companyName: "Harbour Point Dental",
+    minutes: 90,
+    note: "Remote session on the handset registration fault.",
+  });
+  check("support time is recorded against the account", logged.ok, JSON.stringify(logged));
+  const recentTime = await listServiceTime(10);
+  check(
+    "the support-time entry is readable and belongs to the right account",
+    recentTime.some((row) => row.companyName === "Harbour Point Dental" && row.minutes === 90),
+    JSON.stringify(recentTime),
+  );
+  const facts = await collectServiceFacts(sql, {
+    companyName: "Harbour Point Dental",
+    periodStart: new Date(T0 - 86_400_000).toISOString(),
+    periodEnd: new Date(T0 + 86_400_000).toISOString(),
+  });
+  check(
+    "a service report uses recorded time instead of the fault estimate",
+    facts.hoursBasis === "recorded" && facts.hoursUsed === 1.5 && facts.timeEntries === 1,
+    `${facts.hoursBasis} / ${facts.hoursUsed} / ${facts.timeEntries}`,
+  );
+
+  const queuedCancel = await applyProposedAction(
+    "desk",
+    {
+      kind: "cancel_subscription",
+      title: "Verification cancellation that is never decided",
+      rationale: "A customer-loss action used to prove the gate is recorded before a ruling.",
+      confidence: 0.9,
+      amountCents: 0,
+      companyName: "Harbour Point Dental",
+      payload: { reason: "Verification only" },
+    },
+    { source: "verification" },
+  );
+  check(
+    "a customer-loss action waits at the founder gate",
+    queuedCancel.status === "escalated" && Boolean(queuedCancel.approvalId),
+    JSON.stringify(queuedCancel),
+  );
+  const gateRow = await sql`
+    select legal, decided_at, questions_json from gate_records
+    where approval_id = ${queuedCancel.approvalId}
+    order by created_at desc limit 1
+  `;
+  check(
+    "the section 71 gate is on record before the founder rules",
+    gateRow.length === 1 && gateRow[0].legal === true,
+    JSON.stringify(gateRow),
+  );
+  const skipped = await skipApproval({
+    approvalId: queuedCancel.approvalId ?? "none",
+    note: "Verification skip. No decision was taken.",
+  });
+  check("an approval can be skipped without a ruling", skipped.ok, JSON.stringify(skipped));
+  const skippedRow = await sql`
+    select status, resolved_at, decided_at from approvals where id = ${queuedCancel.approvalId}
+  `;
+  check(
+    "the skipped approval is closed but not recorded as decided",
+    skippedRow[0]?.status === "skipped" &&
+      Boolean(skippedRow[0]?.resolved_at) &&
+      skippedRow[0]?.decided_at === null,
+    JSON.stringify(skippedRow),
+  );
+  const gateAfterSkip = await sql`
+    select decided_at from gate_records where approval_id = ${queuedCancel.approvalId}
+  `;
+  check(
+    "skipping leaves the gate visibly undecided",
+    gateAfterSkip.length === 1 && gateAfterSkip[0].decided_at === null,
+    JSON.stringify(gateAfterSkip),
+  );
+  const skipAudit = await sql`
+    select id from audit_events where kind = 'approval_skipped' limit 1
+  `;
+  check("the skip itself is in the audit chain", skipAudit.length === 1);
+
+  const governance = await readGovernanceRecord(200);
+  check(
+    "the governance record carries the founder rulings",
+    governance.episodes.length > 0,
+    String(governance.episodes.length),
+  );
+  check(
+    "the governance record carries a gate record",
+    governance.gates.length > 0,
+    String(governance.gates.length),
+  );
+  check(
+    "every execution receipt verifies against the office key",
+    governance.receipts.length > 0 && governance.receipts.every((row) => row.signatureValid),
+    JSON.stringify(governance.receipts.map((row) => row.signatureValid)),
+  );
+  check(
+    "the receipt key mode is stated honestly",
+    governance.receiptKey === "environment" || governance.receiptKey === "placeholder",
+    governance.receiptKey,
+  );
+
   // ── 18. Marketing finds demand in the site's own traffic ───────────────────
   // Real visitor records, exactly what the public site writes. Two visits to a
   // buying page, one to the quote page, and several to a page that is not a

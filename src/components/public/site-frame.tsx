@@ -10,7 +10,7 @@ import { SERVICE_PAGES } from "@/lib/site/services";
 import { PUBLISHED_RATES } from "@/lib/office/catalogue";
 
 const nav = [
-  { to: "/", hash: "services", label: "Services" },
+  { to: "/services", hash: undefined, label: "Services" },
   { to: "/work", hash: undefined, label: "Work" },
   { to: "/guides", hash: undefined, label: "Guides" },
   { to: "/rates", hash: undefined, label: "Rates" },

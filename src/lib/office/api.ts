@@ -32,11 +32,15 @@ import {
   filePaymentNotice,
   founderClose,
   logInboundItem,
+  logServiceTime,
+  listServiceTime,
   raiseQuoteInvoice,
   readSnapshot,
   recordInvoiceReceipt,
   dismissPaymentNotice,
   resolveApproval,
+  skipApproval as writeSkipApproval,
+  readGovernanceRecord,
   savePaymentInstructions,
   setOfficeHalt,
   setTicketStatus,
@@ -653,6 +657,47 @@ export const listDecisionEpisodes = createServerFn({ method: "GET" })
     limit: Math.max(1, Math.min(Math.trunc(Number(input?.limit ?? 50)) || 50, 200)),
   }))
   .handler(async ({ data }) => readDecisionEpisodes(data.limit));
+
+/**
+ * Close a waiting approval without a ruling. It is not an approval, it is not a
+ * rejection, and nothing is executed.
+ */
+export const skipApproval = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator((input: { approvalId: string; note?: string }) => ({
+    approvalId: str(input?.approvalId, 100),
+    note: str(input?.note, 2000),
+  }))
+  .handler(async ({ data }) => writeSkipApproval(data));
+
+/** Decision episodes, §71 gate records and signed receipts in one read. */
+export const getGovernanceRecord = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .validator((input: { limit?: number }) => ({
+    limit: Math.max(1, Math.min(Math.trunc(Number(input?.limit ?? 100)) || 100, 500)),
+  }))
+  .handler(async ({ data }) => readGovernanceRecord(data.limit));
+
+/** Record support time against an account. */
+export const recordServiceTime = createServerFn({ method: "POST" })
+  .middleware([founderMiddleware])
+  .validator(
+    (input: { companyName: string; minutes: number; note: string; workedAt?: string }) => ({
+      companyName: str(input?.companyName, 160),
+      minutes: Math.trunc(Number(input?.minutes) || 0),
+      note: str(input?.note, 500),
+      workedAt: str(input?.workedAt, 20),
+    }),
+  )
+  .handler(async ({ data }) => logServiceTime(data));
+
+/** Recent support-time entries. */
+export const getServiceTime = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .validator((input: { limit?: number }) => ({
+    limit: Math.max(1, Math.min(Math.trunc(Number(input?.limit ?? 50)) || 50, 200)),
+  }))
+  .handler(async ({ data }) => listServiceTime(data.limit));
 
 export const dispatchAgent = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])

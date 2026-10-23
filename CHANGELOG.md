@@ -2,6 +2,34 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.0 — 2026-10-23
+
+### Added
+
+**A single service-line index.** `/services` now lists all seven published lines with their scope, links to the detail pages and a route into the finder and the rate card. The public navigation points at it instead of the home-page anchor, the service breadcrumb names it, and its `ItemList` structured data, sitemap entry, tracked path and site-search entry are all generated from the same catalogue.
+
+**Office-wide search.** The founder can search customers, approvals, tickets, documents, ledger entries, subscriptions, leads, opportunities, inbound items, decisions, notices, audit events and every office page from one dialog. It opens with Ctrl/⌘ K, ranks direct title matches first, and reads only the already-loaded founder snapshot; no public endpoint or customer index is involved.
+
+**Approval ageing and an explicit skip.** Waiting approvals show how many days they have been open, and a seven-day backlog is called out on the approvals page. A skip closes a waiting approval without approving it, rejecting it, executing it or writing a precedent. The audit entry says `approval_skipped`, the approval status is `skipped`, and a section 71 gate for that case stays visibly undecided.
+
+**The governance record explorer.** `/office/governance` reads the three governance records in one place: precedent rulings, section 71 gate records and signed execution receipts. Each receipt signature is checked against the deployment key at read time, and the screen states plainly when the local placeholder key is in use. An undecided gate stays marked undecided even after the approval is skipped.
+
+**Support time that is actually recorded.** `/office/service` can log minutes against an account, with a note and work date, under migration `0016_service_time.sql`. A service report now uses those entries for its remote-hours figure and says the figure is recorded. When there are no entries it falls back to the previous one-hour-per-fault estimate and labels it as an estimate.
+
+**Spreadsheet exports that do not execute formulas.** The ledger journal and the combined audit/decision chain can be exported as CSV. A shared cell writer escapes quotes and line breaks and neutralises leading `=`, `+`, `-` and `@`, so a customer name cannot become a spreadsheet formula. The customer book uses the same writer.
+
+**A rate card PDF.** `/rates` can generate a styled PDF containing the published rate groups, scopes, bases and prices, with the same no-promise footer as the site. It is generated in the browser from the catalogue, not from a stored document.
+
+### Changed
+
+**Governance and service documentation match the new surfaces.** The README, autonomy notes and governance architecture now list `/services`, `/office/governance`, support-time capture and the 231-check real-office verification.
+
+### Verification
+
+- `npm test`: 660 unit checks plus the real-office verification, exit 0.
+- `npm run verify:office`: 231 checks, including recorded support time, signature verification, the skip path and an undecided section 71 gate.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` and `npm run build:ci`.
+
 ## 4.9.0 — 2026-10-23
 
 ### Added

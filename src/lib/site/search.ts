@@ -33,6 +33,15 @@ const PAGES: SearchItem[] = [
     keywords: ["home", "contact", "enquiry", "quote"],
   },
   {
+    id: "page-services",
+    title: "Service lines",
+    description:
+      "Seven published service lines for VoIP, networking, IT infrastructure, managed support, cloud and email, security and backup recovery.",
+    href: "/services",
+    kind: "page",
+    keywords: ["services", "all services", "what do you do", "departments"],
+  },
+  {
     id: "page-find",
     title: "Find your service",
     description:

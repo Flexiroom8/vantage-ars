@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { downloadBackup, restoreBackup } from "../../lib/office/api";
 import { headMatches } from "../../lib/office/integrity";
 import { formatDateTime } from "../../lib/office/money";
+import { chainToCsv } from "../../lib/office/csv";
 
 export const Route = createFileRoute("/office/audit")({
   component: AuditPage,
@@ -69,9 +70,22 @@ function AuditPage() {
       </p>
 
       <div className="mb-8">
-        <Button type="button" onClick={() => void saveBackup()}>
-          Download verified backup
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => void saveBackup()}>
+            Download verified backup
+          </Button>
+          {snapshot.audit.length > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                downloadCsv("vantage-audit.csv", chainToCsv(snapshot.audit, snapshot.decisions))
+              }
+            >
+              Export chain CSV
+            </Button>
+          ) : null}
+        </div>
         <p className="mt-2 text-xs text-muted">
           JSON with a checksum. Includes customers, ledger and audit records. Never includes sign-in
           credentials.
@@ -172,4 +186,13 @@ function AuditPage() {
       </section>
     </div>
   );
+}
+
+function downloadCsv(filename: string, body: string) {
+  const url = URL.createObjectURL(new Blob([body], { type: "text/csv;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
