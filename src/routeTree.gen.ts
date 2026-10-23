@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as FindRouteImport } from './routes/find'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as LoginRouteImport } from './routes/login'
@@ -30,6 +31,7 @@ import { Route as OfficeAuditRouteImport } from './routes/office/audit'
 import { Route as OfficeCatalogueRouteImport } from './routes/office/catalogue'
 import { Route as OfficeChatRouteImport } from './routes/office/chat'
 import { Route as OfficeConstitutionRouteImport } from './routes/office/constitution'
+import { Route as OfficeCustomersRouteImport } from './routes/office/customers'
 import { Route as OfficeDelegationsRouteImport } from './routes/office/delegations'
 import { Route as OfficeFloorRouteImport } from './routes/office/floor'
 import { Route as OfficeInboxRouteImport } from './routes/office/inbox'
@@ -49,6 +51,11 @@ import { Route as ApiCronFloorRouteImport } from './routes/api/cron/floor'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FindRoute = FindRouteImport.update({
+  id: '/find',
+  path: '/find',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -151,6 +158,11 @@ const OfficeConstitutionRoute = OfficeConstitutionRouteImport.update({
   path: '/constitution',
   getParentRoute: () => OfficeRoute,
 } as any)
+const OfficeCustomersRoute = OfficeCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => OfficeRoute,
+} as any)
 const OfficeDelegationsRoute = OfficeDelegationsRouteImport.update({
   id: '/delegations',
   path: '/delegations',
@@ -229,6 +241,7 @@ const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
@@ -248,6 +261,7 @@ export interface FileRoutesByFullPath {
   '/office/catalogue': typeof OfficeCatalogueRoute
   '/office/chat': typeof OfficeChatRoute
   '/office/constitution': typeof OfficeConstitutionRoute
+  '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
   '/office/inbox': typeof OfficeInboxRoute
@@ -267,6 +281,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
@@ -285,6 +300,7 @@ export interface FileRoutesByTo {
   '/office/catalogue': typeof OfficeCatalogueRoute
   '/office/chat': typeof OfficeChatRoute
   '/office/constitution': typeof OfficeConstitutionRoute
+  '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
   '/office/inbox': typeof OfficeInboxRoute
@@ -305,6 +321,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
@@ -324,6 +341,7 @@ export interface FileRoutesById {
   '/office/catalogue': typeof OfficeCatalogueRoute
   '/office/chat': typeof OfficeChatRoute
   '/office/constitution': typeof OfficeConstitutionRoute
+  '/office/customers': typeof OfficeCustomersRoute
   '/office/delegations': typeof OfficeDelegationsRoute
   '/office/floor': typeof OfficeFloorRoute
   '/office/inbox': typeof OfficeInboxRoute
@@ -345,6 +363,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/find'
     | '/forgot-password'
     | '/guides'
     | '/login'
@@ -364,6 +383,7 @@ export interface FileRouteTypes {
     | '/office/catalogue'
     | '/office/chat'
     | '/office/constitution'
+    | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
     | '/office/inbox'
@@ -383,6 +403,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/find'
     | '/forgot-password'
     | '/guides'
     | '/login'
@@ -401,6 +422,7 @@ export interface FileRouteTypes {
     | '/office/catalogue'
     | '/office/chat'
     | '/office/constitution'
+    | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
     | '/office/inbox'
@@ -420,6 +442,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/find'
     | '/forgot-password'
     | '/guides'
     | '/login'
@@ -439,6 +462,7 @@ export interface FileRouteTypes {
     | '/office/catalogue'
     | '/office/chat'
     | '/office/constitution'
+    | '/office/customers'
     | '/office/delegations'
     | '/office/floor'
     | '/office/inbox'
@@ -459,6 +483,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FindRoute: typeof FindRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GuidesRoute: typeof GuidesRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -486,6 +511,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/find': {
+      id: '/find'
+      path: '/find'
+      fullPath: '/find'
+      preLoaderRoute: typeof FindRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -628,6 +660,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OfficeConstitutionRouteImport
       parentRoute: typeof OfficeRoute
     }
+    '/office/customers': {
+      id: '/office/customers'
+      path: '/customers'
+      fullPath: '/office/customers'
+      preLoaderRoute: typeof OfficeCustomersRouteImport
+      parentRoute: typeof OfficeRoute
+    }
     '/office/delegations': {
       id: '/office/delegations'
       path: '/delegations'
@@ -753,6 +792,7 @@ interface OfficeRouteChildren {
   OfficeCatalogueRoute: typeof OfficeCatalogueRoute
   OfficeChatRoute: typeof OfficeChatRoute
   OfficeConstitutionRoute: typeof OfficeConstitutionRoute
+  OfficeCustomersRoute: typeof OfficeCustomersRoute
   OfficeDelegationsRoute: typeof OfficeDelegationsRoute
   OfficeFloorRoute: typeof OfficeFloorRoute
   OfficeInboxRoute: typeof OfficeInboxRoute
@@ -772,6 +812,7 @@ const OfficeRouteChildren: OfficeRouteChildren = {
   OfficeCatalogueRoute: OfficeCatalogueRoute,
   OfficeChatRoute: OfficeChatRoute,
   OfficeConstitutionRoute: OfficeConstitutionRoute,
+  OfficeCustomersRoute: OfficeCustomersRoute,
   OfficeDelegationsRoute: OfficeDelegationsRoute,
   OfficeFloorRoute: OfficeFloorRoute,
   OfficeInboxRoute: OfficeInboxRoute,
@@ -790,6 +831,7 @@ const OfficeRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FindRoute: FindRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GuidesRoute: GuidesRouteWithChildren,
   LoginRoute: LoginRoute,

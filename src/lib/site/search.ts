@@ -33,6 +33,15 @@ const PAGES: SearchItem[] = [
     keywords: ["home", "contact", "enquiry", "quote"],
   },
   {
+    id: "page-find",
+    title: "Find your service",
+    description:
+      "Answer three questions about the symptom and get the closest published service line, relevant guides and an enquiry checklist.",
+    href: "/find",
+    kind: "page",
+    keywords: ["finder", "which service", "starting point", "help me choose"],
+  },
+  {
     id: "page-rates",
     title: "Published rates",
     description:

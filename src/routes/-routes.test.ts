@@ -11,6 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** Every file-based route must declare the path matching its filename. */
 const EXPECTED: Record<string, string> = {
   "index.tsx": '"/"',
+  "find.tsx": '"/find"',
   "guides.tsx": '"/guides"',
   "guides.$slug.tsx": '"/guides/$slug"',
   "login.tsx": '"/login"',

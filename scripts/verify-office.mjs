@@ -771,11 +771,14 @@ async function main() {
     filePaymentNotice,
     listSubscriptions,
     listBillingCycles,
+    listCustomerAccounts,
+    listSiteSignals,
     revenueMetrics,
     listCustomerNotices,
   } = await import("../src/lib/office/store.server.ts");
   const { delegatableRateIds } = await import("../src/lib/office/delegation.ts");
   const { planById } = await import("../src/lib/office/plans.ts");
+  const { customerAccountsToCsv } = await import("../src/lib/office/customers.ts");
   const { addMonths } = await import("../src/lib/office/subscription.ts");
 
   /** The reason a decision recorded, exactly as the office wrote it down. */
@@ -1600,6 +1603,53 @@ async function main() {
       subscriptionBook[0].companyName === customer &&
       subscriptionBook[0].priceCents === planPrice,
     JSON.stringify(subscriptionBook),
+  );
+
+  const customerBook = await listCustomerAccounts();
+  const account = customerBook.accounts.find(
+    (row) => row.companyName.toLowerCase() === customer.toLowerCase(),
+  );
+  check(
+    "the customer book assembles the real account from its records",
+    account?.status === "client" &&
+      account.activeSubscriptions === 1 &&
+      account.monthlyRecurringCents === planPrice &&
+      account.planIds.includes("managed-support"),
+    JSON.stringify(account),
+  );
+  check(
+    "the customer book summary agrees with the recurring-revenue book",
+    customerBook.summary.clients >= 1 &&
+      customerBook.summary.activeSubscriptions === revenue.activeSubscriptions &&
+      customerBook.summary.monthlyRecurringCents === revenue.monthlyRecurringCents,
+    JSON.stringify(customerBook.summary),
+  );
+  check(
+    "the ageing buckets account for every issued invoice",
+    revenue.aging.currentCents +
+      revenue.aging.days8To30Cents +
+      revenue.aging.days31To60Cents +
+      revenue.aging.over60Cents ===
+      revenue.outstandingCents,
+    JSON.stringify(revenue.aging),
+  );
+  check(
+    "the customer CSV carries the account and its plan",
+    customerAccountsToCsv(customerBook.accounts).includes(customer) &&
+      customerAccountsToCsv(customerBook.accounts).includes("Managed support plan"),
+    customerAccountsToCsv(customerBook.accounts).slice(0, 300),
+  );
+
+  const signals = await listSiteSignals(30);
+  check(
+    "the site-signal panel reads the real recorded visits",
+    signals.pageViews >= 5 && signals.totalEvents >= 5,
+    JSON.stringify({ pageViews: signals.pageViews, totalEvents: signals.totalEvents }),
+  );
+  check(
+    "the site-signal panel ranks the pages that were actually visited",
+    signals.topPages.some((row) => row.label === "/" && row.count >= 2),
+    JSON.stringify(signals.topPages),
   );
 
   // ── 36. The chain still verifies, and the office still agrees ──────────────

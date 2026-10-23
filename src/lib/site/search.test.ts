@@ -55,6 +55,13 @@ describe("public site search", () => {
     );
   });
 
+  it("finds the service finder from a natural phrase", () => {
+    assert.equal(
+      searchSite("which service").some((item) => item.href === "/find"),
+      true,
+    );
+  });
+
   it("finds an answer and a fixed page", () => {
     assert.equal(searchSite("vat").length > 0, true);
     assert.equal(

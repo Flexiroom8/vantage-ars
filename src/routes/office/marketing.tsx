@@ -3,6 +3,7 @@ import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { EmptyState } from "@/components/office/empty-state";
 import { PageHeader } from "@/components/office/page-header";
+import { SiteSignalPanel } from "@/components/office/site-signal-panel";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatZar } from "@/lib/office/money";
@@ -38,6 +39,8 @@ function MarketingPage() {
           </p>
         </Card>
       </div>
+
+      <SiteSignalPanel />
 
       <section className="mt-8">
         <h2 className="mb-3 font-serif text-2xl">Campaigns</h2>

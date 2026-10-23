@@ -394,6 +394,21 @@ export type DelegationUsage = {
 };
 
 /** The recurring-revenue picture the office reports to itself. */
+export type ReceivablesAging = {
+  currentCents: number;
+  days8To30Cents: number;
+  days31To60Cents: number;
+  over60Cents: number;
+};
+
+export type UpcomingRenewal = {
+  subscriptionId: string;
+  companyName: string;
+  planId: string;
+  priceCents: number;
+  nextBillingAt: string;
+};
+
 export type RevenueMetrics = {
   activeSubscriptions: number;
   pausedSubscriptions: number;
@@ -406,5 +421,7 @@ export type RevenueMetrics = {
   outstandingCents: number;
   overdueCents: number;
   churnRiskCount: number;
+  aging: ReceivablesAging;
+  upcomingRenewals: UpcomingRenewal[];
   planMix: { planId: string; title: string; subscriptions: number; monthlyCents: number }[];
 };

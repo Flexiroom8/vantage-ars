@@ -281,7 +281,7 @@ function HomePage() {
 
       <section id="services" className="border-b border-border py-16" aria-label="Departments">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">Four departments, one desk</h2>
+          <h2 className="text-4xl sm:text-5xl">Seven service lines, one desk</h2>
 
           <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
             Pick what stopped
@@ -322,6 +322,19 @@ function HomePage() {
               </span>
             </Link>
           ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface/50 p-5">
+          <p className="max-w-xl text-sm leading-relaxed text-muted">
+            Not sure which line fits? Answer three questions and the service finder will name the
+            closest published line, the guides that narrow it and what to put in the enquiry.
+          </p>
+          <Link
+            to="/find"
+            className="cta-ghost inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+          >
+            Find your starting point
+          </Link>
         </div>
       </section>
 

@@ -141,6 +141,45 @@ function RevenuePage() {
         </Card>
       )}
 
+      {metrics ? (
+        <>
+          <section className="mt-8">
+            <h2 className="mb-3 font-serif text-2xl">Receivables ageing</h2>
+            <p className="mb-3 text-sm text-muted">
+              Issued invoices grouped by how long they have been open. An invoice is treated as
+              overdue after seven days. This is an ageing of the book, not a promise that every
+              balance will be collected.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Figure label="0–7 days" value={formatZar(metrics.aging.currentCents)} />
+              <Figure label="8–30 days" value={formatZar(metrics.aging.days8To30Cents)} />
+              <Figure label="31–60 days" value={formatZar(metrics.aging.days31To60Cents)} />
+              <Figure
+                label="Over 60 days"
+                value={formatZar(metrics.aging.over60Cents)}
+                tone={metrics.aging.over60Cents > 0 ? "danger" : undefined}
+              />
+            </div>
+          </section>
+
+          <section className="mt-8">
+            <h2 className="mb-3 font-serif text-2xl">Next renewals</h2>
+            <p className="mb-3 text-sm text-muted">
+              The active subscriptions closest to their next billing date. The amount is the plan
+              price, not a forecast of what the customer will pay.
+            </p>
+            {metrics.upcomingRenewals.length > 0 ? (
+              <RenewalsTable rows={metrics.upcomingRenewals} planTitles={planTitles} />
+            ) : (
+              <EmptyState
+                title="No renewals queued"
+                body="No active subscription has a next billing date, so there is nothing to renew."
+              />
+            )}
+          </section>
+        </>
+      ) : null}
+
       {book ? (
         <>
           <section className="mt-8">
@@ -267,6 +306,53 @@ function Figure({
       <p className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className={`mt-2 font-mono text-2xl tabular-nums ${toneClass}`}>{value}</p>
     </Card>
+  );
+}
+
+function RenewalsTable({
+  rows,
+  planTitles,
+}: {
+  rows: RevenueMetrics["upcomingRenewals"];
+  planTitles: Map<string, string>;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-xl bg-surface shadow-[var(--shadow-border)]">
+      <table className="w-full min-w-[32rem] text-left text-sm">
+        <caption className="sr-only">
+          The next active subscription renewals, with the customer, plan, billing date and plan
+          price.
+        </caption>
+        <thead className="text-xs uppercase tracking-[0.14em] text-muted">
+          <tr className="border-b border-border">
+            <th scope="col" className="px-4 py-3 font-medium">
+              Customer
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Plan
+            </th>
+            <th scope="col" className="px-4 py-3 font-medium">
+              Next billing
+            </th>
+            <th scope="col" className="px-4 py-3 text-right font-medium">
+              Price
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.subscriptionId} className="border-b border-border last:border-0">
+              <td className="px-4 py-3">{row.companyName}</td>
+              <td className="px-4 py-3">{planTitles.get(row.planId) ?? row.planId}</td>
+              <td className="px-4 py-3 text-muted">{formatDate(row.nextBillingAt)}</td>
+              <td className="px-4 py-3 text-right font-mono tabular-nums">
+                {formatZar(row.priceCents)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

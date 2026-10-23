@@ -2,6 +2,30 @@
 
 All notable changes to Vantage-ARS.
 
+## 4.9.0 — 2026-10-23
+
+### Added
+
+**The customer book.** `/office/customers` assembles every company the office has actually touched — enquiry, lead, opportunity, invoice, receipt and subscription — into one account with a status, open balance, monthly recurring value and plan history. It supports search, status filtering, an expandable record and a spreadsheet-safe CSV export. A company with only a page view is not a customer and does not appear.
+
+**Receivables ageing and next renewals.** The revenue page now groups issued invoices into 0–7, 8–30, 31–60 and over-60-day buckets, and lists the active subscriptions closest to their next billing date. Both are read from the office's own records. The ageing is a measure of the book, not a collection forecast.
+
+**A service finder.** `/find` asks three plain questions — the problem, the impact and the horizon — and recommends a published service, the related field guides and a short checklist. It is keyboard accessible, is indexed by site search, and is in the sitemap and traffic tracking. It recommends; it does not quote, price or promise an outcome.
+
+**Site signals for the founder.** The marketing page shows the last thirty days of real page views, top pages, referral sources, countries, daily bars and the latest events. The record still holds no IP address, no cookie and no inferred identity. The panel reads a bounded event window and does not pretend to be an analytics warehouse.
+
+**Guides beside the service.** Each service page now cross-links the field guides that explain its common faults, so a reader can move from a service to the writing without going back through search.
+
+### Changed
+
+**The public surface agrees with itself.** The home heading names the seven service lines honestly, the footer, search, tracked paths, sitemap and route list all include `/find`, and the README and office documentation carry the current route and verification counts.
+
+### Verification
+
+- `npm test`: 640 unit checks plus the real-office verification, exit 0.
+- `npm run verify:office`: 218 checks, no mocks and no sample data.
+- `npm run typecheck`, `npm run lint`, `npm run format:check` and `npm run build:ci`.
+
 ## 4.8.0 — 2026-10-22
 
 ### Added

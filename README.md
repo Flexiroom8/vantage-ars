@@ -16,13 +16,13 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## What is in it
 
-| Area                | Routes                                                                                                                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                              |
-| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, chat, audit, metrics and more                                                                                                                                                                            |
-| Founder governance  | `/office/delegations` (the standing delegation), `/office/revenue` (subscriptions, billing cycles, customer mail)                                                                                                                                                |
-| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                      |
+| Area                | Routes                                                                                                                                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                       |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                        |
+| Founder governance  | `/office/delegations` (standing delegation), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                                                                           |
+| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                               |
 
 ## The office runs itself
 
@@ -85,6 +85,21 @@ a delegation, and emails a customer only under a delegation that allows mail.
 The book is at **`/office/revenue`**; the plans and their prices are on
 **`/rates`** and **`/services/managed-support`**.
 
+The customer book at **`/office/customers`** assembles every company the office
+has actually touched — enquiry, lead, opportunity, invoice, receipt and
+subscription — into one account with its status, open balance and monthly value.
+It exports the book as CSV. It does not invent a customer from a page view.
+
+**`/find`** asks three plain questions — the problem, the impact and the horizon
+— and recommends a published service, the guides that explain it and a short
+checklist before an enquiry. It recommends; it does not quote or promise an
+outcome.
+
+Marketing at **`/office/marketing`** also shows the last thirty days of real
+site signals: page views by day, top pages, referral sources, countries and the
+latest events. The record holds no IP address, no cookie and no inferred
+identity, and the panel reports only what was recorded.
+
 ## Run locally
 
 Node 22.12 or newer.
@@ -99,7 +114,7 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 212 checks, no mocks and
+scheduler, and asserts on what the real agents did — 218 checks, no mocks and
 no sample data. If autonomy breaks, this fails.
 
 ## Environment

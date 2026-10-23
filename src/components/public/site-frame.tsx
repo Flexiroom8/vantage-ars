@@ -230,6 +230,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
 
           <div className="flex flex-col gap-2 text-sm">
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-subtle">Company</p>
+            <Link to="/find" className="text-muted transition-colors hover:text-fg">
+              Find a service
+            </Link>
             <Link to="/work" className="text-muted transition-colors hover:text-fg">
               Work
             </Link>

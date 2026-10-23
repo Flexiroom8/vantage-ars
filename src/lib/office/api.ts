@@ -46,6 +46,8 @@ import {
   revokeDelegation,
   listSubscriptions,
   listBillingCycles,
+  listCustomerAccounts,
+  listSiteSignals,
   revenueMetrics,
   startSubscriptionForOpportunity,
   cancelSubscriptionById,
@@ -863,6 +865,16 @@ export const revokeDelegationPolicy = createServerFn({ method: "POST" })
   .middleware([founderMiddleware])
   .validator((input: { reason: string }) => ({ reason: str(input?.reason, 400) }))
   .handler(async ({ data }) => revokeDelegation(data.reason || "Revoked by the founder."));
+
+/** Every company the office has touched, assembled from its own records. */
+export const getCustomers = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => listCustomerAccounts());
+
+/** Real page views and referral sources from the public site, founder only. */
+export const getSiteSignals = createServerFn({ method: "GET" })
+  .middleware([founderMiddleware])
+  .handler(async () => listSiteSignals(30));
 
 /** The recurring-revenue book: subscriptions, billing periods, and the money. */
 export const getRevenue = createServerFn({ method: "GET" })

@@ -32,7 +32,16 @@ import {
 } from "./delegation";
 import { planById } from "./plans";
 import { nextCycleStart } from "./subscription";
+import {
+  buildCustomerBook,
+  type CustomerActivity,
+  type CustomerActivitySource,
+  type CustomerBook,
+  type CustomerLedgerRow,
+  type CustomerPlanRow,
+} from "./customers";
 import { resolveRecipient } from "./customer-notice.server";
+import { summarizeSiteSignals, type SiteSignals } from "./site-signals";
 import {
   customerQuoteText,
   deliveryJob,
@@ -3579,6 +3588,119 @@ export async function listBillingCycles(limit = 120): Promise<BillingCycleRow[]>
 }
 
 /**
+ * The customer book.
+ *
+ * Every company the office has touched is assembled from its own records:
+ * enquiries, leads, opportunities, invoices, receipts and subscriptions. It
+ * is a read-only view and does not invent a client where only a page view
+ * exists.
+ */
+export async function listCustomerAccounts(now = new Date()): Promise<CustomerBook> {
+  await ensureOffice();
+  const sql = await getSql();
+  const [activityRows, ledgerRows, planRows] = await Promise.all([
+    sql<Record<string, unknown>>`
+      select company_name, 'inbound' as source, 'received' as stage,
+        0::int as score, 0::int as value_cents,
+        created_at, created_at as updated_at
+      from inbound_items
+      where btrim(company_name) <> ''
+      union all
+      select company_name, 'lead' as source, stage,
+        score::int as score, 0::int as value_cents,
+        created_at, updated_at
+      from leads
+      where btrim(company_name) <> ''
+      union all
+      select company_name, 'opportunity' as source, stage,
+        0::int as score, value_cents::int as value_cents,
+        created_at, updated_at
+      from opportunities
+      where btrim(company_name) <> ''
+    `,
+    sql<Record<string, unknown>>`
+      select counterparty as company_name, kind, amount_cents, status, created_at
+      from ledger_entries
+      where kind in ('invoice', 'receipt') and btrim(counterparty) <> ''
+    `,
+    sql<Record<string, unknown>>`
+      select company_name, contact_name, contact_email, plan_id, cycle,
+        price_cents, status, next_billing_at, created_at
+      from subscriptions
+      where btrim(company_name) <> ''
+    `,
+  ]);
+
+  const activity: CustomerActivity[] = activityRows.map((row) => ({
+    companyName: String(row.company_name ?? ""),
+    source: String(row.source) as CustomerActivitySource,
+    stage: String(row.stage ?? ""),
+    score: num(row.score),
+    valueCents: num(row.value_cents),
+    createdAt: iso(row.created_at),
+    updatedAt: iso(row.updated_at),
+  }));
+  const ledger: CustomerLedgerRow[] = ledgerRows.map((row) => ({
+    companyName: String(row.company_name ?? ""),
+    kind: String(row.kind ?? ""),
+    amountCents: num(row.amount_cents),
+    status: String(row.status ?? ""),
+    createdAt: iso(row.created_at),
+  }));
+  const plans: CustomerPlanRow[] = planRows.map((row) => ({
+    companyName: String(row.company_name ?? ""),
+    contactName: row.contact_name ? String(row.contact_name) : null,
+    contactEmail: row.contact_email ? String(row.contact_email) : null,
+    planId: String(row.plan_id ?? ""),
+    cycle: String(row.cycle ?? ""),
+    priceCents: num(row.price_cents),
+    status: String(row.status ?? ""),
+    nextBillingAt: iso(row.next_billing_at),
+    createdAt: iso(row.created_at),
+  }));
+
+  return buildCustomerBook({
+    activity,
+    ledger,
+    plans,
+    nowIso: Number.isFinite(now.getTime()) ? now.toISOString() : new Date().toISOString(),
+  });
+}
+
+/**
+ * Public site signals.
+ *
+ * Reads only what the store has already recorded from a real visit. There is
+ * no finger-printing here: no IP address, no cookie, no inferred identity.
+ * The raw event stream is bounded, so the panel reports the recorded window
+ * honestly rather than pretending it is an exhaustive analytics warehouse.
+ */
+export async function listSiteSignals(days = 30): Promise<SiteSignals> {
+  await ensureOffice();
+  const sql = await getSql();
+  const range = Math.max(1, Math.min(Math.round(days), 90));
+  const since = new Date(Date.now() - range * 24 * 60 * 60 * 1000).toISOString();
+  const rows = await sql<Record<string, unknown>>`
+    select kind, path, referrer, country, occurred_at
+    from site_events
+    where occurred_at >= ${since}
+    order by occurred_at desc
+    limit 5000
+  `;
+  return summarizeSiteSignals(
+    rows.map((row) => ({
+      kind: String(row.kind ?? ""),
+      path: String(row.path ?? "/"),
+      referrer: row.referrer ? String(row.referrer) : null,
+      country: row.country ? String(row.country) : null,
+      occurredAt: iso(row.occurred_at),
+    })),
+    new Date().toISOString(),
+    range,
+  );
+}
+
+/**
  * The recurring-revenue picture.
  *
  * MRR is the sum of the monthly value of every active subscription. A
@@ -3640,6 +3762,29 @@ export async function revenueMetrics(): Promise<RevenueMetrics> {
     where status = 'active' and next_billing_at < now() - interval '14 days'
   `.then((rows) => num(rows[0]?.n));
 
+  const aging = await sql<{
+    current_cents: number;
+    days_8_30_cents: number;
+    days_31_60_cents: number;
+    over_60_cents: number;
+  }>`
+    select
+      coalesce(sum(case when created_at > now() - interval '7 days' then amount_cents else 0 end), 0)::int as current_cents,
+      coalesce(sum(case when created_at <= now() - interval '7 days' and created_at > now() - interval '30 days' then amount_cents else 0 end), 0)::int as days_8_30_cents,
+      coalesce(sum(case when created_at <= now() - interval '30 days' and created_at > now() - interval '60 days' then amount_cents else 0 end), 0)::int as days_31_60_cents,
+      coalesce(sum(case when created_at <= now() - interval '60 days' then amount_cents else 0 end), 0)::int as over_60_cents
+    from ledger_entries
+    where kind = 'invoice' and status = 'issued'
+  `.then((rows) => rows[0]);
+
+  const upcomingRenewals = await sql<Record<string, unknown>>`
+    select id, company_name, plan_id, price_cents, next_billing_at
+    from subscriptions
+    where status = 'active'
+    order by next_billing_at asc
+    limit 8
+  `;
+
   const oneOff = await sql<{ cents: number }>`
     select coalesce(sum(value_cents), 0)::int as cents
     from opportunities
@@ -3658,6 +3803,19 @@ export async function revenueMetrics(): Promise<RevenueMetrics> {
     outstandingCents: outstanding,
     overdueCents: overdue,
     churnRiskCount: churn,
+    aging: {
+      currentCents: num(aging?.current_cents),
+      days8To30Cents: num(aging?.days_8_30_cents),
+      days31To60Cents: num(aging?.days_31_60_cents),
+      over60Cents: num(aging?.over_60_cents),
+    },
+    upcomingRenewals: upcomingRenewals.map((row) => ({
+      subscriptionId: String(row.id),
+      companyName: String(row.company_name ?? ""),
+      planId: String(row.plan_id ?? ""),
+      priceCents: num(row.price_cents),
+      nextBillingAt: iso(row.next_billing_at),
+    })),
     planMix: [...mix.entries()].map(([planId, entry]) => {
       const plan = planById(planId);
       return {

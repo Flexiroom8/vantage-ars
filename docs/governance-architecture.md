@@ -470,7 +470,7 @@ npm run verify:office
 
 It boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did: 212 checks, no mocks, no
+asserts on what the real agents actually did: 218 checks, no mocks, no
 fixtures. It runs in CI on every push.
 
 It exercises the delegation and the subscription path end to end: the office

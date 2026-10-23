@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/office/approvals", label: "Approvals" },
   { href: "/office/floor", label: "Floor" },
   { href: "/office/inbox", label: "Inbox" },
+  { href: "/office/customers", label: "Customers" },
   { href: "/office/chat", label: "Chat" },
   { href: "/office/service", label: "Service" },
   { href: "/office/catalogue", label: "Catalogue" },

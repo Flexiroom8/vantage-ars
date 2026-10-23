@@ -18,6 +18,7 @@ import {
   VoipIcon,
 } from "@/components/public/motion-icons";
 import { ratesByIds } from "@/lib/office/catalogue";
+import { GUIDES } from "@/lib/site/guides";
 import { SERVICE_PAGES, servicePage, type ServicePage } from "@/lib/site/services";
 import {
   breadcrumbJsonLd,
@@ -95,6 +96,7 @@ function ServicePageView() {
   const page = Route.useLoaderData() as ServicePage;
   const rates = ratesByIds(page.rateIds);
   const others = SERVICE_PAGES.filter((item: ServicePage) => item.slug !== page.slug);
+  const guides = GUIDES.filter((guide) => guide.relatedServices.includes(page.slug)).slice(0, 2);
   const Icon = SLUG_ICONS[page.slug];
 
   return (
@@ -175,6 +177,44 @@ function ServicePageView() {
           </ul>
         </div>
       </section>
+
+      {guides.length > 0 ? (
+        <section className="border-b border-border py-12" aria-labelledby="service-guides-heading">
+          <div className="grid gap-6 lg:grid-cols-[16rem_1fr] lg:gap-16">
+            <div>
+              <h2 id="service-guides-heading" className="font-serif text-3xl tracking-[-0.03em]">
+                Before the call
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
+                Short checks that make the first conversation more useful. A guide cannot see your
+                system; it only helps you describe what changed.
+              </p>
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {guides.map((guide) => (
+                <li key={guide.slug}>
+                  <Link
+                    to="/guides/$slug"
+                    params={{ slug: guide.slug }}
+                    className="panel panel-hover flex h-full flex-col rounded-2xl p-5"
+                  >
+                    <span className="font-mono text-[10px] tracking-[0.16em] text-subtle uppercase">
+                      {guide.readingMinutes} min read
+                    </span>
+                    <span className="mt-2 font-serif text-2xl leading-tight text-fg">
+                      {guide.title}
+                    </span>
+                    <span className="mt-2 flex-1 text-sm leading-relaxed text-muted">
+                      {guide.summary}
+                    </span>
+                    <span className="mt-4 text-xs text-accent">Read the guide →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      ) : null}
 
       <section className="border-b border-border py-16" aria-labelledby="approach-heading">
         <h2 id="approach-heading" className="font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
