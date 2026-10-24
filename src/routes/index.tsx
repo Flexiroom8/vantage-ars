@@ -279,6 +279,31 @@ function HomePage() {
         </dl>
       </section>
 
+      <section className="border-b border-border py-16" aria-label="The practice">
+        <h2 className="text-4xl sm:text-5xl">The work, as it sits.</h2>
+        <p className="mt-4 max-w-2xl text-muted">
+          Voice, the network under it, and the cabinet those calls depend on. Remote first. On-site only when the written quote includes it.
+        </p>
+        <ul className="mt-8 grid gap-4 sm:grid-cols-3">
+          {(
+            [
+              ["/images/handset.jpg", "A desk telephone", "VoIP"],
+              ["/images/panel.jpg", "A network patch panel", "Networking"],
+              ["/images/cabinet.jpg", "A server cabinet", "Infrastructure"],
+            ] as const
+          ).map(([src, alt, label]) => (
+            <li key={src}>
+              <figure className="overflow-hidden rounded-2xl border border-border">
+                <img src={src} alt={alt} className="aspect-[3/2] w-full object-cover" />
+                <figcaption className="border-t border-border px-4 py-3 font-mono text-[11px] tracking-[0.16em] text-subtle uppercase">
+                  {label}
+                </figcaption>
+              </figure>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section id="services" className="border-b border-border py-16" aria-label="Departments">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <h2 className="text-4xl sm:text-5xl">Seven service lines, one desk</h2>

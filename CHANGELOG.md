@@ -2,6 +2,12 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.1 — 2026-10-24
+
+### Added
+
+**Practice photographs on the home page.** Three photographs sit under the desk facts: a desk telephone, a patch panel, and a server cabinet. They name the three physical practices. They do not add a service, a price, or a promise.
+
 ## 5.0.0 — 2026-10-23
 
 ### Added
