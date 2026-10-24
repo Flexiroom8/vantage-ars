@@ -17,10 +17,36 @@ const nav = [
   { to: "/support", hash: undefined, label: "Service desk" },
 ] as const;
 
-const moreNav = [
-  { to: "/work", label: "Recent work" },
-  { to: "/guides", label: "Guides" },
-  { to: "/model", label: "How the office works" },
+const exploreSections = [
+  {
+    number: "01",
+    title: "Start with the problem",
+    note: "Not sure what the fault is called? Begin with what you notice.",
+    links: [
+      { to: "/find", label: "Find the right service" },
+      { to: "/support", label: "Ask the service desk" },
+    ],
+  },
+  {
+    number: "02",
+    title: "See the shape of the work",
+    note: "Understand the scope, boundaries and published price first.",
+    links: [
+      { to: "/services", label: "Browse service lines" },
+      { to: "/rates", label: "See published rates" },
+      { to: "/automation", label: "Explore AI automation" },
+    ],
+  },
+  {
+    number: "03",
+    title: "Follow the thinking",
+    note: "Read practical guides and see how the desk operates.",
+    links: [
+      { to: "/guides", label: "Read the guides" },
+      { to: "/work", label: "See the work" },
+      { to: "/model", label: "How the office works" },
+    ],
+  },
 ] as const;
 
 const trustPills = [
@@ -129,27 +155,82 @@ export function PublicFrame({ children }: { children: ReactNode }) {
                 {item.label}
               </Link>
             ))}
-            <details className="site-more-menu relative">
+            <details className="site-more-menu site-flow-menu relative">
               <summary className="nav-link flex cursor-pointer list-none items-center gap-1 rounded-sm py-2 text-[13px] font-medium">
-                More{" "}
+                Route map{" "}
                 <span aria-hidden="true" className="text-[10px]">
                   ⌄
                 </span>
               </summary>
-              <div className="site-more-popover absolute right-0 z-40 mt-3 w-56 rounded-lg border p-2 shadow-[var(--shadow-panel)]">
-                {moreNav.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={(event) => {
-                      const parent = event.currentTarget.closest("details");
-                      parent?.removeAttribute("open");
-                    }}
-                    className="site-more-link block rounded-md px-3 py-2.5 text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+              <div className="site-more-popover site-flow-popover absolute right-0 z-40 mt-4 w-[min(58rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border shadow-[var(--shadow-panel)]">
+                <div className="site-flow-heading">
+                  <span className="site-flow-overline">Choose a starting point</span>
+                  <span className="site-flow-title">Every route leads to a clearer next step.</span>
+                  <span className="site-flow-note">
+                    Follow the path that fits. All work starts with a written scope.
+                  </span>
+                </div>
+                <svg
+                  className="site-flow-connector"
+                  viewBox="0 0 900 86"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    className="site-flow-track"
+                    d="M32 12H150V28C150 50 168 68 190 68H710C732 68 750 50 750 28V12H868"
+                  />
+                  <path
+                    className="site-flow-trace"
+                    pathLength="1"
+                    d="M32 12H150V28C150 50 168 68 190 68H710C732 68 750 50 750 28V12H868"
+                  />
+                  {[
+                    [32, 12],
+                    [150, 12],
+                    [450, 68],
+                    [750, 12],
+                    [868, 12],
+                  ].map(([cx, cy]) => (
+                    <circle key={cx} className="site-flow-node" cx={cx} cy={cy} r="5" />
+                  ))}
+                  <circle className="site-flow-packet" r="3">
+                    <animateMotion
+                      dur="5s"
+                      repeatCount="indefinite"
+                      path="M32 12H150V28C150 50 168 68 190 68H710C732 68 750 50 750 28V12H868"
+                    />
+                  </circle>
+                </svg>
+                <div className="site-flow-columns">
+                  {exploreSections.map((section) => (
+                    <section key={section.number} className="site-flow-column">
+                      <p className="site-flow-number">{section.number} / ROUTE</p>
+                      <h2>{section.title}</h2>
+                      <p className="site-flow-description">{section.note}</p>
+                      <div className="site-flow-links">
+                        {section.links.map((item) => (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            onClick={(event) => {
+                              event.currentTarget.closest("details")?.removeAttribute("open");
+                            }}
+                            className="site-more-link"
+                          >
+                            <span>{item.label}</span>
+                            <span aria-hidden="true">↗</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+                <div className="site-flow-footer">
+                  <SignalBars className="size-4" aria-hidden="true" />
+                  <span>One connected desk · remote worldwide · quote before work</span>
+                </div>
               </div>
             </details>
             <button
@@ -188,24 +269,34 @@ export function PublicFrame({ children }: { children: ReactNode }) {
                 id="mobile-nav"
                 aria-label="Mobile navigation"
                 hidden={!menuOpen}
-                className="glass absolute right-0 z-40 mt-2 w-56 rounded-xl p-2 text-fg shadow-[var(--shadow-panel)]"
+                className="site-mobile-routes glass absolute right-0 z-40 mt-2 w-[min(23rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl p-3 text-fg shadow-[var(--shadow-panel)]"
               >
-                {[...nav, ...moreNav].map((item) => (
-                  <Link
-                    key={item.label}
-                    to={item.to}
-                    hash={"hash" in item ? item.hash : undefined}
-                    onClick={() => setMenuOpen(false)}
-                    aria-current={
-                      pathname === item.to || pathname.startsWith(`${item.to}/`)
-                        ? "page"
-                        : undefined
-                    }
-                    className="site-mobile-nav-link block rounded-md px-3 py-2.5 text-sm"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                <p className="site-mobile-routes-heading">Follow a route</p>
+                <div className="site-mobile-flow">
+                  {exploreSections.map((section) => (
+                    <section key={section.number} className="site-mobile-flow-section">
+                      <p className="site-mobile-flow-title">
+                        <span>{section.number}</span>
+                        {section.title}
+                      </p>
+                      {section.links.map((item) => (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMenuOpen(false)}
+                          aria-current={
+                            pathname === item.to || pathname.startsWith(`${item.to}/`)
+                              ? "page"
+                              : undefined
+                          }
+                          className="site-mobile-nav-link block px-3 py-2 text-sm"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </section>
+                  ))}
+                </div>
                 <button
                   type="button"
                   className="site-mobile-nav-link block w-full rounded-md px-3 py-2.5 text-left text-sm"

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { PublicFrame } from "@/components/public/site-frame";
 import { FormConfirmation } from "@/components/public/form-confirmation";
 import { EnquiryForm } from "@/components/public/enquiry-form";
+import { SignalAtlas } from "@/components/public/signal-atlas";
 import {
   CloudIcon,
   InfraIcon,
@@ -191,6 +192,7 @@ function HomePage() {
               fetchPriority="high"
             />
             <div className="home-hero-image-shade" aria-hidden="true" />
+            <SignalAtlas />
             <div className="home-hero-index font-mono" aria-hidden="true">
               <span>VA / FIELD NOTES</span>
               <span>001—008</span>
@@ -202,7 +204,7 @@ function HomePage() {
             </div>
             <figcaption className="home-hero-caption">
               <span className="home-caption-dot" aria-hidden="true" />
-              Practical support for the systems your business relies on.
+              Every connection has a path. We help trace it.
             </figcaption>
           </figure>
         </div>
