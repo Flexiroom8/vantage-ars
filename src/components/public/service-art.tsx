@@ -589,10 +589,51 @@ function BackupScene() {
   );
 }
 
+function AutomationScene() {
+  return (
+    <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <g stroke="var(--color-border)" strokeWidth="2">
+        <path d="M120 135h58M302 135h58M240 103v-30M240 167v34" />
+      </g>
+      <g stroke="var(--color-accent)" strokeWidth="1.5">
+        <rect x="48" y="105" width="72" height="60" rx="10" fill="var(--color-raised)" />
+        <rect x="178" y="103" width="124" height="64" rx="12" fill="var(--color-surface)" />
+        <rect x="360" y="105" width="72" height="60" rx="10" fill="var(--color-raised)" />
+        <path d="M240 202l36 20-36 20-36-20z" fill="var(--color-surface)" />
+      </g>
+      <g fill="var(--color-fg)" fontFamily="monospace" fontSize="10" textAnchor="middle">
+        <text x="84" y="139">
+          INPUT
+        </text>
+        <text x="240" y="132">
+          ASSISTANT
+        </text>
+        <text x="240" y="147" fill="var(--color-subtle)">
+          bounded
+        </text>
+        <text x="396" y="139">
+          REVIEW
+        </text>
+        <text x="240" y="226">
+          HUMAN GATE
+        </text>
+      </g>
+      <g fill="var(--color-ok)">
+        <circle cx="240" cy="84" r="4" />
+        <circle cx="148" cy="135" r="3" />
+        <circle cx="332" cy="135" r="3" />
+      </g>
+      <path d="M214 220h-42v-42" stroke="var(--color-subtle)" strokeDasharray="4 6" />
+      <path d="M266 220h42v-42" stroke="var(--color-subtle)" strokeDasharray="4 6" />
+    </g>
+  );
+}
+
 const SCENES: Record<ArtSlug, () => ReactNode> = {
   voip: VoipScene,
   networking: NetworkScene,
   "it-infrastructure": InfraScene,
+  "ai-automation": AutomationScene,
   "managed-support": ManagedScene,
   "cloud-email": CloudScene,
   security: SecurityScene,

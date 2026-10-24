@@ -221,8 +221,8 @@ function FindPage() {
         <div>
           <h2 className="font-serif text-2xl">Prefer to read first?</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
-            The seven service lines show their scope, exclusions and published rates. The field
-            notes explain the checks that narrow a fault before anyone is booked.
+            The service lines show their scope, exclusions and price basis. The field notes explain
+            the checks that narrow a fault before anyone is booked.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">

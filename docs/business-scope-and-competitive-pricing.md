@@ -4,6 +4,8 @@
 
 This document defines Vantage-ARS's practical VoIP and telecoms, networking, and IT infrastructure services, and its managed services, for people and organisations operating real systems. Remote service is available worldwide; on-site work can be arranged worldwide subject to travel, local access, and project arrangements. Prices below are customer-facing rates in ZAR. Where VAT is chargeable, the written quote states the applicable VAT treatment; international customer tax treatment and currency conversion are confirmed on the written quote.
 
+The public catalogue also offers human-led AI workflow automation engagements. These are project services quoted after discovery, not fixed-price product subscriptions or a claim that Vantage-ARS currently operates customer systems autonomously.
+
 ## 1. Business purpose and customer
 
 Vantage-ARS helps individuals and organisations worldwide diagnose, plan, configure, improve, and support communications and IT infrastructure. The public site specifically identifies VoIP and telecoms, networking, and IT infrastructure, and confirms work scope, timing, and price before work is agreed.
@@ -37,6 +39,12 @@ The managed services below are productised: a fixed scope, a published price, an
 | Backup and recovery readiness review               | Review the backups and restore path the customer says are in place and report what exists, what is untested and what is missing        |                                                            R1,380 fixed | One review per order, remote. No data recovery, no guarantee of recoverability, and no changes without a separate approved quote. |
 | Hardware, software, connectivity, carrier services | Third-party products or services needed for the approved job                                                                           |                                 Supplier quotation, itemised in advance | Third-party charges are not included in labour rates; owner and customer approval precede commitment.                             |
 | Travel                                             | Travel to an approved site                                                                                                             |                     Actual agreed travel cost, disclosed before booking | Available worldwide by arrangement; international travel, accommodation, visas, and local expenses are quoted separately.         |
+
+### AI workflow automation engagements
+
+The public `/services/ai-automation` page offers five scoped engagements: workflow automation readiness review, AI workflow and agent blueprint, supervised workflow pilot, read-only AI diagnostics pilot, and agent governance and operations pack. These are delivered by a Vantage-ARS engineer under a written quote; the applicable published remote or on-site labour rate is confirmed after discovery. The name of an engagement does not imply a fixed fee.
+
+A pilot starts in an agreed test environment and, where suitable, in read-only or human-reviewed draft mode. A diagnostics pilot uses only customer-approved read-only telemetry or exported records; it does not scan or change customer systems. Any connection or scan requires explicit written authorization and a defined target scope. Production access, autonomous action, ongoing monitoring, model/API subscription, or other third-party cost is excluded unless separately scoped, disclosed, and approved by the customer. No engagement is a legal opinion, compliance certification, penetration test, accuracy guarantee, or authorization for unattended high-impact decisions.
 
 ### Managed services
 
@@ -76,6 +84,7 @@ The managed services are not priced from a competitor's figure. The one publishe
 ### Included service work, when individually accepted in writing
 
 - Requirements discovery and technical assessment for the agreed systems.
+- Human-led workflow discovery, automation suitability review, agent design, bounded pilot and governance documentation when separately scoped and approved.
 - VoIP, SIP, hosted PBX, telephony, and call-quality troubleshooting within access and supplier boundaries.
 - Network setup, troubleshooting, configuration, and small defined changes.
 - Practical IT infrastructure assessment, configuration, installation, and troubleshooting for systems within demonstrated competence.

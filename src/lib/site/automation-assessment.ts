@@ -100,6 +100,35 @@ export type AutomationOutcome = {
   serviceSlug: "managed-support" | "cloud-email" | "security";
 };
 
+export function createAutomationBrief(
+  answers: AutomationAnswers,
+  outcome: AutomationOutcome,
+): string | null {
+  const responseLines = AUTOMATION_QUESTIONS.map((question) => {
+    const answer = answers[question.id];
+    const option = question.options.find((candidate) => candidate.value === answer);
+    return option ? `- ${question.topic}: ${option.label}` : null;
+  });
+
+  if (responseLines.some((line) => line === null)) return null;
+
+  return [
+    "VANTAGE-ARS · AI WORKFLOW PILOT BRIEF",
+    "",
+    `Starting point: ${outcome.title}`,
+    "",
+    outcome.summary,
+    "",
+    "WORKFLOW CHECKLIST",
+    ...responseLines,
+    "",
+    "SUGGESTED NEXT STEPS",
+    ...outcome.actions.map((action, index) => `${index + 1}. ${action}`),
+    "",
+    "Planning aid only. Validate with the process owner. Do not use this brief to authorize unattended or high-impact actions.",
+  ].join("\n");
+}
+
 export function assessAutomation(answers: AutomationAnswers): AutomationOutcome | null {
   if (AUTOMATION_QUESTIONS.some((question) => answers[question.id] === undefined)) return null;
 

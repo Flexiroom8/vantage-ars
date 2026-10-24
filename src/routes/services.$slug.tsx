@@ -36,6 +36,7 @@ const SLUG_ICONS = {
   voip: VoipIcon,
   networking: NetworkIcon,
   "it-infrastructure": InfraIcon,
+  "ai-automation": CloudIcon,
   "managed-support": SignalBars,
   "cloud-email": CloudIcon,
   security: ShieldIcon,
@@ -240,6 +241,37 @@ function ServicePageView() {
           ))}
         </ol>
       </section>
+
+      {page.products ? (
+        <section className="border-b border-border py-16" aria-labelledby="products-heading">
+          <h2 id="products-heading" className="font-serif text-3xl tracking-[-0.03em] sm:text-4xl">
+            AI automation engagements
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+            Start with one workflow. Each engagement is human-led and separately scoped; no software
+            is purchased and no production system is changed until you approve a written quote.
+          </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {page.products.map((product, index) => (
+              <article key={product.title} className="panel rounded-2xl p-6">
+                <p className="font-mono text-xs text-accent">
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h3 className="mt-3 font-serif text-2xl">{product.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-muted">{product.suitableWhen}</p>
+                <p className="mt-4 border-t border-border pt-4 text-sm leading-relaxed">
+                  <span className="font-semibold">You receive: </span>
+                  {product.deliverable}
+                </p>
+              </article>
+            ))}
+          </div>
+          <p className="mt-6 text-xs leading-relaxed text-subtle">
+            Labour is quoted at the applicable published remote or on-site rate after discovery.
+            Third-party model, API and software fees are separate and require your approval.
+          </p>
+        </section>
+      ) : null}
 
       <section className="border-b border-border py-16" aria-labelledby="price-heading">
         <div className="grid gap-8 lg:grid-cols-[16rem_1fr] lg:gap-16">

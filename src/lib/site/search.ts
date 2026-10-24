@@ -36,7 +36,7 @@ const PAGES: SearchItem[] = [
     id: "page-services",
     title: "Service lines",
     description:
-      "Seven published service lines for VoIP, networking, IT infrastructure, managed support, cloud and email, security and backup recovery.",
+      "Published service lines for VoIP, networking, IT infrastructure, managed support, cloud and email, security, backup recovery and AI workflow automation.",
     href: "/services",
     kind: "page",
     keywords: ["services", "all services", "what do you do", "departments"],

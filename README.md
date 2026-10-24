@@ -16,13 +16,13 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## What is in it
 
-| Area                | Routes                                                                                                                                                                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/assess`, `/automation`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                                                              |
-| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                                                               |
-| Founder governance  | `/office/delegations` (standing delegation), `/office/governance` (rulings, section 71 gates, signed receipts), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                                               |
-| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                                                                      |
+| Area                | Routes                                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/ai-automation`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/assess`, `/automation`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                                                                                         |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                                                                                          |
+| Founder governance  | `/office/delegations` (standing delegation), `/office/governance` (rulings, section 71 gates, signed receipts), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                                                                          |
+| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                                                                                                 |
 
 ## The office runs itself
 
@@ -119,7 +119,16 @@ saved.
 repeat frequency, process clarity, information quality, known exceptions,
 impact of errors and human approval controls, then distinguishes a bounded
 pilot candidate from workflows that need controls first. The result is
-deterministic, not AI-generated advice, and answers are not submitted or saved.
+deterministic, not AI-generated advice. Visitors can copy or download a local
+pilot brief; assessment answers are not submitted or saved.
+
+**`/services/ai-automation`** describes five human-led engagements: workflow
+readiness review, agent blueprint, supervised workflow pilot, read-only
+diagnostics pilot and governance/operations pack. Every engagement is scoped
+and quoted using applicable published labour rates; model and software fees
+remain separate. Diagnostics use customer-authorized read-only data;
+production access, system scans, unattended actions and ongoing monitoring are
+not included by default.
 
 Marketing at **`/office/marketing`** also shows the last thirty days of real
 site signals: page views by day, top pages, referral sources, countries and the

@@ -11,7 +11,7 @@ export const Route = createFileRoute("/services/")({
     const head = pageHead({
       title: "Service lines · Vantage-ARS",
       description:
-        "Seven published service lines for VoIP, networking, IT infrastructure, managed support, cloud and email, security and backup recovery. Every line has a written scope and a published rate.",
+        "Published service lines for VoIP, networking, IT infrastructure, managed support, cloud and email, security, backup recovery and AI workflow automation. Each engagement has a written scope and price basis.",
       path: "/services",
     });
     return {
@@ -61,11 +61,11 @@ function ServicesPage() {
           Published service lines
         </p>
         <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
-          Seven ways to put the desk to work.
+          Practical services, clearly scoped.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-          Each line has a written scope, a published rate and a boundary. Start with the symptom or
-          the change you need; the quote fixes what is included before anyone starts.
+          Each line has a written scope and clear boundaries. Rates are published where work has a
+          standard basis; every project quote confirms the scope and total before it starts.
         </p>
         <p className="mt-4 font-mono text-xs text-subtle uppercase tracking-[0.16em]">
           {SERVICE_PAGES.length} service lines · {offered} published rates

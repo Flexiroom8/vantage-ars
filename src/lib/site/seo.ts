@@ -76,7 +76,17 @@ export function businessJsonLd() {
     paymentAccepted: "EFT, international wire",
     address: { "@type": "PostalAddress", addressCountry: "ZA" },
     areaServed: "Worldwide (remote); on-site by arrangement",
-    knowsAbout: ["VoIP", "PBX", "SIP", "Networking", "Wi-Fi", "VLAN", "IT infrastructure"],
+    knowsAbout: [
+      "VoIP",
+      "PBX",
+      "SIP",
+      "Networking",
+      "Wi-Fi",
+      "VLAN",
+      "IT infrastructure",
+      "AI workflow automation",
+      "Human-reviewed agent pilots",
+    ],
     contactPoint: [
       {
         "@type": "ContactPoint",

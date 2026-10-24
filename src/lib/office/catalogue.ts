@@ -304,6 +304,12 @@ export const SERVICE_LINES = [
     summary: "What is backed up, what has never been tested, and what is still missing.",
     price: "From R1,380",
   },
+  {
+    number: "08",
+    title: "AI workflow automation",
+    summary: "Human-led discovery, bounded agent design and supervised workflow pilots.",
+    price: "Scoped written quote",
+  },
 ] as const;
 
 export const PUBLIC_RATE_IDS = [

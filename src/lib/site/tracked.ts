@@ -21,6 +21,7 @@ export const TRACKED_PATHS = [
   "/services/voip",
   "/services/networking",
   "/services/it-infrastructure",
+  "/services/ai-automation",
   "/services/managed-support",
   "/services/cloud-email",
   "/services/security",

@@ -1,6 +1,6 @@
 /**
- * Public service pages. Every price and limit here comes from the published
- * catalogue (`@/lib/office/catalogue`); nothing new is promised.
+ * Public service pages. Every published price and limit comes from the
+ * catalogue (`@/lib/office/catalogue`); unpriced project work is quoted.
  */
 import { rateAmountLabel } from "@/lib/office/catalogue";
 
@@ -9,6 +9,7 @@ export type ServicePage = {
     | "voip"
     | "networking"
     | "it-infrastructure"
+    | "ai-automation"
     | "managed-support"
     | "cloud-email"
     | "security"
@@ -21,6 +22,7 @@ export type ServicePage = {
   symptoms: string[];
   approach: { title: string; body: string }[];
   rateIds: string[];
+  products?: { title: string; suitableWhen: string; deliverable: string }[];
   /** Overrides the shared "Not in the labour rate" heading where it would be wrong. */
   excludedTitle?: string;
   excluded: string[];
@@ -378,6 +380,94 @@ export const SERVICE_PAGES: ServicePage[] = [
       {
         q: "Can you write the continuity plan as well?",
         a: `Yes. The business continuity plan is a separate ${rateAmountLabel("continuity-plan")} product, built from the faults and open items already on your record. It is not a formal disaster recovery certification.`,
+      },
+    ],
+  },
+  {
+    slug: "ai-automation",
+    number: "08",
+    title: "AI workflow automation",
+    metaTitle: "AI workflow automation & agent pilots · Vantage-ARS",
+    description:
+      "Human-led workflow discovery, AI agent blueprints, supervised pilots and governance controls. Each engagement is scoped and quoted before work starts.",
+    lead: "Turn a repeated business process into a carefully scoped automation opportunity. A Vantage-ARS engineer maps the workflow, information access, exceptions and approval points, then recommends whether to automate, assist or leave it with a person. Any pilot starts in a bounded, reviewable mode.",
+    symptoms: [
+      "Staff repeat the same intake, classification or record-updating steps",
+      "Important decisions depend on scattered documents or unclear ownership",
+      "An AI assistant or agent is being considered but its access and limits are not defined",
+      "A small automation pilot needs measurable checks, human review and a way to stop",
+    ],
+    approach: [
+      {
+        title: "Understand one workflow",
+        body: "Map its trigger, steps, data, exceptions, owners and the cost of a mistake. Use permissioned, minimised examples; do not send passwords or sensitive customer records in an enquiry.",
+      },
+      {
+        title: "Design the boundary",
+        body: "Define allowed inputs and actions, human approval points, evaluation cases, cost limits, logs and a tested rollback or stop path before implementation is considered.",
+      },
+      {
+        title: "Pilot under review",
+        body: "Where suitable, begin in a test environment with read-only analysis or drafts for a named person to review. Production access or autonomous actions need their own written scope and customer approval.",
+      },
+    ],
+    products: [
+      {
+        title: "Workflow automation readiness review",
+        suitableWhen: "You have one process in mind but do not know whether AI is the right fit.",
+        deliverable:
+          "A current-state workflow map, data and exception inventory, risk notes, measurable baseline and a written automate / assist / do-not-automate recommendation.",
+      },
+      {
+        title: "AI workflow and agent blueprint",
+        suitableWhen:
+          "The process is understood and you need a design before selecting or changing tools.",
+        deliverable:
+          "A bounded design covering components, data access, permitted tools, human approval gates, failure handling, evaluation cases, estimated operating costs and rollback.",
+      },
+      {
+        title: "Supervised workflow pilot",
+        suitableWhen: "A low-impact workflow is ready to be tested with real acceptance checks.",
+        deliverable:
+          "A narrowly scoped proof of concept in an agreed test environment, initially limited to read-only results or human-reviewed drafts, with test evidence and a handover.",
+      },
+      {
+        title: "Read-only AI diagnostics pilot",
+        suitableWhen:
+          "You want AI to summarize a specific set of authorized system health data or diagnostic records.",
+        deliverable:
+          "A bounded test using customer-approved read-only telemetry or exported records, with findings linked to their evidence, stated uncertainty and coverage gaps. It does not scan or change customer systems.",
+      },
+      {
+        title: "Agent governance and operations pack",
+        suitableWhen:
+          "You already use an assistant or agent and need clearer operational controls.",
+        deliverable:
+          "A practical inventory of agent roles and access, approval rules, logging and retention expectations, spend thresholds, escalation contacts and a stop procedure.",
+      },
+    ],
+    rateIds: ["remote-support", "onsite-support", "infra-assessment"],
+    excludedTitle: "Boundaries and exclusions",
+    excluded: [
+      "Unattended decisions involving safety, legal rights, employment, credit or significant financial consequences",
+      "Penetration testing, compliance certification, legal advice or a guarantee that an AI system is accurate",
+      "Third-party model, cloud, API or software subscription charges; these remain separately disclosed and customer-approved",
+      "Production integrations, ongoing monitoring or operational support unless each is separately scoped and agreed",
+      "Connecting to or scanning a customer system without explicit written authorization and a defined target scope",
+      "Sharing passwords, API keys, personal data or confidential records through the public enquiry form",
+    ],
+    faqs: [
+      {
+        q: "Do you deploy autonomous AI agents into production?",
+        a: "Not by default. Each engagement starts with a written scope. Suitable pilots begin in a bounded test environment or in read-only / draft mode with a named human reviewer. Production access and any autonomous action require a separate, explicit customer-approved scope.",
+      },
+      {
+        q: "How is AI automation work priced?",
+        a: "There is no universal fixed price because data access, integrations, testing and risk vary. The discovery and project scope are quoted in writing using the applicable published remote or on-site labour rate. Third-party software and model charges are disclosed separately before commitment.",
+      },
+      {
+        q: "Can you certify our AI system or provide 24/7 agent monitoring?",
+        a: "No. A governance pack is practical operational documentation, not a legal opinion, compliance certification, penetration test or continuous monitoring service.",
       },
     ],
   },

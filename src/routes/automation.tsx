@@ -7,6 +7,7 @@ import { SignalBars } from "@/components/public/motion-icons";
 import {
   assessAutomation,
   AUTOMATION_QUESTIONS,
+  createAutomationBrief,
   type AutomationAnswers,
 } from "@/lib/site/automation-assessment";
 import { servicePage } from "@/lib/site/services";
@@ -42,10 +43,36 @@ function AutomationPage() {
     (question) => answers[question.id] !== undefined,
   ).length;
   const service = result ? servicePage(result.serviceSlug) : undefined;
+  const brief = result ? createAutomationBrief(answers, result) : null;
+  const [briefStatus, setBriefStatus] = useState<string | null>(null);
 
   function reset() {
     setAnswers({});
+    setBriefStatus(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function copyBrief() {
+    if (!brief) return;
+    try {
+      await navigator.clipboard.writeText(brief);
+      setBriefStatus("Brief copied. Paste it into your quote enquiry when ready.");
+    } catch {
+      setBriefStatus("Copy was unavailable. Download the brief instead.");
+    }
+  }
+
+  function downloadBrief() {
+    if (!brief) return;
+    const url = URL.createObjectURL(new Blob([brief], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "vantage-ars-ai-workflow-pilot-brief.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    setBriefStatus("Brief downloaded to your device.");
   }
 
   return (
@@ -68,6 +95,13 @@ function AutomationPage() {
           answers stay in this browser; nothing is saved or sent. Do not include confidential
           business or customer information.
         </p>
+        <Link
+          to="/services/$slug"
+          params={{ slug: "ai-automation" }}
+          className="mt-5 inline-block text-sm text-accent underline-offset-4 hover:underline"
+        >
+          Explore AI workflow services
+        </Link>
       </section>
 
       <div className="grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_21rem]">
@@ -151,6 +185,35 @@ function AutomationPage() {
                   Explore {service.title}
                 </Link>
               ) : null}
+              <div className="mt-5 border-t border-border pt-4">
+                <h3 className="font-mono text-[10px] tracking-[0.18em] text-subtle uppercase">
+                  Take your result with you
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Copy or download a plain-text brief generated in this browser. It is not saved or
+                  sent to us. You can paste it into a quote enquiry; leave out confidential details.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button type="button" onClick={() => void copyBrief()}>
+                    Copy brief
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={downloadBrief}>
+                    Download brief
+                  </Button>
+                </div>
+                {briefStatus ? (
+                  <p role="status" aria-live="polite" className="mt-3 text-xs text-muted">
+                    {briefStatus}
+                  </p>
+                ) : null}
+                <Link
+                  to="/"
+                  hash="enquiry"
+                  className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline"
+                >
+                  Request a quote with this brief
+                </Link>
+              </div>
               <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-subtle">
                 This result is a planning aid, not a recommendation to deploy an agent or allow
                 unattended actions. Test with a human reviewer and an explicit stop condition.

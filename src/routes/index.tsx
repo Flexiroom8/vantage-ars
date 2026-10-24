@@ -32,6 +32,7 @@ const LINE_ICONS = [
   CloudIcon,
   ShieldIcon,
   RestoreIcon,
+  CloudIcon,
 ] as const;
 
 /** Every service line, paired with the page that explains it. */
@@ -196,13 +197,13 @@ function HomePage() {
 
       <section id="services" className="border-b border-border py-16" aria-label="Departments">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">Seven service lines, one desk</h2>
+          <h2 className="text-4xl sm:text-5xl">Eight service lines, one desk</h2>
 
           <Link
             to="/services"
             className="font-mono text-xs tracking-[0.18em] text-subtle uppercase transition-colors hover:text-accent"
           >
-            All seven lines →
+            All service lines →
           </Link>
         </div>
 

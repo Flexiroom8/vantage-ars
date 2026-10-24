@@ -4,6 +4,7 @@
   <url><loc>https://vantage-ars.co.za/services/voip</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/networking</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/it-infrastructure</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://vantage-ars.co.za/services/ai-automation</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/managed-support</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/cloud-email</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://vantage-ars.co.za/services/security</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>

@@ -176,7 +176,7 @@ function ModelPage() {
           </div>
         </div>
         <p className="mt-8 text-sm text-muted">
-          The seven published lines, and the rates under them, are on{" "}
+          The published service lines, and the rates under them, are on{" "}
           <Link to="/services" className="text-accent underline-offset-4 hover:underline">
             Services
           </Link>{" "}
@@ -184,7 +184,15 @@ function ModelPage() {
           <Link to="/rates" className="text-accent underline-offset-4 hover:underline">
             Rates
           </Link>
-          . A new product is not added here.
+          . AI workflow services have their own{" "}
+          <Link
+            to="/services/$slug"
+            params={{ slug: "ai-automation" }}
+            className="text-accent underline-offset-4 hover:underline"
+          >
+            scoped service page
+          </Link>
+          .
         </p>
       </section>
     </PublicFrame>
