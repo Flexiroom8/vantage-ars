@@ -261,17 +261,26 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
       totalRun += 1;
       const runner = RUNNERS[item.kind];
       if (!runner) {
-        await completeWork(
-          item.id,
-          `No runner for kind "${item.kind}". Left for the founder to inspect.`,
-        );
+        const message = `No runner is registered for kind "${item.kind}".`;
+        await failWork(item.id, message, item.maxAttempts);
+        const runId = randomUUID();
+        const result = { outcome: message, executed: 0, escalated: 0, blocked: 0 };
+        await recordRun({
+          id: runId,
+          agentId,
+          workItemId: item.id,
+          duty: item.kind,
+          status: "error",
+          result,
+          durationMs: 0,
+        });
         failed += 1;
         ran.push({
           duty: item.kind as DutyId,
           owner: agentId,
           filed: 0,
           ran: 1,
-          note: `No runner is registered for kind "${item.kind}" — this duty planned work nothing can execute.`,
+          note: `No runner is registered for kind "${item.kind}". The item was failed for retry or dead-letter review.`,
         });
         continue;
       }

@@ -1871,6 +1871,46 @@ async function main() {
   const stillDead = (await listWork(500)).find((item) => item.id === filed.id);
   check("no tick redrives dead work", stillDead.status === "abandoned", stillDead.status);
 
+  // A queue item with a missing runner is a software/registration failure,
+  // not completed work. Keep it retryable and visible in the dead-letter path.
+  const missingRunnerKind = "verify_missing_runner";
+  await enqueueWork({
+    agentId: "vantage",
+    kind: missingRunnerKind,
+    reason: "A runner was deliberately omitted to verify scheduler recovery.",
+    priority: 0,
+    maxAttempts: 1,
+    dedupeKey: "verify-missing-runner",
+  });
+  const missingRunnerTick = await advanceAndTick(10);
+  const missingRunnerItem = (await listWork(500)).find((item) => item.kind === missingRunnerKind);
+  const missingRunnerRuns = await sql`
+    select status, briefing
+    from agent_runs
+    where work_item_id = ${missingRunnerItem?.id}
+    order by started_at asc
+  `;
+  check(
+    "an unregistered runner is counted as a failed scheduler run",
+    missingRunnerTick.failed >= 1 &&
+      missingRunnerTick.ran.some((entry) => entry.note.includes(missingRunnerKind)),
+    missingRunnerTick.detail,
+  );
+  check(
+    "missing-runner work is abandoned for founder review, not marked done",
+    missingRunnerItem?.status === "abandoned" &&
+      missingRunnerItem.attempts === 1 &&
+      missingRunnerItem.lastError?.includes(missingRunnerKind),
+    JSON.stringify(missingRunnerItem),
+  );
+  check(
+    "missing-runner failure is kept in the agent run history",
+    missingRunnerRuns.length === 1 &&
+      missingRunnerRuns[0]?.status === "error" &&
+      String(missingRunnerRuns[0]?.briefing).includes(missingRunnerKind),
+    JSON.stringify(missingRunnerRuns),
+  );
+
   // The founder's own path: the same call the redrive button makes.
   const redriven = await redriveAbandonedWork(filed.id);
   check("the founder can redrive a dead item", redriven.ok, JSON.stringify(redriven));

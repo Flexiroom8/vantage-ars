@@ -36,8 +36,9 @@ allowed to.
   `releaseStaleWork` reclaims work abandoned by a process that died, and
   `pruneWork` keeps the table a queue rather than a log.
 - `src/lib/office/duty-runners.server.ts` — the runner registry. A work kind
-  with no registered runner is reported in the tick detail instead of being
-  closed as if it had been done.
+  with no registered runner is recorded as a failed run and returned through
+  the bounded retry/dead-letter path instead of being closed as if it had been
+  done. Once retries are exhausted, the normal founder review path applies.
 
 ### 2. Execution firewall and policy gate
 
