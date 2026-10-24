@@ -76,7 +76,7 @@ async function main() {
   const company = await sql`select * from company_state where id = 'vantage-ars'`;
   check("office provisions itself", company.length === 1);
   const agents = await sql`select id, callsign from agents order by callsign`;
-  check("nine identities are issued", agents.length === 9, `got ${agents.length}`);
+  check("ten identities are issued", agents.length === 10, `got ${agents.length}`);
 
   const firstTick = await tick({ now: at() });
   check("first tick is healthy", firstTick.ok, firstTick.detail);

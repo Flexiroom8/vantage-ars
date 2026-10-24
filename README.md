@@ -11,7 +11,7 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 - TanStack Start + React 19, Tailwind CSS 4, Vite 8, Nitro 3
 - Postgres: Neon (or any Postgres) when `DATABASE_URL` is set, otherwise embedded PGLite
 - Better Auth (founder email and password), pdf-lib for quotes, Gmail SMTP for notices
-- Nine AI staff, each with a fixed role, working a durable queue on their own cadence
+- Ten AI staff, each with a fixed role, working a durable queue on their own cadence
 - Nine productised services at published prices, and a standing founder delegation (ART-13) that lets the office deliver and bill them unattended
 
 ## What is in it
@@ -26,7 +26,7 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## The office runs itself
 
-With `AUTONOMY=on` and a `CRON_SECRET`, nine agents work a durable queue every
+With `AUTONOMY=on` and a `CRON_SECRET`, ten agents work a durable queue every
 ten minutes. Each has named duties on their own cadence: reception classifies
 enquiries, marketing scores leads on what the buyer actually wrote, flags repeat
 site interest as prospects, and drafts weekly owned-channel campaigns, then files

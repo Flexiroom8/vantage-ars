@@ -2,6 +2,12 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.5 — 2026-10-24
+
+### Added
+
+**KEY, the token keeper.** A tenth agent checks the Cloudflare token every twelve hours. If the token is missing, pasted with a prefix, or rejected by Cloudflare, KEY tells the founder. It does not record the value and it cannot create a replacement.
+
 ## 5.0.4 — 2026-10-24
 
 ### Added

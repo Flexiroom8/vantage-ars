@@ -7,7 +7,7 @@ export const Route = createFileRoute("/model")({
     pageHead({
       title: "How the office runs · Vantage-ARS",
       description:
-        "Nine agents run the Vantage-ARS desk. A real enquiry can be quoted, accepted, invoiced and delivered without a person in the loop. Ending a subscription, spending money, and paying the founder still wait.",
+        "Ten agents run the Vantage-ARS desk. A real enquiry can be quoted, accepted, invoiced and delivered without a person in the loop. Ending a subscription, spending money, and paying the founder still wait.",
       path: "/model",
     }),
   component: ModelPage,
@@ -23,6 +23,7 @@ const FLOOR = [
   ["KEEP", "Admin", "Files. Does not sign."],
   ["VANTAGE", "Orchestrator", "Coordinates. Does not sell or spend."],
   ["SEAL", "Compliance", "Can veto an off-role action."],
+  ["KEY", "Credentials", "Checks the Cloudflare token. Cannot replace it."],
 ] as const;
 
 const PATH = [
@@ -63,7 +64,7 @@ function ModelPage() {
           It runs itself. It does not spend itself.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-          Nine agents work a queue every ten minutes. For a person who actually wrote in, the office
+          Ten agents work a queue every ten minutes. For a person who actually wrote in, the office
           may quote a published rate, email them, and — once they accept — invoice, match an exact
           payment, and deliver. Anything over R5,000, ending a subscription, spending money, and
           paying the founder still wait.

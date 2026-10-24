@@ -1,6 +1,6 @@
 # Autonomy runbook — the switches that make the office run itself
 
-The office is autonomous in code: nine agents, a durable queue, cadenced
+The office is autonomous in code: ten agents, a durable queue, cadenced
 duties, founder gates, a hash-chained audit trail. Nothing in this document
 changes that design. It lists the configuration that turns the design on, per
 deploy target, and the one decision that stays yours.

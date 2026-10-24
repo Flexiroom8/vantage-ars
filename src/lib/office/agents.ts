@@ -261,6 +261,27 @@ export const AGENT_DEFS: AgentDef[] = [
       maxAutonomousCents: 0,
     },
   },
+  {
+    id: "key",
+    callsign: "KEY",
+    title: "Token keeper",
+    department: "Credentials",
+    spiffeId: "spiffe://vantage-ars.co.za/ns/office/credentials",
+    autonomyLevel: "A3",
+    summary:
+      "Checks that the Cloudflare token on the host is present and accepted. It never reads the value into the books, never creates a replacement token, and never spends or sells.",
+    allowedActions: ["notify_operator"],
+    bindings: ["ART-1", "ART-9", "ART-11", "ART-12"],
+    authority: {
+      maySpend: false,
+      mayContactMarket: false,
+      mayEnterSales: false,
+      mayIssueInvoice: false,
+      mayHaltFleet: false,
+      vetoPower: false,
+      maxAutonomousCents: 0,
+    },
+  },
 ];
 
 export const AGENT_BY_ID = Object.fromEntries(AGENT_DEFS.map((a) => [a.id, a])) as Record<

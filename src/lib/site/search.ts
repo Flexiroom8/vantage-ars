@@ -72,7 +72,7 @@ const PAGES: SearchItem[] = [
     id: "page-model",
     title: "How the office runs",
     description:
-      "Nine agents, the path from enquiry to a confirmed receipt, and the actions that still wait for the founder.",
+      "Ten agents, the path from enquiry to a confirmed receipt, and the actions that still wait for the founder.",
     href: "/model",
     kind: "page",
     keywords: ["autonomous", "agents", "office", "diagram", "governor"],

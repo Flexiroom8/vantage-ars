@@ -5,7 +5,7 @@ doing anything it must not.
 
 ## The idea
 
-The office is nine agents with fixed roles and no memory. It does not "decide to
+The office is ten agents with fixed roles and no memory. It does not "decide to
 be busy". Instead it keeps its own to-do list in Postgres, and a scheduler that
 runs every ten minutes asks each agent a single question: **given what is
 actually on the books, is there a real thing worth doing?**

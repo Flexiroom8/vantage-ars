@@ -1,6 +1,6 @@
 # Cloudflare Workers AI setup
 
-Vantage-ARS uses Cloudflare **only as an AI inference API** for the nine AI
+Vantage-ARS uses Cloudflare **only as an AI inference API** for the ten AI
 staff (`src/lib/office/ai-provider.ts` calls
 `…/accounts/{ACCOUNT}/ai/v1/chat/completions`). The app itself deploys to
 **Vercel, Docker, or plain Node** — never to Cloudflare Workers. There is no

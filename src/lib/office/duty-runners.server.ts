@@ -104,6 +104,37 @@ function intOf(value: unknown, fallback = 0): number {
 
 // ── VANTAGE ───────────────────────────────────────────────────────────────────
 
+const watchCloudflareToken: Runner = async (item) => {
+  const { inspectCloudflareToken } = await import("./token-watch.server");
+  const verdict = await inspectCloudflareToken();
+  if (verdict.state === "accepted") {
+    return noop("Cloudflare accepted the token. The value was not recorded.");
+  }
+  const result = await applyProposedAction(
+    "key",
+    {
+      kind: "notify_operator",
+      title: "The Cloudflare token needs a person",
+      rationale: `${verdict.detail} ${item.reason}`,
+      confidence: 0.95,
+      amountCents: 0,
+      payload: { state: verdict.state },
+    },
+    { source: "scheduler", workItem: item.id },
+  );
+  await sendFounderAlert(
+    "The Cloudflare token needs a person",
+    `${verdict.detail} KEY cannot create a replacement. Set a dashboard API token on the host.`,
+    "/office",
+  );
+  return {
+    outcome: `Cloudflare token ${verdict.state}: ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
 const reportSilentAgent: Runner = async (item) => {
   const result = await applyProposedAction(
     "vantage",
@@ -1759,6 +1790,7 @@ const reviewSubscriptionHealth: Runner = async (item) => {
 
 export const RUNNERS: Record<string, Runner> = {
   report_silent_agent: reportSilentAgent,
+  watch_cloudflare_token: watchCloudflareToken,
   report_stuck_backlog: reportStuckBacklog,
   report_abandoned_work: reportAbandonedWork,
   report_daily_briefing: reportDailyBriefing,

@@ -273,7 +273,8 @@ export type DutyId =
   | "desk_service_notice"
   | "close_quote_notice"
   | "ledger_start_subscription"
-  | "keep_subscription_review";
+  | "keep_subscription_review"
+  | "key_token_watch";
 
 export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   vantage_liveness: 30,
@@ -311,6 +312,7 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   close_quote_notice: 120,
   ledger_start_subscription: 240,
   keep_subscription_review: 10080,
+  key_token_watch: 720,
 };
 
 export const DUTY_OWNER: Record<DutyId, string> = {
@@ -349,6 +351,7 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   close_quote_notice: "close",
   ledger_start_subscription: "ledger",
   keep_subscription_review: "keep",
+  key_token_watch: "key",
 };
 
 export const DUTY_TITLES: Record<DutyId, string> = {
@@ -387,6 +390,7 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   close_quote_notice: "Send the customer their quote",
   ledger_start_subscription: "Start the subscriptions that were sold",
   keep_subscription_review: "Review the recurring-revenue book",
+  key_token_watch: "Check the Cloudflare token",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -638,6 +642,8 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planStartSubscription(view);
     case "keep_subscription_review":
       return planSubscriptionReview(view);
+    case "key_token_watch":
+      return planTokenWatch(view);
     default:
       return [];
   }
@@ -649,6 +655,20 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
  * pile up and nothing says so. This surfaces both a stuck backlog and work that
  * has exhausted its retries.
  */
+function planTokenWatch(view: DutyView): PlannedWork[] {
+  return [
+    {
+      agentId: "key",
+      kind: "watch_cloudflare_token",
+      reason:
+        "Confirm the Cloudflare token is set and accepted. The token value is not part of this work.",
+      priority: 20,
+      payload: {},
+      dedupeKey: `cf-token:${view.now.slice(0, 10)}`,
+    },
+  ];
+}
+
 function planBacklog(view: DutyView): PlannedWork[] {
   const work: PlannedWork[] = [];
   const open = view.work.filter((item) => item.status === "open");
