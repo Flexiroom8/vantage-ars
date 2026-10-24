@@ -379,6 +379,77 @@ function HomePage() {
         </div>
       </section>
 
+      <section id="autonomy" className="border-t border-border py-16" aria-label="AI-native operations">
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          <div>
+            <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">
+              AI-native operations
+            </p>
+            <h2 className="mt-4 text-4xl sm:text-5xl">Built for an autonomous business model.</h2>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
+              The modern operating model is not “AI as a helper.” It is a structured system of
+              agents, policy gates, and founder oversight that can qualify demand, draft responses,
+              track follow-up, and keep work inside a defined operating envelope.
+            </p>
+
+            <div className="mt-8 space-y-4">
+              {[
+                {
+                  title: "Zero-employee operator",
+                  body:
+                    "A small founding team can run a wider operating cadence when the office scores inbound demand, records decisions, and escalates only the exceptions that need a human review.",
+                },
+                {
+                  title: "Autonomous enterprise flow",
+                  body:
+                    "Sales, support, finance, and marketing steps can be coordinated by internal agents without bypassing the published quote and approval rules.",
+                },
+                {
+                  title: "Governance-first automation",
+                  body:
+                    "The office is strongest when the workflow keeps to its budget, published pricing, and founder approvals rather than improvising outside policy.",
+                },
+              ].map((item) => (
+                <div key={item.title} className="panel rounded-2xl p-5">
+                  <h3 className="text-xl text-fg">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {[
+              {
+                src: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80",
+                alt: "Business team in a strategy meeting",
+              },
+              {
+                src: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80",
+                alt: "A collaborative AI-driven workspace",
+              },
+              {
+                src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+                alt: "Data dashboard and analytics on multiple screens",
+              },
+              {
+                src: "https://images.unsplash.com/photo-1556761175-4b46a573b7f8?auto=format&fit=crop&w=900&q=80",
+                alt: "People discussing network operations and service desks",
+              },
+            ].map((image) => (
+              <figure key={image.src} className="overflow-hidden rounded-2xl border border-border bg-surface">
+                <img
+                  src={image.src}
+                  alt={image.alt}
+                  className="h-52 w-full object-cover grayscale-[0.15] transition-transform duration-500 hover:scale-105"
+                  loading="lazy"
+                />
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <SignalPath />
 
       <section className="border-t border-border py-16" aria-label="How a job runs">

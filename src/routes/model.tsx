@@ -55,6 +55,24 @@ const WAITS = [
   "Paying the founder. There is no remittance agent.",
 ];
 
+const ECOSYSTEM = [
+  {
+    title: "The zero-employee operator",
+    summary:
+      "A founder-led business can still run like a larger company when the office handles qualification, follow-up, and recordkeeping without adding a traditional headcount.",
+  },
+  {
+    title: "Anthropic-style micro-enterprise",
+    summary:
+      "A single autonomous machine can own a small operational loop — product requests, margin checks, inventory, and restocking — while a policy layer restricts it from going beyond its business rules.",
+  },
+  {
+    title: "Enterprise-style agent ecosystem",
+    summary:
+      "Salesforce, Databricks, and IBM-style agent stacks all share a pattern: specialist agents take work, hand it forward, and stop when a human approval or policy gate is required.",
+  },
+] as const;
+
 function ModelPage() {
   return (
     <PublicFrame>
@@ -111,6 +129,24 @@ function ModelPage() {
         <p className="mt-6 text-sm text-muted">
           A payment notice on the site records a claim. It does not mark the invoice paid.
         </p>
+      </section>
+
+      <section className="border-t border-border py-16" aria-labelledby="ecosystem-heading">
+        <h2 id="ecosystem-heading" className="font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+          The autonomous enterprise pattern
+        </h2>
+        <p className="mt-4 max-w-2xl text-muted">
+          This is the operating pattern that people mean when they talk about an AI-native company:
+          specialist agents do the routine work, while the human founder stays in the approval lane.
+        </p>
+        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+          {ECOSYSTEM.map((item) => (
+            <article key={item.title} className="panel rounded-2xl p-6">
+              <h3 className="font-serif text-2xl text-fg">{item.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.summary}</p>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="border-t border-border py-16" aria-labelledby="gates-heading">
