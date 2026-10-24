@@ -4,6 +4,7 @@ import { PublicFrame } from "@/components/public/site-frame";
 import { FormConfirmation } from "@/components/public/form-confirmation";
 import { EnquiryForm } from "@/components/public/enquiry-form";
 import { SignalAtlas } from "@/components/public/signal-atlas";
+import { ServiceArt } from "@/components/public/service-art";
 import {
   CloudIcon,
   InfraIcon,
@@ -41,6 +42,12 @@ const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
   const page = SERVICE_PAGES.find((item) => item.title === line.title);
   return page ? [{ line, page, Icon: LINE_ICONS[index] ?? VoipIcon }] : [];
 });
+
+const VISUAL_SERVICES = SERVICE_PAGES.map((page) => ({
+  slug: page.slug,
+  title: page.title,
+  note: page.lead,
+}));
 
 const QUICK_PATHS = [
   {
@@ -186,8 +193,8 @@ function HomePage() {
 
           <figure className="home-hero-figure relative overflow-hidden">
             <img
-              src="/images/cabinet.jpg"
-              alt="Organised network and server cabinet"
+              src="/images/network-operations.svg"
+              alt="Illustrated network operations system connecting voice, network equipment and server infrastructure"
               className="home-hero-image aspect-[4/3] w-full object-cover"
               fetchPriority="high"
             />
@@ -244,25 +251,33 @@ function HomePage() {
       </section>
 
       <section className="border-b border-border py-16" aria-label="The practice">
-        <h2 className="text-4xl sm:text-5xl">The work, as it sits.</h2>
-        <p className="mt-4 max-w-2xl text-muted">
-          Voice, the network under it, and the cabinet those calls depend on. Remote first. On-site
-          only when the written quote includes it.
-        </p>
-        <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-          {(
-            [
-              ["/images/handset.jpg", "A desk telephone", "VoIP"],
-              ["/images/panel.jpg", "A network patch panel", "Networking"],
-            ] as const
-          ).map(([src, alt, label]) => (
-            <li key={src}>
-              <figure className="overflow-hidden rounded-2xl border border-border">
-                <img src={src} alt={alt} className="aspect-[3/2] w-full object-cover" />
-                <figcaption className="border-t border-border px-4 py-3 font-mono text-[11px] tracking-[0.16em] text-subtle uppercase">
-                  {label}
-                </figcaption>
-              </figure>
+        <div className="home-section-heading">
+          <div>
+            <p className="home-section-kicker">A clearer picture of the work</p>
+            <h2 className="text-4xl sm:text-5xl">One connected system.</h2>
+          </div>
+          <p className="max-w-md text-sm leading-relaxed text-muted">
+            From the first call to the systems behind it, see what each service line is built to
+            solve.
+          </p>
+        </div>
+        <ul className="practice-visuals mt-8">
+          {VISUAL_SERVICES.map((service) => (
+            <li key={service.slug}>
+              <Link
+                to="/services/$slug"
+                params={{ slug: service.slug }}
+                className="practice-visual-card group"
+                aria-label={`${service.title}: ${service.note}`}
+              >
+                <ServiceArt slug={service.slug} className="practice-visual-art" />
+                <span className="practice-visual-copy">
+                  <span className="practice-visual-title">{service.title}</span>
+                  <span className="practice-visual-arrow" aria-hidden="true">
+                    ↗
+                  </span>
+                </span>
+              </Link>
             </li>
           ))}
         </ul>

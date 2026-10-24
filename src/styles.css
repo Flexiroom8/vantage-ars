@@ -128,19 +128,32 @@ html:has(.site) body {
 
 .ambient-field-beam {
   inset: -30% -60%;
-  background: linear-gradient(112deg, transparent 46%, rgb(54 217 255 / 0.035) 50%, transparent 54%);
+  background: linear-gradient(
+    112deg,
+    transparent 46%,
+    rgb(54 217 255 / 0.035) 50%,
+    transparent 54%
+  );
   transform: translateX(-10%);
   animation: ambient-beam 28s ease-in-out infinite alternate;
 }
 
 @keyframes ambient-drift {
-  from { background-position: 0% 0%; }
-  to { background-position: 100% 85%; }
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 100% 85%;
+  }
 }
 
 @keyframes ambient-beam {
-  from { transform: translateX(-12%); }
-  to { transform: translateX(12%); }
+  from {
+    transform: translateX(-12%);
+  }
+  to {
+    transform: translateX(12%);
+  }
 }
 
 /* --- entrance --------------------------------------------------------- */
@@ -964,9 +977,9 @@ html:has(.site) body {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgb(7 17 31 / 0.25), transparent 38%),
-    linear-gradient(0deg, rgb(7 17 31 / 0.85), transparent 46%),
-    linear-gradient(90deg, rgb(7 17 31 / 0.12), transparent 46%);
+    linear-gradient(180deg, rgb(7 17 31 / 0.14), transparent 28%),
+    linear-gradient(0deg, rgb(7 17 31 / 0.78), transparent 42%),
+    linear-gradient(90deg, rgb(7 17 31 / 0.12), transparent 38%);
   pointer-events: none;
 }
 
@@ -1099,6 +1112,69 @@ html:has(.site) body {
   height: 0.45rem;
   background: #36d9ff;
   box-shadow: none;
+}
+
+.site .practice-visuals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.site .practice-visual-card {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgb(54 217 255 / 0.08), transparent 72%),
+    var(--color-surface);
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
+}
+
+.site .practice-visual-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  box-shadow: 0 12px 32px -20px rgb(54 217 255 / 0.42);
+}
+
+.site .practice-visual-art {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  transition: transform var(--motion-medium) ease;
+}
+
+.site .practice-visual-card:hover .practice-visual-art {
+  transform: scale(1.025);
+}
+
+.site .practice-visual-copy {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.site .practice-visual-title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-fg);
+}
+
+.site .practice-visual-arrow {
+  color: var(--color-accent);
+  font-size: 1rem;
+  transition: transform var(--motion-fast) ease;
+}
+
+.site .practice-visual-card:hover .practice-visual-arrow {
+  transform: translate(2px, -2px);
 }
 
 .site .home-proofline {
@@ -1510,6 +1586,19 @@ html:has(.site) body {
 }
 
 @media (max-width: 639px) {
+  .site .practice-visuals {
+    gap: 0.6rem;
+  }
+
+  .site .practice-visual-copy {
+    min-height: 3rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .site .practice-visual-title {
+    font-size: 0.78rem;
+  }
+
   .site .home-hero {
     padding-top: 1.25rem;
     padding-bottom: 1.25rem;
