@@ -18,6 +18,7 @@ import {
   VoipIcon,
 } from "@/components/public/motion-icons";
 import { ratesByIds } from "@/lib/office/catalogue";
+import { ServiceArt } from "@/components/public/service-art";
 import { GUIDES } from "@/lib/site/guides";
 import { SERVICE_PAGES, servicePage, type ServicePage } from "@/lib/site/services";
 import {
@@ -109,39 +110,48 @@ function ServicePageView() {
           Home
         </Link>{" "}
         /{" "}
-        <Link to="/" hash="services" className="transition-colors hover:text-fg">
+        <Link to="/services" className="transition-colors hover:text-fg">
           Services
         </Link>{" "}
         / <span className="text-accent">{page.title}</span>
       </nav>
 
-      <section className="enter-up pb-16 pt-8 lg:pt-12">
-        <div className="flex items-center gap-4">
-          <span className="flex size-14 items-center justify-center rounded-2xl border border-border bg-raised">
-            <Icon className="size-7 text-accent" aria-hidden="true" />
-          </span>
-          <p className="font-mono text-sm text-accent">{page.number}</p>
-        </div>
-        <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
-          {page.title}
-        </h1>
-        <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted">{page.lead}</p>
+      <section className="enter-up grid gap-10 pb-16 pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14 lg:pt-12">
+        <div>
+          <div className="flex items-center gap-4">
+            <span className="flex size-14 items-center justify-center rounded-2xl border border-border bg-raised">
+              <Icon className="size-7 text-accent" aria-hidden="true" />
+            </span>
+            <p className="font-mono text-sm text-accent">{page.number}</p>
+          </div>
+          <h1 className="mt-5 max-w-4xl font-serif text-5xl leading-[0.98] tracking-[-0.03em] sm:text-7xl">
+            {page.title}
+          </h1>
+          <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted">{page.lead}</p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/"
-            hash="enquiry"
-            className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
-          >
-            Get a written quote
-          </Link>
-          <Link
-            to="/support"
-            className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
-          >
-            Already a customer? Service desk
-          </Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              to="/"
+              hash="enquiry"
+              className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+            >
+              Get a written quote
+            </Link>
+            <Link
+              to="/support"
+              className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-medium"
+            >
+              Already a customer? Service desk
+            </Link>
+          </div>
         </div>
+
+        <figure className="panel overflow-hidden rounded-2xl">
+          <ServiceArt slug={page.slug} className="block h-auto w-full" />
+          <figcaption className="border-t border-border px-5 py-3 font-mono text-[10px] tracking-[0.18em] text-subtle uppercase">
+            Signal desk · {page.title} · {page.number}
+          </figcaption>
+        </figure>
       </section>
 
       <section

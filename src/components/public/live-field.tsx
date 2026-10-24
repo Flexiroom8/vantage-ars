@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { FAULT_STOPS } from "@/lib/site/fault-path";
+import { PathArt } from "@/components/public/path-art";
 
 type Node = { x: number; y: number; vx: number; vy: number };
 type Edge = [number, number];
@@ -191,30 +192,8 @@ export function PathExhibit() {
           render as h3s before the page's first h2 (invalid outline order). */}
       <h2 className="text-sm font-normal text-accent">Most faults sit in one of three places</h2>
       <div className="mt-6 overflow-hidden">
-        <svg
-          viewBox="0 0 720 72"
-          className="hidden h-16 w-full text-accent sm:block"
-          role="img"
-          aria-label="A signal moving from the handset, across the network, to the system."
-        >
-          <line
-            x1="16"
-            y1="28"
-            x2="704"
-            y2="28"
-            stroke="currentColor"
-            strokeOpacity="0.25"
-            strokeWidth="1.5"
-          />
-          {[16, 360, 704].map((x) => (
-            <g key={x}>
-              <circle cx={x} cy={28} r="7" fill="none" stroke="currentColor" strokeOpacity="0.5" />
-              <circle cx={x} cy={28} r="2.5" fill="currentColor" />
-            </g>
-          ))}
-          <circle r="4.5" className="signal-packet" fill="var(--color-accent)" />
-        </svg>
-        <ol className="grid gap-8 sm:grid-cols-3">
+        <PathArt className="h-auto w-full" />
+        <ol className="mt-5 grid gap-8 sm:grid-cols-3">
           {STOPS.map((stop) => (
             <li key={stop.title}>
               <h3 className="font-serif text-3xl">{stop.title}</h3>

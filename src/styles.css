@@ -639,6 +639,10 @@ html:has(.site) body {
     animation: none;
     offset-distance: 50%;
   }
+  .desk-packet {
+    animation: none;
+    offset-distance: 50%;
+  }
   .site .reveal {
     opacity: 1;
     transform: none;
@@ -664,4 +668,19 @@ html:has(.site) body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* --- home path exhibit ---------------------------------------------------- */
+
+.desk-packet {
+  offset-path: path("M 122 98 H 598");
+  animation: signal-ride 8s linear infinite;
+}
+
+.desk-packet-2 {
+  animation-delay: -2.7s;
+}
+
+.desk-packet-3 {
+  animation-delay: -5.4s;
 }

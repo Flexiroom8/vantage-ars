@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PublicFrame } from "@/components/public/site-frame";
 import { SignalBars } from "@/components/public/motion-icons";
+import { ServiceArt } from "@/components/public/service-art";
 import { PUBLISHED_RATES } from "@/lib/office/catalogue";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { breadcrumbJsonLd, businessJsonLd, jsonLd, pageHead, SITE_URL } from "@/lib/site/seo";
@@ -77,16 +78,25 @@ function ServicesPage() {
             key={page.slug}
             to="/services/$slug"
             params={{ slug: page.slug }}
-            className="panel panel-hover group flex flex-col rounded-2xl p-6"
+            className="panel panel-hover group flex flex-col overflow-hidden rounded-2xl"
           >
-            <p className="font-mono text-xs text-accent">{page.number}</p>
-            <h2 className="mt-2 font-serif text-3xl leading-tight group-hover:text-accent">
-              {page.title}
-            </h2>
-            <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{page.lead}</p>
-            <span className="mt-5 font-mono text-xs text-subtle transition-colors group-hover:text-accent">
-              Open the line →
-            </span>
+            <div className="relative aspect-[16/9] w-full overflow-hidden border-b border-border bg-surface">
+              <ServiceArt
+                slug={page.slug}
+                className="h-full w-full transition-transform duration-500 group-hover:scale-[1.025]"
+              />
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-surface to-transparent" />
+            </div>
+            <div className="flex flex-1 flex-col p-6">
+              <p className="font-mono text-xs text-accent">{page.number}</p>
+              <h2 className="mt-2 font-serif text-3xl leading-tight group-hover:text-accent">
+                {page.title}
+              </h2>
+              <p className="mt-3 flex-1 text-sm leading-relaxed text-muted">{page.lead}</p>
+              <span className="mt-5 font-mono text-xs text-subtle transition-colors group-hover:text-accent">
+                Open the line →
+              </span>
+            </div>
           </Link>
         ))}
       </section>
