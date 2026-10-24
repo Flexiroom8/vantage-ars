@@ -112,29 +112,31 @@ function HomePage() {
 
   return (
     <PublicFrame>
-      <section className="border-b border-border py-14 sm:py-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+      <section className="home-hero border-b border-border py-10 sm:py-14">
+        <div className="home-hero-panel grid items-center gap-10 overflow-hidden rounded-[1.75rem] lg:grid-cols-[1.05fr_0.95fr]">
           <div className="relative">
-            <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">
-              VoIP · Networking · IT infrastructure
+            <p className="home-hero-kicker font-mono text-xs tracking-[0.22em] uppercase">
+              <span className="home-kicker-mark" aria-hidden="true" />
+              Practical IT. No mystery.
             </p>
 
-            <h1 className="mt-5 max-w-3xl text-5xl leading-[1.02] tracking-[-0.03em] sm:text-7xl">
-              Clear scope. <span className="text-accent">Written quote.</span>
+            <h1 className="home-hero-title mt-5 max-w-3xl text-5xl leading-[0.98] tracking-[-0.05em] sm:text-7xl">
+              Clear scope.
+              <span className="home-title-highlight">Written quote.</span>
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+            <p className="home-hero-copy mt-6 max-w-xl text-lg leading-relaxed">
               Remote support worldwide, on-site by arrangement. Know the scope, timing and total in
               writing before any work starts.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="home-hero-actions mt-8 flex flex-wrap gap-3">
               <Link
                 to="/"
                 hash="enquiry"
-                className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
+                className="home-primary-cta cta inline-flex h-12 items-center rounded-md px-5 text-sm font-semibold"
               >
-                Get a written quote
+                Get a written quote <span aria-hidden="true">↗</span>
               </Link>
 
               <Link
@@ -144,23 +146,39 @@ function HomePage() {
                 See published rates
               </Link>
             </div>
-            <p className="mt-5 text-sm text-subtle">
+            <p className="home-hero-rates mt-5 text-sm">
               Remote from R{rateAmount("remote-support")}/hr · On-site from R
               {rateAmount("onsite-support")}/hr · VAT only where quoted
             </p>
           </div>
 
-          <figure className="overflow-hidden rounded-2xl border border-border bg-surface">
+          <figure className="home-hero-figure relative overflow-hidden">
             <img
               src="/images/cabinet.jpg"
               alt="Organised network and server cabinet"
-              className="aspect-[4/3] w-full object-cover"
+              className="home-hero-image aspect-[4/3] w-full object-cover"
               fetchPriority="high"
             />
-            <figcaption className="border-t border-border px-4 py-3 text-xs text-muted">
+            <div className="home-hero-image-shade" aria-hidden="true" />
+            <div className="home-hero-index font-mono" aria-hidden="true">
+              <span>VA / FIELD NOTES</span>
+              <span>001—008</span>
+            </div>
+            <div className="home-hero-stamp" aria-hidden="true">
+              <span>ONE</span>
+              <span>clear</span>
+              <span>desk</span>
+            </div>
+            <figcaption className="home-hero-caption">
+              <span className="home-caption-dot" aria-hidden="true" />
               Practical support for the systems your business relies on.
             </figcaption>
           </figure>
+        </div>
+        <div className="home-proofline" aria-label="How work is agreed">
+          <span>Remote worldwide</span>
+          <span>Written scope first</span>
+          <span>No work starts until you accept</span>
         </div>
       </section>
 

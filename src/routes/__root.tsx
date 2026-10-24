@@ -36,7 +36,7 @@ export const Route = createRootRoute({
         content:
           "Worldwide remote VoIP, networking and IT infrastructure support from Vantage-ARS, with clear ZAR pricing.",
       },
-      { name: "theme-color", content: "#f5f8f6" },
+      { name: "theme-color", content: "#f5f0e6" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
