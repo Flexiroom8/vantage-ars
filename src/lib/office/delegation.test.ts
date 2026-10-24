@@ -430,4 +430,42 @@ describe("delegation presets", () => {
     );
     assert.equal(allowed.allowed, true);
   });
+
+  it("lets the desk run a real enquiry and still refuses to end a subscription", () => {
+    const desk = DELEGATION_PRESETS.find((preset) => preset.id === "unattended");
+    if (!desk) assert.fail("the unattended preset is missing");
+    assert.equal(desk.allowedActions.includes("issue_quote"), true);
+    assert.equal(desk.allowedActions.includes("propose_close_won"), true);
+    assert.equal(desk.allowedActions.includes("cancel_subscription"), false);
+    assert.equal(desk.requireAcceptedQuote, true);
+
+    const policyForDesk = policy({
+      allowedActions: desk.allowedActions,
+      allowCustomerMail: desk.allowCustomerMail,
+      requireAcceptedQuote: desk.requireAcceptedQuote,
+    });
+    const noEnquiry = evaluateDelegation(
+      policyForDesk,
+      request({ action: "issue_quote", realEnquiry: false, acceptedQuote: false }),
+    );
+    assert.equal(noEnquiry.check, "no_real_enquiry");
+
+    const quoted = evaluateDelegation(
+      policyForDesk,
+      request({ action: "issue_quote", realEnquiry: true, acceptedQuote: false }),
+    );
+    assert.equal(quoted.allowed, true);
+
+    const wonTooSoon = evaluateDelegation(
+      policyForDesk,
+      request({ action: "propose_close_won", realEnquiry: true, acceptedQuote: false }),
+    );
+    assert.equal(wonTooSoon.check, "no_accepted_quote");
+
+    const ended = evaluateDelegation(
+      policyForDesk,
+      request({ action: "cancel_subscription", realEnquiry: true, acceptedQuote: true }),
+    );
+    assert.equal(ended.check, "action_not_delegated");
+  });
 });

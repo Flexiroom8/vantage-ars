@@ -2,6 +2,12 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.3 — 2026-10-24
+
+### Added
+
+**A standing way to run the desk.** The "Run the desk" delegation lets the office quote a published rate for a real enquiry, email the customer, and — after they accept — mark it won, invoice, match an exact payment, start a subscription, and deliver. It cannot end a subscription, spend money, or pay the founder. A single action over R5,000 still waits, as do more than 20 actions in a day.
+
 ## 5.0.2 — 2026-10-24
 
 ### Added

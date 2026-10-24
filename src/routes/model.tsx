@@ -7,7 +7,7 @@ export const Route = createFileRoute("/model")({
     pageHead({
       title: "How the office runs · Vantage-ARS",
       description:
-        "Nine agents run the Vantage-ARS office on a schedule. A quote, a sale, a win, a loss, and any spend still wait for the founder unless a standing delegation already allows that exact action.",
+        "Nine agents run the Vantage-ARS desk. A real enquiry can be quoted, accepted, invoiced and delivered without a person in the loop. Ending a subscription, spending money, and paying the founder still wait.",
       path: "/model",
     }),
   component: ModelPage,
@@ -37,20 +37,20 @@ const PATH = [
 ] as const;
 
 const ALONE = [
-  "Classify an enquiry and file the lead.",
-  "Draft a follow-up that is not sent.",
-  "Score demand and prepare a campaign at no cost.",
-  "Open a ticket and write the next checks.",
-  "Prepare an invoice from work that is already on the books.",
+  "Open a sale for someone who wrote in.",
+  "Quote a published rate and email that quote.",
+  "Mark the work won after the customer accepts it.",
+  "Invoice the accepted work and match an exact payment.",
+  "Start a published subscription and send the report.",
   "Brief the founder from the office's own records.",
 ];
 
 const WAITS = [
-  "Moving marketing into sales.",
-  "Sending a quote, or treating a customer as won.",
-  "Closing a customer as lost, or conceding a refund.",
-  "Any cost, including a paid campaign.",
-  "Emailing a customer, unless a delegation already names that notice.",
+  "Any single action over R5,000, or more than 20 actions in a day.",
+  "A price that is not on the published card.",
+  "A customer who never wrote in.",
+  "Ending a subscription.",
+  "Any cost: ads, hardware, a vendor, a carrier.",
   "Paying the founder. There is no remittance agent.",
 ];
 
@@ -63,9 +63,10 @@ function ModelPage() {
           It runs itself. It does not spend itself.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-          Nine agents work a queue every ten minutes. An empty run is a success. A quote, a win, a
-          loss, and any spend still stop unless the founder has approved that action, or a standing
-          delegation already names it.
+          Nine agents work a queue every ten minutes. For a person who actually wrote in, the office
+          may quote a published rate, email them, and — once they accept — invoice, match an exact
+          payment, and deliver. Anything over R5,000, ending a subscription, spending money, and
+          paying the founder still wait.
         </p>
       </section>
 

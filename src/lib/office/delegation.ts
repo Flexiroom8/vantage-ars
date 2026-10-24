@@ -250,9 +250,8 @@ export type DelegationPreset = {
 };
 
 /**
- * Starting points the founder can choose from. None of them is on by default:
- * the office ships with no delegation at all, which is the same behaviour it
- * has always had.
+ * Starting points the founder can choose from. None of them inserts itself.
+ * The founder turns one on, and can pause or revoke it on the next action.
  */
 export const DELEGATION_PRESETS: DelegationPreset[] = [
   {
@@ -302,6 +301,25 @@ export const DELEGATION_PRESETS: DelegationPreset[] = [
     allowCustomerMail: true,
     allowAutoReconcile: true,
     requireAcceptedQuote: false,
+  },
+  {
+    id: "unattended",
+    label: "Run the desk",
+    summary:
+      "For a customer who actually wrote in, the office may open the sale, quote a published rate, and email them. After they accept, it may mark the work won, invoice, match an exact payment, start a published subscription, and send the report. It cannot end a subscription, spend money, or pay the founder. Over the cap, it waits.",
+    allowedActions: [
+      "open_opportunity",
+      "issue_quote",
+      "propose_close_won",
+      "issue_invoice",
+      "record_inbound_payment",
+      "start_subscription",
+      "fulfil_service",
+      "send_customer_mail",
+    ],
+    allowCustomerMail: true,
+    allowAutoReconcile: true,
+    requireAcceptedQuote: true,
   },
 ];
 
