@@ -188,11 +188,18 @@ cp .env.example .env      # set AUTONOMY=on, CRON_SECRET, auth settings
 docker compose up -d --build
 ```
 
+The compose file also starts a `scheduler` sidecar that ticks
+`/api/cron/floor` every ten minutes with your `CRON_SECRET`, so an unattended
+server never depends on GitHub Actions cron.
+
 ### Plain Node
 
 ```sh
 npm ci && npm run build && npm start      # .output/server/index.mjs, PORT defaults to 3000
 ```
+
+For an always-on server without Docker, `deploy/systemd/` ships a service unit
+plus a timer that ticks the floor every ten minutes.
 
 ## Operations
 
@@ -240,6 +247,7 @@ the office verification on every push to `main` and every pull request.
 ## Docs
 
 - [docs/autonomy.md](docs/autonomy.md): every duty, every brake, and why.
+- [docs/autonomy-runbook.md](docs/autonomy-runbook.md): the switches that make the office run itself, per deploy target.
 - [docs/governance-architecture.md](docs/governance-architecture.md): the five planes, the risk tiers, the dead-letter queue, and what is deliberately not implemented.
 - [docs/deploy-vercel.md](docs/deploy-vercel.md): environment, cutover, verification.
 - [docs/business-scope-and-competitive-pricing.md](docs/business-scope-and-competitive-pricing.md): scope, rates and department boundaries.
