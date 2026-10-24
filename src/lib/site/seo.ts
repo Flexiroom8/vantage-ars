@@ -39,7 +39,7 @@ export function pageHead(input: {
     { name: "twitter:description", content: input.description },
     { name: "twitter:image", content: image },
     { name: "twitter:image:alt", content: imageAlt },
-    { name: "theme-color", content: "#f5f8f6" },
+    { name: "theme-color", content: "#050a12" },
     { name: "robots", content: "index,follow" },
   ];
 

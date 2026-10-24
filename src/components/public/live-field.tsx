@@ -1,9 +1,14 @@
 import { FAULT_STOPS } from "@/lib/site/fault-path";
 import { PathArt } from "@/components/public/path-art";
 
-/** A quiet static atmosphere in place of the animated network canvas. */
+/** A restrained ambient layer; motion is handled in CSS and respects reduced-motion. */
 export function LiveField() {
-  return <div aria-hidden="true" className="ambient-field pointer-events-none fixed inset-0 z-0" />;
+  return (
+    <div aria-hidden="true" className="ambient-field pointer-events-none fixed inset-0 z-0">
+      <span className="ambient-field-grid" />
+      <span className="ambient-field-beam" />
+    </div>
+  );
 }
 
 // Titles come from the shared fault path so the hero teaser and the full

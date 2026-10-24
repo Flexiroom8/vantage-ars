@@ -10,9 +10,9 @@ export function SignalAtlas() {
     >
       <defs>
         <linearGradient id="atlas-wire" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#d9ef70" stopOpacity="0.04" />
-          <stop offset="0.5" stopColor="#d9ef70" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#e65b35" stopOpacity="0.75" />
+          <stop offset="0" stopColor="var(--color-accent)" stopOpacity="0.04" />
+          <stop offset="0.5" stopColor="var(--color-accent)" stopOpacity="0.9" />
+          <stop offset="1" stopColor="var(--color-accent)" stopOpacity="0.75" />
         </linearGradient>
         <filter id="atlas-glow" x="-200%" y="-200%" width="500%" height="500%">
           <feGaussianBlur stdDeviation="4" result="blur" />
@@ -26,9 +26,9 @@ export function SignalAtlas() {
       <g className="atlas-wires" fill="none" strokeLinecap="round" strokeLinejoin="round">
         <path d="M58 328H177C208 328 210 281 241 281H338" stroke="url(#atlas-wire)" />
         <path d="M338 281C378 281 376 185 414 185H540" stroke="url(#atlas-wire)" />
-        <path d="M338 281C381 281 382 356 422 356H530" stroke="#d9ef70" />
-        <path d="M177 328V388H245" stroke="#e65b35" />
-        <path d="M414 185V114H476" stroke="#d9ef70" />
+        <path d="M338 281C381 281 382 356 422 356H530" stroke="var(--color-accent)" />
+        <path d="M177 328V388H245" stroke="var(--color-accent)" />
+        <path d="M414 185V114H476" stroke="var(--color-accent)" />
         <path
           className="atlas-wire-trace"
           pathLength="1"

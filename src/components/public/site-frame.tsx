@@ -8,6 +8,7 @@ import { GlobeIcon, NoTiesIcon, QuoteIcon, SignalBars } from "@/components/publi
 import { SiteSearch } from "@/components/public/site-search";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { PUBLISHED_RATES } from "@/lib/office/catalogue";
+import { SignalSpine } from "@/components/public/signal-spine";
 
 const nav = [
   { to: "/services", hash: undefined, label: "Services" },
@@ -327,6 +328,7 @@ export function PublicFrame({ children }: { children: ReactNode }) {
         tabIndex={-1}
         className="relative z-10 mx-auto max-w-7xl px-5 pb-28 sm:px-8"
       >
+        <SignalSpine key={pathname} />
         {children}
       </main>
 
