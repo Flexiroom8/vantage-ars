@@ -145,6 +145,17 @@ export function shouldRecoverFromBreaker(
   return minutesSinceTick >= Math.max(1, cooldownMinutes);
 }
 
+/** True only on the tick that crosses the failure limit, so the founder is told once. */
+export function breakerOpened(
+  priorFailures: number,
+  failedThisTick: boolean,
+  failureLimit: number,
+): boolean {
+  if (!failedThisTick || failureLimit <= 0) return false;
+  const prior = Math.max(0, Math.floor(priorFailures));
+  return prior < failureLimit && prior + 1 >= failureLimit;
+}
+
 export function isAutonomyPosture(value: unknown): value is AutonomyPosture {
   return value === "idle" || value === "steady" || value === "surge" || value === "recovery";
 }

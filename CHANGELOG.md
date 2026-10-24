@@ -2,6 +2,12 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.4 — 2026-10-24
+
+### Added
+
+**One notice when the office stops itself.** The scheduler tells the founder on the tick that opens the circuit breaker, and once more when a clean probe clears it. It does not repeat on every later tick.
+
 ## 5.0.3 — 2026-10-24
 
 ### Added

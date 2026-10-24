@@ -32,6 +32,7 @@ import {
   isAutonomyPosture,
   RECOVERY_COOLDOWN_MINUTES,
   shouldRecoverFromBreaker,
+  breakerOpened,
   type AutonomyPosture,
 } from "./autonomy";
 import { COMPANY } from "./company";
@@ -327,12 +328,23 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
   // the work table is a queue.
   const pruned = chainBroken ? 0 : await pruneWork();
 
-  await writeDutyState(
-    dutyState,
-    failed > 0 ? consecutiveFailures + 1 : 0,
-    budget.posture,
-    budget.maxItemsTotal,
-  );
+  const nextFailures = failed > 0 ? consecutiveFailures + 1 : 0;
+  await writeDutyState(dutyState, nextFailures, budget.posture, budget.maxItemsTotal);
+
+  if (breakerOpened(consecutiveFailures, failed > 0, FAILURE_LIMIT)) {
+    await notifyFounderOnce(
+      "The office stopped itself",
+      `The scheduler failed ${nextFailures} ticks in a row and is refusing to act. It will probe again after ${RECOVERY_COOLDOWN_MINUTES} minutes if the database and the audit chain are clean. Nothing was spent.`,
+      "/office",
+    );
+  }
+  if (recovered) {
+    await notifyFounderOnce(
+      "The office resumed",
+      "The scheduler cleared its own circuit breaker after a clean probe. Ordinary work is running again at the recovery pace.",
+      "/office",
+    );
+  }
 
   const counts = await workCounts();
   const detail = [
@@ -369,6 +381,16 @@ export async function tick(options: { now?: string } = {}): Promise<TickResult> 
     ran,
     detail,
   };
+}
+
+async function notifyFounderOnce(title: string, detail: string, where: string): Promise<void> {
+  try {
+    const { deliverFounderNotice } = await import("./notify.server");
+    const { founderOfficeAlertNotice } = await import("./notice");
+    await deliverFounderNotice(founderOfficeAlertNotice({ title, detail, where }));
+  } catch {
+    // The halt is already in the books. A missed mail must not fail the tick.
+  }
 }
 
 async function recordRun(input: {

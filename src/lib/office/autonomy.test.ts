@@ -5,6 +5,7 @@ import {
   autonomyBudget,
   autonomyPosture,
   autonomySignals,
+  breakerOpened,
   effectiveCadenceMinutes,
   isAutonomyPosture,
   RECOVERY_COOLDOWN_MINUTES,
@@ -315,6 +316,13 @@ describe("circuit-breaker recovery", () => {
   it("does not probe below the failure limit or without a tick", () => {
     assert.equal(shouldRecoverFromBreaker(999, 4, 5), false);
     assert.equal(shouldRecoverFromBreaker(null, 5, 5), false);
+  });
+
+  it("opens the breaker once, on the tick that crosses the limit", () => {
+    assert.equal(breakerOpened(4, true, 5), true);
+    assert.equal(breakerOpened(5, true, 5), false);
+    assert.equal(breakerOpened(4, false, 5), false);
+    assert.equal(breakerOpened(0, true, 5), false);
   });
 
   it("accepts only the four postures", () => {

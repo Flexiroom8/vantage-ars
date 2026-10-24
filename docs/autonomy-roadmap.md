@@ -64,15 +64,15 @@ while Vercel serves the domain — see the comment in `wrangler.toml`).
 - Founder notices on a second channel: `FOUNDER_WEBHOOK_URL` (Slack/Discord).
 - Bank details on quotes/invoices: the five `PAYMENT_*` values, all or none.
 
-### 5. Hardening (small, shippable later)
+### 5. Hardening
 
-- An external uptime monitor on `/api/health` doubles as the heartbeat via the
-  self-nudge — free resilience on the Vercel target.
-- A weekly founder digest from the books (the orchestrator already briefs daily
-  in-app; the same data can drive a mailed summary once mail is configured).
-- Alerting on the circuit breaker: the office halts itself and records why;
-  a webhook push of that event is the one gap between "halted" and "founder
-  knows within minutes".
+- The circuit breaker tells the founder once, by the same mail and webhook path
+  as every other office alert, on the tick that crosses the failure limit. A
+  clean recovery sends one resume notice. It does not repeat every ten minutes.
+- The daily briefing is already mailed from the books. A second weekly digest
+  would repeat it.
+- `/api/health` remains the public heartbeat. The ten-minute GitHub scheduler
+  is the monitor.
 
 ## The honest boundary
 
