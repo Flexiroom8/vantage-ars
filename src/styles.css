@@ -115,13 +115,6 @@
   --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 24px 48px -24px rgb(0 0 0 / 0.85);
   --glow-accent: 0 0 20px rgb(92 200 255 / 0.3);
 
-  /* shared surface colors used by the live background canvas */
-  --mesh-line: rgba(92, 200, 255, 0.14);
-  --mesh-node: rgba(92, 200, 255, 0.45);
-  --mesh-packet: rgba(140, 220, 255, 0.95);
-  --aurora-a: rgba(38, 110, 255, 0.13);
-  --aurora-b: rgba(0, 214, 200, 0.08);
-
   background: transparent;
   color: var(--color-fg);
 }
@@ -135,18 +128,11 @@
 
 html:has(.site),
 html:has(.site) body {
-  background:
-    radial-gradient(
-      1200px 600px at 85% -10%,
-      var(--aurora-a, rgba(38, 110, 255, 0.13)),
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 500px at -10% 30%,
-      var(--aurora-b, rgba(0, 214, 200, 0.08)),
-      transparent 55%
-    ),
-    #02060e;
+  background: #02060e;
+}
+
+.ambient-field {
+  background: radial-gradient(ellipse 72% 38% at 50% 0%, rgb(38 110 255 / 0.08), transparent 100%);
 }
 
 /* --- entrance --------------------------------------------------------- */
@@ -546,16 +532,6 @@ html:has(.site) body {
 }
 .site .reveal-d3 {
   transition-delay: 270ms;
-}
-
-/* --- hero spotlight ------------------------------------------------------ */
-
-.site .spotlight {
-  background: radial-gradient(
-    520px circle at var(--mx, 50%) var(--my, 30%),
-    rgba(92, 200, 255, 0.08),
-    transparent 65%
-  );
 }
 
 /* --- accordion ------------------------------------------------------------ */

@@ -13,6 +13,7 @@ const EXPECTED: Record<string, string> = {
   "index.tsx": '"/"',
   "find.tsx": '"/find"',
   "assess.tsx": '"/assess"',
+  "automation.tsx": '"/automation"',
   "guides.tsx": '"/guides"',
   "guides.$slug.tsx": '"/guides/$slug"',
   "login.tsx": '"/login"',

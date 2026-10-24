@@ -16,13 +16,13 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 ## What is in it
 
-| Area                | Routes                                                                                                                                                                                                                                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/assess`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
-| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                                    |
-| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                                     |
-| Founder governance  | `/office/delegations` (standing delegation), `/office/governance` (rulings, section 71 gates, signed receipts), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                     |
-| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                                            |
+| Area                | Routes                                                                                                                                                                                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/assess`, `/automation`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                                                              |
+| Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                                                               |
+| Founder governance  | `/office/delegations` (standing delegation), `/office/governance` (rulings, section 71 gates, signed receipts), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                                               |
+| Operations          | `/status` (public readiness), `/api/health` (liveness), `/api/cron/floor` (scheduled run), `/api/ai/status`                                                                                                                                                                                                      |
 
 ## The office runs itself
 
@@ -114,6 +114,12 @@ operational practices. It separates unknowns from answers a visitor can assess,
 and links improvement areas to existing service lines. It is not a technical
 audit, security test or compliance certification; answers are not submitted or
 saved.
+
+**`/automation`** is a browser-only workflow planning checklist. It considers
+repeat frequency, process clarity, information quality, known exceptions,
+impact of errors and human approval controls, then distinguishes a bounded
+pilot candidate from workflows that need controls first. The result is
+deterministic, not AI-generated advice, and answers are not submitted or saved.
 
 Marketing at **`/office/marketing`** also shows the last thirty days of real
 site signals: page views by day, top pages, referral sources, countries and the
@@ -280,6 +286,7 @@ How the office is bounded, and what it does not do:
 **[docs/governance-architecture.md](docs/governance-architecture.md)**.
 
 <!-- omgithub:readme:start -->
+
 ## 🚀 Build, play, and remix with OMGithub
 
 **Remixed using [OMGithub.com](https://omgithub.com).**
@@ -295,4 +302,5 @@ How the office is bounded, and what it does not do:
 - 👤 [Explore the creator's projects](https://omgithub.com/Leonydis138).
 - 🌍 [Create with OMGithub](https://omgithub.com).
 - 🧬 [Explore the remix source](https://github.com/Leonydis138/vantage-ars).
+
 <!-- omgithub:readme:end -->

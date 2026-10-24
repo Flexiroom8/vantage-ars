@@ -60,6 +60,15 @@ const PAGES: SearchItem[] = [
     keywords: ["assessment", "readiness", "IT review", "business continuity", "risk"],
   },
   {
+    id: "page-automation",
+    title: "AI automation opportunity assessment",
+    description:
+      "A private browser-only checklist to identify workflows that may suit a bounded AI automation pilot and where human review should remain.",
+    href: "/automation",
+    kind: "page",
+    keywords: ["AI", "agents", "workflow", "automation", "autonomous business", "readiness"],
+  },
+  {
     id: "page-rates",
     title: "Published rates",
     description:

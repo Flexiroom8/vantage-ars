@@ -13,6 +13,7 @@ const nav = [
   { to: "/services", hash: undefined, label: "Services" },
   { to: "/work", hash: undefined, label: "Work" },
   { to: "/guides", hash: undefined, label: "Guides" },
+  { to: "/automation", hash: undefined, label: "AI automation" },
   { to: "/rates", hash: undefined, label: "Rates" },
   { to: "/support", hash: undefined, label: "Service desk" },
 ] as const;
@@ -235,6 +236,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             </Link>
             <Link to="/assess" className="text-muted transition-colors hover:text-fg">
               IT readiness assessment
+            </Link>
+            <Link to="/automation" className="text-muted transition-colors hover:text-fg">
+              AI automation assessment
             </Link>
             <Link to="/work" className="text-muted transition-colors hover:text-fg">
               Work

@@ -6,7 +6,6 @@ import { EnquiryForm } from "@/components/public/enquiry-form";
 import {
   CloudIcon,
   InfraIcon,
-  LiveNode,
   NetworkIcon,
   QuoteIcon,
   RestoreIcon,
@@ -14,11 +13,6 @@ import {
   SignalBars,
   VoipIcon,
 } from "@/components/public/motion-icons";
-import { PathExhibit } from "@/components/public/live-field";
-import { DecodeText } from "@/components/public/decode-text";
-import { CountUp } from "@/components/public/count-up";
-import { SignalPath } from "@/components/public/signal-path";
-import { Reveal } from "@/components/public/reveal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +20,7 @@ import { submitPaymentNotice, getPaymentMethods } from "@/lib/office/api";
 import type { PaymentMethod } from "@/lib/office/invoice";
 import { allMethodsAwaitBankDetails } from "@/lib/office/invoice";
 import { SERVICE_PAGES } from "@/lib/site/services";
-import { SERVICE_LINES, publicRateRows, rateAmount, ratesByIds } from "@/lib/office/catalogue";
+import { SERVICE_LINES, rateAmount } from "@/lib/office/catalogue";
 import { businessJsonLd, faqJsonLd, pageHead, SITE_URL, jsonLd } from "@/lib/site/seo";
 import { COMPANY } from "@/lib/office/company";
 
@@ -46,18 +40,6 @@ const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
   return page ? [{ line, page, Icon: LINE_ICONS[index] ?? VoipIcon }] : [];
 });
 
-const MANAGED_RATE_IDS = [
-  "managed-support",
-  "health-watch",
-  "service-report",
-  "billing-audit",
-  "handover-pack",
-  "continuity-plan",
-  "sla-review",
-  "quarterly-review",
-  "fault-pattern-review",
-];
-
 const STEPS = [
   {
     n: "01",
@@ -75,23 +57,6 @@ const STEPS = [
     body: "The agreed work is done and tested against the checks we set with you.",
   },
 ] as const;
-
-const STATS = [
-  {
-    value: rateAmount("remote-support"),
-    prefix: "R",
-    suffix: " / hr",
-    label: "Remote support, from",
-  },
-  {
-    value: rateAmount("onsite-support"),
-    prefix: "R",
-    suffix: " / hr",
-    label: "On-site, by arrangement",
-  },
-  { value: SERVICE_PAGES.length, label: "Departments on this desk" },
-  { value: 0, label: "Contractual service levels sold" },
-];
 
 // One source of truth for the FAQ: rendered on the page (search engines only
 // surface FAQ rich results for content that is visible to users) and emitted
@@ -143,49 +108,26 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const payment = Route.useLoaderData();
-  const rates = publicRateRows();
-  const managedRates = ratesByIds(MANAGED_RATE_IDS);
 
   return (
     <PublicFrame>
-      <section
-        className="relative pb-16 pt-16 lg:pt-24"
-        onMouseMove={(event) => {
-          const el = event.currentTarget;
-          const rect = el.getBoundingClientRect();
-
-          el.style.setProperty("--mx", `${event.clientX - rect.left}px`);
-
-          el.style.setProperty("--my", `${event.clientY - rect.top}px`);
-        }}
-      >
-        <div
-          aria-hidden
-          className="spotlight pointer-events-none absolute inset-0 overflow-hidden"
-        />
-
-        <div className="grid items-start gap-12 lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="border-b border-border py-14 sm:py-20">
+        <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="relative">
-            <p className="enter-up flex items-center gap-2.5 font-mono text-xs tracking-[0.22em] text-accent uppercase">
-              <span className="live-dot size-1.5 rounded-full bg-ok" aria-hidden="true" />
-              <DecodeText text="VoIP · Networking · IT infrastructure" />
+            <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">
+              VoIP · Networking · IT infrastructure
             </p>
 
-            <h1 className="enter-up d-1 mt-5 max-w-3xl text-5xl leading-[1.02] tracking-[-0.03em] sm:text-7xl">
-              Clear scope.{" "}
-              <span className="bg-gradient-to-r from-accent to-ok bg-clip-text text-transparent">
-                Written quote.
-              </span>{" "}
-              No surprises.
+            <h1 className="mt-5 max-w-3xl text-5xl leading-[1.02] tracking-[-0.03em] sm:text-7xl">
+              Clear scope. <span className="text-accent">Written quote.</span>
             </h1>
 
-            <p className="enter-up d-2 mt-6 max-w-2xl text-lg leading-relaxed text-muted">
-              Worldwide remote support from R{rateAmount("remote-support")} an hour, on-site by
-              arrangement from R{rateAmount("onsite-support")} an hour. You see the scope, timing
-              and total in writing before anyone starts.
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">
+              Remote support worldwide, on-site by arrangement. Know the scope, timing and total in
+              writing before any work starts.
             </p>
 
-            <div className="enter-up d-3 mt-8 flex flex-wrap gap-3">
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/"
                 hash="enquiry"
@@ -201,82 +143,24 @@ function HomePage() {
                 See published rates
               </Link>
             </div>
+            <p className="mt-5 text-sm text-subtle">
+              Remote from R{rateAmount("remote-support")}/hr · On-site from R
+              {rateAmount("onsite-support")}/hr · VAT only where quoted
+            </p>
           </div>
 
-          <div className="enter-up d-2 panel rounded-2xl">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <p className="flex items-center gap-2 font-mono text-[11px] tracking-[0.2em] text-fg uppercase">
-                <LiveNode className="size-4" aria-hidden="true" />
-                Departments
-              </p>
-
-              <p className="font-mono text-[11px] tracking-[0.16em] text-ok uppercase">Desk open</p>
-            </div>
-
-            <ul className="divide-y divide-border">
-              {DEPARTMENTS.map(({ line, page, Icon }) => (
-                <li key={line.number}>
-                  <Link
-                    to="/services/$slug"
-                    params={{ slug: page.slug }}
-                    className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-raised/60"
-                  >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-raised">
-                      <Icon className="size-5 text-accent" aria-hidden="true" />
-                    </span>
-
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-fg group-hover:text-accent">
-                        {line.title}
-                      </span>
-
-                      <span className="mt-0.5 block text-sm text-muted">{line.price}</span>
-                    </span>
-
-                    <SignalBars className="size-4 shrink-0 text-ok" aria-hidden="true" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="border-t border-border px-6 py-4">
-              <Link
-                to="/services/$slug"
-                params={{ slug: "voip" }}
-                className="inline-flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] text-accent uppercase hover:underline"
-              >
-                Open a department
-                <QuoteIcon className="size-3.5" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
+          <figure className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <img
+              src="/images/cabinet.jpg"
+              alt="Organised network and server cabinet"
+              className="aspect-[4/3] w-full object-cover"
+              fetchPriority="high"
+            />
+            <figcaption className="border-t border-border px-4 py-3 text-xs text-muted">
+              Practical support for the systems your business relies on.
+            </figcaption>
+          </figure>
         </div>
-
-        <PathExhibit />
-      </section>
-
-      <section className="border-y border-border" aria-label="Desk facts">
-        <dl className="grid divide-border sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
-          {STATS.map((stat, index) => (
-            <Reveal
-              key={stat.label}
-              delay={index === 0 ? undefined : (index as 1 | 2 | 3)}
-              // dt must precede dd in the DOM (a screen reader announces in
-              // document order); flex-col-reverse keeps the number visually on
-              // top without breaking that order.
-              className="flex flex-col-reverse p-6 sm:p-8"
-            >
-              <dt className="mt-2 text-sm text-muted">{stat.label}</dt>
-              <dd className="font-mono text-3xl font-semibold tabular-nums text-fg sm:text-4xl">
-                <CountUp
-                  value={stat.value}
-                  prefix={"prefix" in stat ? stat.prefix : ""}
-                  suffix={"suffix" in stat ? stat.suffix : ""}
-                />
-              </dd>
-            </Reveal>
-          ))}
-        </dl>
       </section>
 
       <section className="border-b border-border py-16" aria-label="The practice">
@@ -285,12 +169,11 @@ function HomePage() {
           Voice, the network under it, and the cabinet those calls depend on. Remote first. On-site
           only when the written quote includes it.
         </p>
-        <ul className="mt-8 grid gap-4 sm:grid-cols-3">
+        <ul className="mt-8 grid gap-4 sm:grid-cols-2">
           {(
             [
               ["/images/handset.jpg", "A desk telephone", "VoIP"],
               ["/images/panel.jpg", "A network patch panel", "Networking"],
-              ["/images/cabinet.jpg", "A server cabinet", "Infrastructure"],
             ] as const
           ).map(([src, alt, label]) => (
             <li key={src}>
@@ -376,81 +259,43 @@ function HomePage() {
           >
             Assess IT readiness
           </Link>
+          <Link
+            to="/automation"
+            className="cta-ghost inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+          >
+            Assess AI automation fit
+          </Link>
         </div>
       </section>
 
-      <section id="autonomy" className="border-t border-border py-16" aria-label="AI-native operations">
-        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-          <div>
+      <section id="autonomy" className="border-t border-border py-12" aria-label="AI-native office">
+        <div className="panel flex flex-wrap items-center justify-between gap-6 rounded-2xl p-6 sm:p-8">
+          <div className="max-w-2xl">
             <p className="font-mono text-xs tracking-[0.22em] text-accent uppercase">
-              AI-native operations
+              AI-native office
             </p>
-            <h2 className="mt-4 text-4xl sm:text-5xl">Built for an autonomous business model.</h2>
-            <p className="mt-4 max-w-xl text-base leading-relaxed text-muted">
-              The modern operating model is not “AI as a helper.” It is a structured system of
-              agents, policy gates, and founder oversight that can qualify demand, draft responses,
-              track follow-up, and keep work inside a defined operating envelope.
+            <h2 className="mt-3 text-3xl sm:text-4xl">Automation with clear limits.</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              Specialist agents handle routine records and follow-up. Spending, high-impact
+              decisions and customer commitments stay behind explicit controls.
             </p>
-
-            <div className="mt-8 space-y-4">
-              {[
-                {
-                  title: "Zero-employee operator",
-                  body:
-                    "A small founding team can run a wider operating cadence when the office scores inbound demand, records decisions, and escalates only the exceptions that need a human review.",
-                },
-                {
-                  title: "Autonomous enterprise flow",
-                  body:
-                    "Sales, support, finance, and marketing steps can be coordinated by internal agents without bypassing the published quote and approval rules.",
-                },
-                {
-                  title: "Governance-first automation",
-                  body:
-                    "The office is strongest when the workflow keeps to its budget, published pricing, and founder approvals rather than improvising outside policy.",
-                },
-              ].map((item) => (
-                <div key={item.title} className="panel rounded-2xl p-5">
-                  <h3 className="text-xl text-fg">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.body}</p>
-                </div>
-              ))}
-            </div>
           </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              {
-                src: "https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80",
-                alt: "Business team in a strategy meeting",
-              },
-              {
-                src: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=900&q=80",
-                alt: "A collaborative AI-driven workspace",
-              },
-              {
-                src: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
-                alt: "Data dashboard and analytics on multiple screens",
-              },
-              {
-                src: "https://images.unsplash.com/photo-1556761175-4b46a573b7f8?auto=format&fit=crop&w=900&q=80",
-                alt: "People discussing network operations and service desks",
-              },
-            ].map((image) => (
-              <figure key={image.src} className="overflow-hidden rounded-2xl border border-border bg-surface">
-                <img
-                  src={image.src}
-                  alt={image.alt}
-                  className="h-52 w-full object-cover grayscale-[0.15] transition-transform duration-500 hover:scale-105"
-                  loading="lazy"
-                />
-              </figure>
-            ))}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/model"
+              className="cta-ghost inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+            >
+              How the office works
+            </Link>
+            <Link
+              to="/automation"
+              className="cta inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+            >
+              Assess an AI workflow
+            </Link>
           </div>
         </div>
       </section>
-
-      <SignalPath />
 
       <section className="border-t border-border py-16" aria-label="How a job runs">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -483,99 +328,35 @@ function HomePage() {
         </ol>
       </section>
 
-      <section id="prices" className="border-t border-border py-16" aria-label="Prices">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="text-4xl sm:text-5xl">Published rates</h2>
-
-          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
-            South African rand
-          </p>
-        </div>
-
-        <p className="mt-3 max-w-xl text-base text-muted">
-          VAT is added only when the written quote says so.{" "}
-          <Link to="/rates" className="text-accent underline-offset-4 hover:underline">
-            Full rate sheet
-          </Link>
-          .
-        </p>
-
-        <ul className="mt-8 border-t border-border">
-          {rates.slice(0, 6).map((rate) => (
-            <li
-              key={rate.id}
-              className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_10rem] sm:gap-8"
+      <section id="prices" className="border-t border-border py-12" aria-label="Published prices">
+        <div className="panel flex flex-wrap items-center justify-between gap-6 rounded-2xl p-6 sm:p-8">
+          <div>
+            <p className="font-mono text-xs tracking-[0.18em] text-accent uppercase">
+              Clear pricing
+            </p>
+            <h2 className="mt-2 text-3xl">
+              Remote support from R{rateAmount("remote-support")}/hr.
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+              Managed plans have fixed published prices. VAT is included only when the written quote
+              says so.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/rates"
+              className="cta inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
             >
-              <div>
-                <h3 className="text-base font-semibold text-fg">{rate.title}</h3>
-
-                <p className="mt-1 text-sm text-muted">{rate.scope}</p>
-              </div>
-
-              <p className="font-mono text-sm font-medium text-accent sm:text-right">
-                {rate.price}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section
-        id="managed-services"
-        className="border-t border-border py-16"
-        aria-labelledby="managed-services-heading"
-      >
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="managed-services-heading" className="text-4xl sm:text-5xl">
-            Managed services
-          </h2>
-
-          <p className="font-mono text-xs tracking-[0.18em] text-subtle uppercase">
-            Fixed scope, fixed price
-          </p>
-        </div>
-
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
-          Not every job should need a ticket and a chase. The managed plan gives you remote support
-          time each month, a written report on what we have actually done, and a quarterly look at
-          the setup. Everything below is remote only and produced from our own records, so there is
-          no live monitoring of your estate, no uptime promise and no contractual service level.
-        </p>
-
-        <ul className="mt-8 border-t border-border">
-          {managedRates.map((rate) => (
-            <li
-              key={rate.id}
-              className="grid gap-2 border-b border-border py-5 transition-colors hover:bg-raised/40 sm:grid-cols-[1fr_10rem] sm:gap-8"
+              View all rates
+            </Link>
+            <Link
+              to="/services/$slug"
+              params={{ slug: "managed-support" }}
+              className="cta-ghost inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
             >
-              <div>
-                <h3 className="text-base font-semibold text-fg">{rate.title}</h3>
-
-                <p className="mt-1 text-sm text-muted">{rate.scope}</p>
-              </div>
-
-              <p className="font-mono text-sm font-medium text-accent sm:text-right">
-                {rate.price}
-              </p>
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            to="/services/$slug"
-            params={{ slug: "managed-support" }}
-            className="cta inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
-          >
-            Managed services in detail
-          </Link>
-
-          <Link
-            to="/rates"
-            className="cta-ghost inline-flex h-11 items-center rounded-md px-5 text-sm font-semibold"
-          >
-            See published rates
-          </Link>
+              Managed services
+            </Link>
+          </div>
         </div>
       </section>
 

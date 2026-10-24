@@ -69,6 +69,13 @@ describe("public site search", () => {
     );
   });
 
+  it("finds the AI automation opportunity assessment", () => {
+    assert.equal(
+      searchSite("AI workflow automation").some((item) => item.href === "/automation"),
+      true,
+    );
+  });
+
   it("finds an answer and a fixed page", () => {
     assert.equal(searchSite("vat").length > 0, true);
     assert.equal(
