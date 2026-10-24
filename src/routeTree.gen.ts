@@ -14,6 +14,7 @@ import { Route as FindRouteImport } from './routes/find'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ModelRouteImport } from './routes/model'
 import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RatesRouteImport } from './routes/rates'
@@ -74,6 +75,11 @@ const GuidesRoute = GuidesRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelRoute = ModelRouteImport.update({
+  id: '/model',
+  path: '/model',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OfficeRoute = OfficeRouteImport.update({
@@ -263,6 +269,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
+  '/model': typeof ModelRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
@@ -306,6 +313,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
+  '/model': typeof ModelRoute
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -348,6 +356,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
   '/login': typeof LoginRoute
+  '/model': typeof ModelRoute
   '/office': typeof OfficeRouteWithChildren
   '/privacy': typeof PrivacyRoute
   '/rates': typeof RatesRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/guides'
     | '/login'
+    | '/model'
     | '/office'
     | '/privacy'
     | '/rates'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/guides'
     | '/login'
+    | '/model'
     | '/privacy'
     | '/rates'
     | '/reset-password'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/guides'
     | '/login'
+    | '/model'
     | '/office'
     | '/privacy'
     | '/rates'
@@ -521,6 +533,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GuidesRoute: typeof GuidesRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ModelRoute: typeof ModelRoute
   OfficeRoute: typeof OfficeRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
   RatesRoute: typeof RatesRoute
@@ -573,6 +586,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/model': {
+      id: '/model'
+      path: '/model'
+      fullPath: '/model'
+      preLoaderRoute: typeof ModelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/office': {
@@ -906,6 +926,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   GuidesRoute: GuidesRouteWithChildren,
   LoginRoute: LoginRoute,
+  ModelRoute: ModelRoute,
   OfficeRoute: OfficeRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
   RatesRoute: RatesRoute,
