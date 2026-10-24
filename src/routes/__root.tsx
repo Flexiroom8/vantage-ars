@@ -36,7 +36,7 @@ export const Route = createRootRoute({
         content:
           "Worldwide remote VoIP, networking and IT infrastructure support from Vantage-ARS, with clear ZAR pricing.",
       },
-      { name: "theme-color", content: "#050a14" },
+      { name: "theme-color", content: "#f5f8f6" },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
@@ -68,7 +68,7 @@ export const Route = createRootRoute({
             <PublicChat />
           </TooltipProvider>
         </AuthProvider>
-        <Toaster theme="dark" position="bottom-right" />
+        <Toaster theme="light" position="bottom-right" />
         <Analytics />
         <Scripts />
       </body>

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WatchtowerMark } from "@/components/brand/mark";
 import { COMPANY } from "@/lib/office/company";
@@ -31,6 +31,7 @@ function zarAmount(rateId: string): string {
 }
 
 export function PublicFrame({ children }: { children: ReactNode }) {
+  const pathname = useLocation({ select: (location) => location.pathname });
   const [menuOpen, setMenuOpen] = useState(false);
   // The server cannot know the visitor's current minute, and rendering one
   // during SSR guaranteed a hydration mismatch whenever the two renders straddled
@@ -78,7 +79,7 @@ export function PublicFrame({ children }: { children: ReactNode }) {
         Skip to main content
       </a>
 
-      <div className="relative z-10 border-b border-border/60 bg-surface/40 backdrop-blur-sm">
+      <div className="site-trustbar relative z-10 border-b border-border/60 bg-surface/40 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-5 gap-y-1 px-4 py-2 sm:px-6">
           <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
             <SignalBars className="size-3.5 text-accent" aria-hidden="true" />
@@ -109,13 +110,16 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
-          <nav aria-label="Main navigation" className="hidden items-center gap-7 md:flex">
+          <nav aria-label="Main navigation" className="hidden items-center gap-5 lg:flex xl:gap-7">
             {nav.map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
                 hash={item.hash}
-                className="nav-link text-sm font-medium"
+                aria-current={
+                  pathname === item.to || pathname.startsWith(`${item.to}/`) ? "page" : undefined
+                }
+                className="nav-link rounded-sm py-2 text-sm font-medium"
               >
                 {item.label}
               </Link>
@@ -134,12 +138,12 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             <Link
               to="/"
               hash="enquiry"
-              className="cta hidden h-10 items-center rounded-md px-4 text-sm font-medium md:inline-flex"
+              className="cta hidden h-10 items-center rounded-md px-4 text-sm font-medium lg:inline-flex"
             >
               Get a quote
             </Link>
 
-            <div ref={menuRef} className="relative md:hidden">
+            <div ref={menuRef} className="relative lg:hidden">
               <button
                 ref={menuButtonRef}
                 type="button"
@@ -164,14 +168,19 @@ export function PublicFrame({ children }: { children: ReactNode }) {
                     to={item.to}
                     hash={item.hash}
                     onClick={() => setMenuOpen(false)}
-                    className="block rounded-md px-3 py-2 text-sm hover:bg-raised"
+                    aria-current={
+                      pathname === item.to || pathname.startsWith(`${item.to}/`)
+                        ? "page"
+                        : undefined
+                    }
+                    className="site-mobile-nav-link block rounded-md px-3 py-2.5 text-sm"
                   >
                     {item.label}
                   </Link>
                 ))}
                 <button
                   type="button"
-                  className="block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-raised"
+                  className="site-mobile-nav-link block w-full rounded-md px-3 py-2.5 text-left text-sm"
                   onClick={() => {
                     setMenuOpen(false);
                     window.dispatchEvent(new Event("vantage-open-chat"));
@@ -179,6 +188,14 @@ export function PublicFrame({ children }: { children: ReactNode }) {
                 >
                   Chat
                 </button>
+                <Link
+                  to="/"
+                  hash="enquiry"
+                  onClick={() => setMenuOpen(false)}
+                  className="cta mt-2 flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-semibold"
+                >
+                  Get a quote
+                </Link>
               </nav>
             </div>
           </div>
@@ -286,7 +303,7 @@ export function PublicFrame({ children }: { children: ReactNode }) {
         <div className="border-t border-border">
           <p
             aria-hidden="true"
-            className="select-none overflow-hidden px-4 pt-8 text-[clamp(3rem,11vw,9rem)] leading-none font-bold tracking-[-0.04em] text-fg/5 sm:px-6"
+            className="select-none overflow-hidden px-4 pt-8 text-[clamp(2rem,7vw,5rem)] leading-none font-bold tracking-[-0.04em] text-fg/5 sm:px-6"
           >
             VANTAGE-ARS
           </p>

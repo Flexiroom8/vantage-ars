@@ -76,7 +76,7 @@ function NavLink({ href, label, onClick }: { href: string; label: string; onClic
       onClick={onClick}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center justify-between border px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-all",
+        "office-nav-link group relative flex items-center justify-between rounded-md border px-3 py-2.5 text-xs font-medium transition-all",
         active
           ? "border-accent/30 bg-accent/10 text-accent"
           : "border-transparent text-muted hover:border-border/60 hover:bg-raised/40 hover:text-fg",
@@ -103,8 +103,8 @@ function OfficeNavigation({
   onNavigate?: () => void;
 }) {
   return (
-    <nav className={cn("space-y-1", mobile ? "px-1 py-4" : "px-3 py-5")}>
-      <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+    <nav className={cn("office-navigation space-y-1", mobile ? "px-1 py-4" : "px-3 py-5")}>
+      <div className="office-nav-heading mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Customer workspace
       </div>
 
@@ -112,7 +112,7 @@ function OfficeNavigation({
         <NavLink key={item.href} {...item} onClick={onNavigate} />
       ))}
 
-      <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+      <div className="office-nav-heading mb-3 mt-7 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Operations
       </div>
 
@@ -120,7 +120,7 @@ function OfficeNavigation({
         <NavLink key={item.href} {...item} onClick={onNavigate} />
       ))}
 
-      <div className="mb-3 mt-7 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+      <div className="office-nav-heading mb-3 mt-7 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Governance
       </div>
 
@@ -165,7 +165,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-bg text-fg">
+    <div className="office-shell relative min-h-dvh overflow-hidden bg-bg text-fg">
       <LiveField />
 
       <a
@@ -177,7 +177,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
 
       <div className="relative z-10 min-h-dvh">
         {/* Desktop sidebar */}
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/70 bg-surface/50 backdrop-blur-xl lg:flex lg:flex-col">
+        <aside className="office-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border/70 bg-surface/50 backdrop-blur-xl lg:flex lg:flex-col">
           <div className="border-b border-border/70 px-5 py-5">
             <Link to="/office" className="group flex items-center gap-3">
               <WatchtowerMark className="h-9 w-9 shrink-0 transition-transform group-hover:scale-105" />
@@ -264,7 +264,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
         </aside>
 
         {/* Mobile header */}
-        <div className="sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-xl lg:hidden">
+        <div className="office-mobile-header sticky top-0 z-50 border-b border-border/70 bg-bg/80 backdrop-blur-xl lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
             <div className="flex items-center gap-3">
               <Sheet>
@@ -329,7 +329,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
 
         {/* Main content */}
         <div className="lg:pl-64">
-          <header className="hidden border-b border-border/70 bg-bg/65 backdrop-blur-xl lg:block">
+          <header className="office-topbar hidden border-b border-border/70 bg-bg/65 backdrop-blur-xl lg:block">
             <div className="flex h-16 items-center justify-between px-6 xl:px-8">
               <div>
                 <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
@@ -377,7 +377,7 @@ export function AppShell({ snapshot, children }: AppShellProps) {
 
           <main
             id="office-main"
-            className="relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10"
+            className="office-content relative min-h-[calc(100dvh-4rem)] px-4 py-6 sm:px-6 lg:px-8 xl:px-10"
           >
             <div className="mx-auto w-full max-w-[1600px]">{children}</div>
           </main>

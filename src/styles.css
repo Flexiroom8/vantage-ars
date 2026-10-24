@@ -5,18 +5,18 @@
   --font-serif: "Instrument Serif", ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-bg: #f3f6fb;
+  --color-bg: #f5f8f6;
   --color-surface: #ffffff;
-  --color-raised: #e6eef8;
-  --color-fg: #122033;
-  --color-muted: #4d6078;
-  --color-subtle: #5f7186;
-  --color-accent: #0c5cab;
-  --color-accent-fg: #f7fbff;
-  --color-border: #d5e0ee;
-  --color-ring: #0c5cab;
-  --color-ok: #0f7a4a;
-  --color-warn: #9a6208;
+  --color-raised: #edf3f0;
+  --color-fg: #182c2b;
+  --color-muted: #465b59;
+  --color-subtle: #607371;
+  --color-accent: #08766d;
+  --color-accent-fg: #f7fffd;
+  --color-border: #d8e4df;
+  --color-ring: #08766d;
+  --color-ok: #14764f;
+  --color-warn: #875313;
   --color-danger: #b42318;
 
   --radius-xs: 0.25rem;
@@ -25,8 +25,8 @@
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
 
-  --shadow-border: 0 0 0 1px rgb(18 32 51 / 0.08);
-  --shadow-border-hover: 0 0 0 1px rgb(18 32 51 / 0.16);
+  --shadow-border: 0 1px 2px rgb(24 44 43 / 0.05), 0 0 0 1px rgb(24 44 43 / 0.04);
+  --shadow-border-hover: 0 4px 12px rgb(24 44 43 / 0.08), 0 0 0 1px rgb(24 44 43 / 0.08);
 
   --motion-fast: 160ms;
   --motion-medium: 320ms;
@@ -44,8 +44,7 @@
   body,
   #app {
     min-height: 100%;
-    background:
-      radial-gradient(circle at top, rgba(12, 92, 171, 0.06), transparent 30%), var(--color-bg);
+    background: var(--color-bg);
     color: var(--color-fg);
   }
 
@@ -86,53 +85,23 @@
   }
 }
 
-/* ==========================================================================
-   Public site: the "signal desk" theme.
-   Everything below is scoped to .site so the founder office keeps the
-   light editorial theme unchanged.
-   ========================================================================== */
+/* Public pages and the private office share a calm, legible workspace palette. */
 
 .site {
-  /* deep network-operations ink */
-  --color-bg: #02060e;
-  --color-surface: #0a1322;
-  --color-raised: #121e33;
-  --color-fg: #f2f6fd;
-  --color-muted: #aebfd9;
-  --color-subtle: #8496b8;
-  --color-accent: #5cc8ff;
-  --color-accent-fg: #02182b;
-  --color-border: #24334f;
-  --color-ring: #5cc8ff;
-  --color-ok: #45e0a6;
-  --color-warn: #ffc94d;
-  --color-danger: #ff8080;
-
-  --font-serif: "Space Grotesk", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-
-  --shadow-border: 0 0 0 1px rgb(255 255 255 / 0.09);
-  --shadow-border-hover: 0 0 0 1px rgb(92 200 255 / 0.45);
-  --shadow-panel: 0 1px 0 0 rgb(255 255 255 / 0.05) inset, 0 24px 48px -24px rgb(0 0 0 / 0.85);
-  --glow-accent: 0 0 20px rgb(92 200 255 / 0.3);
+  --shadow-panel: 0 8px 28px -20px rgb(24 44 43 / 0.24);
+  --glow-accent: 0 3px 10px rgb(8 118 109 / 0.14);
 
   background: transparent;
   color: var(--color-fg);
 }
 
-/* display face: bold and tight so headings stay readable at size */
-.site :is(h1, h2, h3, .font-serif) {
-  font-family: var(--font-serif);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
 html:has(.site),
 html:has(.site) body {
-  background: #02060e;
+  background: var(--color-bg);
 }
 
 .ambient-field {
-  background: radial-gradient(ellipse 72% 38% at 50% 0%, rgb(38 110 255 / 0.08), transparent 100%);
+  background: radial-gradient(ellipse 75% 34% at 50% 0%, rgb(8 118 109 / 0.045), transparent 100%);
 }
 
 /* --- entrance --------------------------------------------------------- */
@@ -217,17 +186,15 @@ html:has(.site) body {
 /* --- glass panels and glows ------------------------------------------- */
 
 .site .glass {
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  backdrop-filter: blur(10px) saturate(130%);
+  box-shadow: var(--shadow-panel);
 }
 
 .site .panel {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 0.035), rgb(255 255 255 / 0) 40%),
-    var(--color-surface);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-panel);
+  box-shadow: var(--shadow-border);
 }
 
 .site .panel-hover {
@@ -238,9 +205,8 @@ html:has(.site) body {
 }
 
 .site .panel-hover:hover {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  box-shadow: var(--shadow-panel), var(--glow-accent);
+  box-shadow: var(--shadow-border-hover);
 }
 
 .site .hairline {
@@ -251,40 +217,14 @@ html:has(.site) body {
 
 .site .cta {
   position: relative;
-  overflow: hidden;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-accent) 88%, white),
-    var(--color-accent)
-  );
+  background: var(--color-accent);
   color: var(--color-accent-fg);
-  box-shadow: var(--glow-accent);
-  transition:
-    transform var(--motion-fast) ease,
-    box-shadow var(--motion-fast) ease;
+  box-shadow: var(--shadow-border);
+  transition: background-color var(--motion-fast) ease;
 }
 
 .site .cta:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 32px rgb(76 194 255 / 0.45);
-}
-
-.site .cta::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    110deg,
-    transparent 30%,
-    rgb(255 255 255 / 0.35) 50%,
-    transparent 70%
-  );
-  transform: translateX(-120%);
-  transition: transform 0.6s ease;
-}
-
-.site .cta:hover::after {
-  transform: translateX(120%);
+  background: color-mix(in srgb, var(--color-accent) 88%, black);
 }
 
 .site .cta-ghost {
@@ -300,7 +240,6 @@ html:has(.site) body {
 .site .cta-ghost:hover {
   border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
   background: var(--color-raised);
-  transform: translateY(-2px);
 }
 
 /* --- navigation --------------------------------------------------------- */
@@ -327,12 +266,22 @@ html:has(.site) body {
 
 .site .nav-link:hover,
 .site .nav-link[data-status="active"] {
-  color: var(--color-fg);
+  color: var(--color-accent);
+}
+
+.site .nav-link[aria-current="page"] {
+  color: var(--color-accent);
 }
 
 .site .nav-link:hover::after,
-.site .nav-link[data-status="active"]::after {
+.site .nav-link[data-status="active"]::after,
+.site .nav-link[aria-current="page"]::after {
   transform: scaleX(1);
+}
+
+.site .nav-link[data-status="active"]::after,
+.site .nav-link[aria-current="page"]::after {
+  height: 2px;
 }
 
 /* --- animated icons ------------------------------------------------------ */
@@ -659,4 +608,182 @@ html:has(.site) body {
 
 .desk-packet-3 {
   animation-delay: -5.4s;
+}
+
+/* Shared public/office visual system */
+.site header,
+.site footer {
+  border-color: var(--color-border);
+}
+
+.site .site-trustbar {
+  background: var(--color-raised);
+  border-color: var(--color-border);
+}
+
+.site header.sticky {
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.site .site-mobile-nav-link {
+  color: var(--color-muted);
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.site .site-mobile-nav-link:hover,
+.site .site-mobile-nav-link[aria-current="page"] {
+  background: var(--color-raised);
+  color: var(--color-accent);
+}
+
+.site footer {
+  background: var(--color-surface);
+}
+
+.site footer > div:last-child {
+  border-color: var(--color-border);
+}
+
+.site :is(input, textarea, select) {
+  border-color: var(--color-border);
+}
+
+.site :is(input, textarea, select):focus {
+  border-color: var(--color-accent);
+}
+
+.office-shell {
+  background: var(--color-bg);
+}
+
+.office-shell .ambient-field {
+  display: none;
+}
+
+.office-sidebar {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 8px 0 28px -28px rgb(24 44 43 / 0.35);
+}
+
+.office-sidebar > div:first-child,
+.office-sidebar > div:nth-child(2) {
+  border-color: var(--color-border);
+}
+
+.office-sidebar > div:first-child {
+  padding-block: 1.25rem;
+}
+
+.office-sidebar .font-mono {
+  letter-spacing: 0.08em;
+}
+
+.office-navigation {
+  padding-block: 1.25rem;
+}
+
+.office-nav-heading {
+  color: var(--color-subtle);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.office-nav-heading:not(:first-child) {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.office-nav-link {
+  min-height: 2.5rem;
+  border-color: transparent;
+  color: var(--color-muted);
+}
+
+.office-nav-link[aria-current="page"] {
+  border-color: color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 8%, white);
+  color: var(--color-accent);
+}
+
+.office-nav-link:not([aria-current="page"]):hover {
+  border-color: var(--color-border);
+  background: var(--color-raised);
+  color: var(--color-fg);
+}
+
+.office-sidebar .border-t {
+  border-color: var(--color-border);
+}
+
+.office-sidebar .border-border\/60 {
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.office-topbar,
+.office-mobile-header {
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.office-content {
+  scroll-margin-top: 5rem;
+}
+
+.office-shell :is(table, [role="table"]) {
+  color: var(--color-fg);
+}
+
+.office-shell :is(th, td) {
+  border-color: var(--color-border);
+}
+
+.office-shell :is(input, textarea, select):focus {
+  border-color: var(--color-accent);
+}
+
+.office-shell .live-dot,
+.site .live-dot,
+.site .float-subtle,
+.site .mi-ring,
+.site .mi-ping,
+.site .mi-blink,
+.site .mi-bar,
+.site .mi-packet,
+.site .mi-slide,
+.site .mi-scan,
+.site .signal-packet,
+.site .desk-packet,
+.site .fab-ring {
+  animation: none;
+}
+
+.site .fab-ring {
+  opacity: 0;
+}
+
+@media (max-width: 639px) {
+  .site header.sticky > div {
+    gap: 0.5rem;
+    padding-inline: 0.875rem;
+  }
+
+  .site header.sticky > div > a[aria-label="Vantage-ARS home"] {
+    gap: 0.45rem;
+  }
+
+  .office-mobile-header > div {
+    padding-inline: 0.75rem;
+  }
+
+  .office-content {
+    padding-inline: 1rem;
+  }
 }
