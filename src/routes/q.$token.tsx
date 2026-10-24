@@ -166,7 +166,9 @@ function CustomerQuotePage() {
                 <h2 className="text-2xl text-ok">Thank you. The quote is accepted.</h2>
                 <p className="mt-2 text-sm text-muted">
                   {quote.answerName && !answered ? `Accepted by ${quote.answerName}. ` : ""}
-                  We'll be in touch to schedule the work. The invoice follows from us directly.
+                  We'll be in touch to schedule the work. If this is a troubleshooting quote, we may
+                  email a short checklist of safe observations before the agreed work. Anything
+                  outside this accepted scope needs a new written quote.
                 </p>
               </>
             ) : state === "declined" ? (

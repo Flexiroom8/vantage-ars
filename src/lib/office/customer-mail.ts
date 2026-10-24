@@ -22,6 +22,7 @@ export const CUSTOMER_MAIL_TEMPLATES = [
   "payment_reminder",
   "quote",
   "subscription_started",
+  "diagnostic_checklist",
 ] as const;
 
 export type CustomerMailTemplate = (typeof CUSTOMER_MAIL_TEMPLATES)[number];
@@ -37,6 +38,7 @@ export type CustomerMailContext = {
   quoteUrl?: string | null;
   planTitle?: string | null;
   daysOverdue?: number;
+  diagnosticChecklist?: { label: string; checks: string[] } | null;
 };
 
 export type CustomerMail =
@@ -240,6 +242,34 @@ function subscriptionStartedMail(ctx: CustomerMailContext): CustomerMail {
   };
 }
 
+function diagnosticChecklistMail(ctx: CustomerMailContext): CustomerMail {
+  const checklist = ctx.diagnosticChecklist;
+  if (!checklist || checklist.checks.length === 0) {
+    return { ok: false, error: "There is no approved diagnostic checklist for this quote." };
+  }
+  return {
+    ok: true,
+    subject: `A few safe checks before the agreed work — ${checklist.label}`,
+    body: [
+      greeting(ctx.companyName),
+      "",
+      "We recorded your acceptance of the diagnostic quote. These simple, customer-led observations may help locate the fault before the agreed work begins:",
+      "",
+      checklist.label,
+      ...checklist.checks.map((check, index) => `${index + 1}. ${check}`),
+      "",
+      "Do not share passwords, sign-in codes, access tokens, or confidential customer data. Do not run scans, disconnect or restart equipment, or change settings as part of this checklist.",
+      "",
+      "This checklist stays within the accepted diagnostic scope and does not add a separate charge. Any repair or work outside that accepted scope needs a new written quote and your approval. The diagnostic work may narrow the cause; whether it can be corrected depends on the findings.",
+      "",
+      "Reply to this email with the observations when convenient. If you would rather not do these checks, say so and the agreed work can be handled without them.",
+      "",
+      "—",
+      "Vantage-ARS",
+    ].join("\n"),
+  };
+}
+
 const RENDERERS: Record<CustomerMailTemplate, (ctx: CustomerMailContext) => CustomerMail> = {
   service_report: serviceReportMail,
   invoice: invoiceMail,
@@ -247,6 +277,7 @@ const RENDERERS: Record<CustomerMailTemplate, (ctx: CustomerMailContext) => Cust
   payment_reminder: paymentReminderMail,
   quote: quoteMail,
   subscription_started: subscriptionStartedMail,
+  diagnostic_checklist: diagnosticChecklistMail,
 };
 
 export function isCustomerMailTemplate(value: unknown): value is CustomerMailTemplate {

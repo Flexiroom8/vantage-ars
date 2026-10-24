@@ -877,6 +877,138 @@ describe("autonomous quote-to-cash", () => {
     assert.deepEqual(alreadySent, []);
   });
 
+  it("waits for accepted diagnostic work to be resolved before invoicing the quote", () => {
+    const opportunity = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 69000,
+      summary: "VoIP calls have one-way audio.",
+      updatedAt: daysAgo(1),
+    };
+    const quote = {
+      id: "q1",
+      title: "VoIP fault diagnosis · Acme",
+      kind: "quote",
+      status: "accepted",
+      relatedId: "op1",
+      createdAt: daysAgo(1),
+      rateId: "voip-diagnosis",
+      summary: "Diagnose one-way audio on the customer's phone system.",
+    };
+    const ticket = {
+      id: "tk1",
+      title: "Deliver · Acme",
+      severity: "p3",
+      status: "open",
+      ownerAgent: "forge",
+      summary: "Accepted VoIP fault diagnosis.",
+      relatedId: "op1",
+      updatedAt: daysAgo(1),
+    };
+    assert.deepEqual(
+      planDuty(
+        "ledger_billing",
+        view({
+          opportunities: [opportunity],
+          quotes: [quote],
+          tickets: [ticket],
+          delegation: delegation(),
+        }),
+      ),
+      [],
+    );
+    const completed = planDuty(
+      "ledger_billing",
+      view({
+        opportunities: [opportunity],
+        quotes: [quote],
+        tickets: [{ ...ticket, status: "resolved" }],
+        delegation: delegation(),
+      }),
+    );
+    assert.equal(
+      completed.some((item) => item.kind === "issue_won_invoice"),
+      true,
+    );
+    assert.equal(
+      completed.find((item) => item.kind === "issue_won_invoice")?.payload?.valueCents,
+      69000,
+    );
+  });
+
+  it("plans one scope-specific email after accepted diagnostics, only with delegated email", () => {
+    const opportunity = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "won",
+      valueCents: 69000,
+      summary: "Phone fault",
+      updatedAt: daysAgo(1),
+    };
+    const quote = {
+      id: "q1",
+      title: "VoIP fault diagnosis",
+      kind: "quote",
+      status: "accepted",
+      relatedId: "op1",
+      createdAt: daysAgo(1),
+      rateId: "voip-diagnosis",
+      summary: "One-way audio on a handset.",
+    };
+    const inbound = {
+      id: "in1",
+      channel: "web",
+      companyName: "Acme",
+      subject: "Phone issue",
+      summary: "Email: ops@acme.example The phones have one-way audio.",
+      intent: "support",
+      status: "routed",
+      createdAt: daysAgo(2),
+    };
+    const base = {
+      opportunities: [opportunity],
+      quotes: [quote],
+      inbound: [inbound],
+      delegation: delegation(),
+    };
+    const work = planDuty("close_quote_notice", view(base));
+    assert.equal(work.length, 1);
+    assert.equal(work[0]?.kind, "send_diagnostic_checklist");
+    assert.equal(work[0]?.agentId, "desk");
+    assert.equal(work[0]?.payload?.quoteDocumentId, "q1");
+
+    assert.deepEqual(
+      planDuty(
+        "close_quote_notice",
+        view({
+          ...base,
+          notices: [
+            {
+              id: "n1",
+              template: "diagnostic_checklist",
+              status: "sent",
+              relatedId: "q1",
+              companyName: "Acme",
+              createdAt: daysAgo(1),
+            },
+          ],
+        }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      planDuty(
+        "close_quote_notice",
+        view({
+          ...base,
+          delegation: delegation({ allowCustomerMail: false }),
+        }),
+      ),
+      [],
+    );
+  });
+
   it("leaves the invoice nudge in place for won work with no accepted quote", () => {
     const won = {
       id: "op1",

@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
 import { useOfficeSnapshot } from "@/components/office/office-snapshot-hook";
 import { AutonomyPanel } from "@/components/office/autonomy-panel";
+import { CustomerOverview } from "@/components/office/customer-overview";
 import { DispatchPanel } from "@/components/office/dispatch-panel";
 import { MailNote } from "@/components/office/mail-note";
 import { PageHeader } from "@/components/office/page-header";
@@ -134,6 +135,8 @@ function CommandCenter() {
           ) : null}
         </Card>
       </div>
+
+      <CustomerOverview />
 
       <div className="mt-6">
         <AutonomyPanel refreshToken={pulse} />

@@ -16,6 +16,7 @@ import { renderCustomerMail, type CustomerMailTemplate } from "./customer-mail";
 import { cycleShortLabel } from "./subscription";
 import { planById } from "./plans";
 import { sendCustomerMail } from "./smtp.server";
+import { diagnosticChecklistForQuote } from "./diagnostics";
 
 const EMAIL_IN_TEXT = /Email:\s*([^\s,;]+@[^\s,;]+)/i;
 
@@ -119,6 +120,41 @@ export async function draftNotice(sql: Sql, request: NoticeRequest): Promise<Not
       companyName: name ?? request.companyName,
       quoteBody: body,
       quoteUrl: url,
+    });
+    if (!mail.ok) return mail;
+    return { ok: true, recipient: email, subject: mail.subject, body: mail.body };
+  }
+
+  if (request.template === "diagnostic_checklist") {
+    const quote = await sql<{
+      title: string;
+      summary: string;
+      rate_id: string | null;
+      status: string;
+      company_name: string | null;
+    }>`
+      select d.title, d.summary, d.rate_id, d.status, o.company_name
+      from documents d
+      left join opportunities o on o.id = d.related_id
+      where d.id = ${request.quoteDocumentId ?? ""} and d.kind = 'quote'
+    `.then((rows) => rows[0]);
+    if (!quote || quote.status !== "accepted") {
+      return { ok: false, error: "The accepted quote for these checks is not on file." };
+    }
+    if (quote.company_name?.trim().toLowerCase() !== request.companyName.trim().toLowerCase()) {
+      return { ok: false, error: "The accepted quote does not belong to this customer." };
+    }
+    const diagnosticChecklist = diagnosticChecklistForQuote({
+      rateId: quote.rate_id,
+      title: quote.title,
+      scope: quote.summary,
+    });
+    if (!diagnosticChecklist) {
+      return { ok: false, error: "There is no approved checklist for this quote's scope." };
+    }
+    const mail = renderCustomerMail("diagnostic_checklist", {
+      companyName: name ?? request.companyName,
+      diagnosticChecklist,
     });
     if (!mail.ok) return mail;
     return { ok: true, recipient: email, subject: mail.subject, body: mail.body };

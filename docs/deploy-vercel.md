@@ -46,7 +46,7 @@ Sign-up is closed to everyone else, permanently, in code — not by configuratio
 
 | Variable | Why |
 | --- | --- |
-| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Outbound mail. Founder notices, and — under a delegation — customer notices: quotes, invoices, receipts and service reports. Without these the office still works; notices are recorded in the office and read there. `/api/health` will tell you mail is down. |
+| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Outbound mail. Founder notices and, under a delegation, customer quotes, diagnostic checklists, invoices, receipts and service reports. Without these the office still works; notices are recorded in the office and read there. `/api/health` will tell you mail is down. |
 | `PAYMENT_BANK_NAME`, `PAYMENT_ACCOUNT_NUMBER`, `PAYMENT_BRANCH_CODE`, `PAYMENT_BENEFICIARY`, `PAYMENT_SWIFT` | Bank details on quotes and invoices. All five or none — an incomplete set is treated as "not configured" rather than shown half-filled. |
 | `DATABASE_POOL_MAX` | Defaults to 4. Only raise it if Neon says you have connections to spare. |
 

@@ -48,7 +48,20 @@ const GOVERNANCE_HREFS = new Set([
   "/office/metrics",
 ]);
 
-const OPERATIONS_NAV_ITEMS = NAV_ITEMS.filter((item) => !GOVERNANCE_HREFS.has(item.href));
+const CUSTOMER_WORKSPACE_HREFS = new Set([
+  "/office/customers",
+  "/office/inbox",
+  "/office/sales",
+  "/office/service",
+  "/office/revenue",
+  "/office/ledger",
+]);
+const CUSTOMER_WORKSPACE_ITEMS = NAV_ITEMS.filter((item) =>
+  CUSTOMER_WORKSPACE_HREFS.has(item.href),
+);
+const OPERATIONS_NAV_ITEMS = NAV_ITEMS.filter(
+  (item) => !GOVERNANCE_HREFS.has(item.href) && !CUSTOMER_WORKSPACE_HREFS.has(item.href),
+);
 const GOVERNANCE_NAV_ITEMS = NAV_ITEMS.filter((item) => GOVERNANCE_HREFS.has(item.href));
 
 function NavLink({ href, label, onClick }: { href: string; label: string; onClick?: () => void }) {
@@ -91,6 +104,14 @@ function OfficeNavigation({
 }) {
   return (
     <nav className={cn("space-y-1", mobile ? "px-1 py-4" : "px-3 py-5")}>
+      <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
+        Customer workspace
+      </div>
+
+      {CUSTOMER_WORKSPACE_ITEMS.map((item) => (
+        <NavLink key={item.href} {...item} onClick={onNavigate} />
+      ))}
+
       <div className="mb-3 px-3 font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
         Operations
       </div>

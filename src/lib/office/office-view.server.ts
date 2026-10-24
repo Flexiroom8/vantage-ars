@@ -84,7 +84,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     >`select * from ledger_entries order by created_at desc limit ${LIST_LIMIT}`,
     sql<
       Record<string, unknown>
-    >`select id, title, kind, status, related_id, created_at, rate_id, amount_cents, accepted_at from documents order by created_at desc limit ${LIST_LIMIT}`,
+    >`select id, title, kind, status, summary, related_id, created_at, rate_id, amount_cents, accepted_at from documents order by created_at desc limit ${LIST_LIMIT}`,
     sql<
       Record<string, unknown>
     >`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
@@ -235,6 +235,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
         title: text(row.title),
         kind: "quote",
         status: text(row.status),
+        summary: text(row.summary),
         relatedId: row.related_id ? text(row.related_id) : null,
         createdAt: iso(row.created_at),
         rateId: row.rate_id ? text(row.rate_id) : null,

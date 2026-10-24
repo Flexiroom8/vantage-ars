@@ -21,10 +21,11 @@ export const Route = createFileRoute("/office/customers")({
   component: CustomersPage,
 });
 
-type Filter = "all" | CustomerStatus;
+type Filter = "all" | "attention" | CustomerStatus;
 
 const FILTER_LABELS: Record<Filter, string> = {
   all: "Every account",
+  attention: "Needs attention",
   client: "Clients",
   prospect: "Prospects",
   lost: "Lost",
@@ -96,7 +97,8 @@ function CustomersPage() {
     const rows = book?.accounts ?? [];
     const needle = query.trim().toLowerCase();
     return rows.filter((account) => {
-      if (filter !== "all" && account.status !== filter) return false;
+      if (filter === "attention" && !account.churnRisk) return false;
+      if (filter !== "all" && filter !== "attention" && account.status !== filter) return false;
       if (!needle) return true;
       return [account.companyName, account.contactName, account.contactEmail]
         .filter(Boolean)
@@ -233,10 +235,10 @@ function CustomersPage() {
         />
       ) : (
         <div className="overflow-x-auto rounded-xl bg-surface shadow-[var(--shadow-border)]">
-          <table className="w-full min-w-[54rem] text-left text-sm">
+          <table className="w-full min-w-[64rem] text-left text-sm">
             <caption className="sr-only">
-              Customer accounts with status, recurring revenue, outstanding money and last activity.
-              Every account can be expanded for its full record.
+              Customer accounts with status, recurring revenue, sales pipeline, outstanding money
+              and last activity. Every account can be expanded for its full record.
             </caption>
             <thead className="text-xs uppercase tracking-[0.14em] text-muted">
               <tr className="border-b border-border">
@@ -248,6 +250,9 @@ function CustomersPage() {
                 </th>
                 <th scope="col" className="px-4 py-3 text-right font-medium">
                   Recurring
+                </th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">
+                  Pipeline
                 </th>
                 <th scope="col" className="px-4 py-3 text-right font-medium">
                   Outstanding
@@ -314,6 +319,10 @@ function AccountRows({
           </p>
         </td>
         <td className="px-4 py-3 text-right font-mono tabular-nums">
+          {formatZar(account.pipelineCents)}
+          <p className="text-xs text-muted">{account.openOpportunities} open</p>
+        </td>
+        <td className="px-4 py-3 text-right font-mono tabular-nums">
           {formatZar(account.outstandingCents)}
           {account.overdueCents > 0 ? (
             <p className="text-xs text-danger">{formatZar(account.overdueCents)} overdue</p>
@@ -337,7 +346,7 @@ function AccountRows({
       </tr>
       {expanded ? (
         <tr className="border-b border-border bg-raised/40">
-          <td colSpan={6} className="px-4 py-4">
+          <td colSpan={7} className="px-4 py-4">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Fact label="Invoiced" value={formatZar(account.invoicedCents)} />
               <Fact label="Received" value={formatZar(account.receivedCents)} />

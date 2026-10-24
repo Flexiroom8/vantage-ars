@@ -14,6 +14,7 @@ import { PUBLISHED_RATES } from "./catalogue";
 import { planForRate } from "./plans";
 import { chooseQuote, quoteScopeLines, type QuoteChoice } from "./quote-playbook";
 import { APPROVAL_REMINDER_AGE_DAYS, approvalAgeDays, isApprovalStale } from "./approvals";
+import { diagnosticChecklistForQuote } from "./diagnostics";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -65,6 +66,7 @@ export type QuoteView = {
   title: string;
   kind: string;
   status: string;
+  summary?: string;
   relatedId: string | null;
   createdAt: string;
   /** The published rate line the quote came from, when it is known. */
@@ -397,7 +399,7 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   ledger_billing: "Invoice won work and send the paperwork",
   desk_service_fulfilment: "Deliver the productised services",
   desk_service_notice: "Send the customer their report and invoice",
-  close_quote_notice: "Send the customer their quote",
+  close_quote_notice: "Send quotes and accepted diagnostic checklists",
   ledger_start_subscription: "Start the subscriptions that were sold",
   keep_subscription_review: "Review the recurring-revenue book",
   key_token_watch: "Check the Cloudflare token",
@@ -1612,6 +1614,16 @@ function planBilling(view: DutyView): PlannedWork[] {
     if (invoiceByRelated.has(opp.id)) continue;
     const quote = accepted.find((item) => item.relatedId === opp.id);
     if (!quote) continue;
+    if (
+      diagnosticChecklistForQuote({
+        rateId: quote.rateId,
+        title: quote.title,
+        scope: quote.summary,
+      })
+    ) {
+      const delivery = view.tickets.find((ticket) => ticket.relatedId === opp.id);
+      if (delivery?.status !== "resolved") continue;
+    }
     // The accepted quote is the figure that will be invoiced, so the delegation
     // cap must be tested against it rather than a mutable opportunity value.
     const invoiceCents =
@@ -1735,21 +1747,58 @@ function planQuoteNotice(view: DutyView): PlannedWork[] {
   if (!view.delegation || view.delegation.status !== "active") return [];
   if (!view.delegation.allowCustomerMail) return [];
   if (!view.delegation.allowedActions.includes("send_customer_mail")) return [];
-  if (!view.delegation.allowedActions.includes("issue_quote")) return [];
-  const linked = new Set(
-    view.quoteLinks.filter((link) => link.state === "open").map((link) => link.documentId),
+  const work: PlannedWork[] = [];
+  if (view.delegation.allowedActions.includes("issue_quote")) {
+    const linked = new Set(
+      view.quoteLinks.filter((link) => link.state === "open").map((link) => link.documentId),
+    );
+    work.push(
+      ...view.quotes
+        .filter((quote) => quote.status === "approved_unsent")
+        .filter((quote) => !linked.has(quote.id))
+        .map((quote) => ({
+          agentId: "close",
+          kind: "send_quote_notice",
+          reason: `A quote is approved and waiting on the customer: ${quote.title}.`,
+          priority: 25,
+          payload: { documentId: quote.id },
+          dedupeKey: `quote-notice:${quote.id}`,
+        })),
+    );
+  }
+
+  const alreadySent = new Set(
+    view.notices
+      .filter((notice) => notice.template === "diagnostic_checklist" && notice.relatedId)
+      .map((notice) => notice.relatedId as string),
   );
-  return view.quotes
-    .filter((quote) => quote.status === "approved_unsent")
-    .filter((quote) => !linked.has(quote.id))
-    .map((quote) => ({
-      agentId: "close",
-      kind: "send_quote_notice",
-      reason: `A quote is approved and waiting on the customer: ${quote.title}.`,
-      priority: 25,
-      payload: { documentId: quote.id },
-      dedupeKey: `quote-notice:${quote.id}`,
-    }));
+  const won = new Set(
+    view.opportunities.filter((opportunity) => opportunity.stage === "won").map(({ id }) => id),
+  );
+  const companies = new Map(
+    view.opportunities.map((opportunity) => [opportunity.id, opportunity.companyName]),
+  );
+  for (const quote of view.quotes) {
+    if (quote.status !== "accepted" || !quote.relatedId || !won.has(quote.relatedId)) continue;
+    if (alreadySent.has(quote.id)) continue;
+    const checklist = diagnosticChecklistForQuote({
+      rateId: quote.rateId,
+      title: quote.title,
+      scope: quote.summary,
+    });
+    if (!checklist) continue;
+    const companyName = companies.get(quote.relatedId);
+    if (!companyName || !hasRecipient(view, companyName)) continue;
+    work.push({
+      agentId: "desk",
+      kind: "send_diagnostic_checklist",
+      reason: `${companyName} accepted a diagnostic quote. Send the approved ${checklist.label.toLowerCase()} checklist.`,
+      priority: 18,
+      payload: { quoteDocumentId: quote.id, opportunityId: quote.relatedId, companyName },
+      dedupeKey: `diagnostic-checklist:${quote.id}`,
+    });
+  }
+  return work;
 }
 
 /**

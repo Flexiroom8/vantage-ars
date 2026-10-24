@@ -1497,6 +1497,43 @@ const sendQuoteNotice: Runner = async (item) => {
   };
 };
 
+/** Send the pre-approved checklist after an accepted diagnostic quote. */
+const sendDiagnosticChecklist: Runner = async (item) => {
+  const quoteDocumentId = str(item.payload.quoteDocumentId);
+  const companyName = str(item.payload.companyName);
+  const result = await applyProposedAction(
+    "desk",
+    {
+      kind: "send_customer_mail",
+      title: `Post-acceptance checks · ${companyName}`,
+      rationale:
+        "The customer accepted a diagnostic quote. Send only the approved, customer-led observations for that quoted scope.",
+      confidence: 0.95,
+      amountCents: 0,
+      companyName,
+      relatedId: quoteDocumentId,
+      payload: { template: "diagnostic_checklist", quoteDocumentId },
+    },
+    { source: "scheduler", workItem: item.id, autonomous: true },
+  );
+  if (result.status !== "executed") {
+    return {
+      outcome: `The diagnostic checklist was not sent: ${result.status}.`,
+      executed: 0,
+      escalated: result.status === "escalated" ? 1 : 0,
+      blocked: result.status === "blocked" ? 1 : 0,
+    };
+  }
+  return {
+    outcome: result.delivery?.ok
+      ? `Sent the approved diagnostic checklist to ${companyName}.`
+      : `Prepared the diagnostic checklist for ${companyName}, but it was not delivered: ${result.delivery?.detail ?? "the mail server refused it"}. The customer was not emailed.`,
+    executed: 1,
+    escalated: 0,
+    blocked: 0,
+  };
+};
+
 /**
  * Start the subscription a customer bought.
  *
@@ -1859,6 +1896,7 @@ export const RUNNERS: Record<string, Runner> = {
   send_service_notice: sendServiceNotice,
   send_payment_reminder: sendPaymentReminder,
   send_quote_notice: sendQuoteNotice,
+  send_diagnostic_checklist: sendDiagnosticChecklist,
   review_subscription_health: reviewSubscriptionHealth,
   start_subscription_cycle: startSubscriptionCycle,
 };
