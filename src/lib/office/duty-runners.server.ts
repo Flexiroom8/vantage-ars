@@ -289,6 +289,36 @@ const reportDailyBriefing: Runner = async (item, _view) => {
   };
 };
 
+const reportStaleApprovals: Runner = async (item) => {
+  const count = intOf(item.payload.total);
+  const title = `Founder decisions still waiting (${count})`;
+  const result = await applyProposedAction(
+    "vantage",
+    {
+      kind: "notify_operator",
+      title,
+      rationale: item.reason,
+      confidence: 0.98,
+      amountCents: 0,
+      payload: {
+        approvals: Array.isArray(item.payload.approvals) ? item.payload.approvals : [],
+        total: count,
+        automaticResolution: false,
+      },
+    },
+    { source: "scheduler", workItem: item.id },
+  );
+  if (result.status === "executed") {
+    await sendFounderAlert(title, item.reason, "/office/approvals");
+  }
+  return {
+    outcome: `Reminded the founder about ${count} approval(s): ${result.status}`,
+    executed: result.status === "executed" ? 1 : 0,
+    escalated: result.status === "escalated" ? 1 : 0,
+    blocked: result.status === "blocked" ? 1 : 0,
+  };
+};
+
 // ── FOYER ─────────────────────────────────────────────────────────────────────
 
 const routeInbound: Runner = async (item) => {
@@ -1794,6 +1824,7 @@ export const RUNNERS: Record<string, Runner> = {
   report_stuck_backlog: reportStuckBacklog,
   report_abandoned_work: reportAbandonedWork,
   report_daily_briefing: reportDailyBriefing,
+  report_stale_approvals: reportStaleApprovals,
   route_inbound: routeInbound,
   classify_inbound: classifyInbound,
   escalate_stale_enquiry: escalateStaleEnquiry,

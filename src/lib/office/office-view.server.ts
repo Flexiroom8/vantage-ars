@@ -10,6 +10,8 @@ import { getSql } from "../db";
 import { verifyChainLinks } from "./integrity";
 import { COMPANY } from "./company";
 import type { DutyView } from "./duties";
+import { APPROVAL_REMINDER_AGE_DAYS } from "./approvals";
+import { TRACKED_PATHS } from "../site/tracked";
 
 const LIST_LIMIT = 120;
 
@@ -39,23 +41,6 @@ function parseActions(value: unknown): string[] {
   }
 }
 
-/** Paths the public site actually publishes. Used to check content coverage. */
-const PUBLISHED_PATHS = [
-  "/",
-  "/rates",
-  "/work",
-  "/support",
-  "/terms",
-  "/privacy",
-  "/services/voip",
-  "/services/networking",
-  "/services/it-infrastructure",
-  "/services/managed-support",
-  "/services/cloud-email",
-  "/services/security",
-  "/services/backup-recovery",
-];
-
 /**
  * @param now reference instant. Defaults to the wall clock. Injectable so a
  * scheduler tick and the planning it drives always agree on "now" — otherwise a
@@ -74,6 +59,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     ledger,
     documents,
     approvals,
+    staleApprovals,
     agents,
     campaigns,
     siteEvents,
@@ -102,6 +88,16 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     sql<
       Record<string, unknown>
     >`select id, kind, title, company_name, created_at from approvals where status = 'pending' order by created_at desc limit ${LIST_LIMIT}`,
+    sql<Record<string, unknown>>`
+      select id, kind, title, company_name, created_at, count(*) over()::int as total_count
+      from approvals
+      where status = 'pending'
+        and created_at <= ${new Date(
+          Date.parse(now) - APPROVAL_REMINDER_AGE_DAYS * 86_400_000,
+        ).toISOString()}
+      order by created_at asc
+      limit 100
+    `,
     sql<
       Record<string, unknown>
     >`select id, callsign, status, last_heartbeat from agents order by callsign`,
@@ -300,6 +296,14 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
       companyName: row.company_name ? text(row.company_name) : null,
       createdAt: iso(row.created_at),
     })),
+    staleApprovals: staleApprovals.map((row) => ({
+      id: text(row.id),
+      kind: text(row.kind),
+      title: text(row.title),
+      companyName: row.company_name ? text(row.company_name) : null,
+      createdAt: iso(row.created_at),
+    })),
+    staleApprovalCount: int(staleApprovals[0]?.total_count),
     agents: agents.map((row) => ({
       id: text(row.id),
       callsign: text(row.callsign),
@@ -377,7 +381,7 @@ export async function readDutyView(now: string = new Date().toISOString()): Prom
     treasuryCents: int(company.treasury_cents),
     receivableCents: int(company.receivable_cents),
     payableCents: int(company.payable_cents),
-    publishedPathCount: PUBLISHED_PATHS.length,
+    publishedPathCount: TRACKED_PATHS.length,
     chainIntact: chain.ok,
     work: work.map((row) => ({
       id: text(row.id),

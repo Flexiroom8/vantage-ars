@@ -57,7 +57,7 @@ reconstructing it from the queue afterwards.
                  └──────┬───────┘
                         │  no
                  ┌──────▼───────────┐
-      35 duties → │      PLAN        │  pure function of the real office state
+      38 duties → │      PLAN        │  pure function of the real office state
                  └──────┬───────────┘  returns work, or nothing
                         │
                  ┌──────▼───────────┐
@@ -76,7 +76,7 @@ reconstructing it from the queue afterwards.
 
 ## The duties
 
-Thirty-five duties, every agent has at least one, and none of them can act
+Thirty-eight duties, every agent has at least one, and none of them can act
 outside its owner's role.
 
 | Agent   | Duty                          | Cadence | What it does with real records                                                                                                                                                                      |
@@ -84,6 +84,7 @@ outside its owner's role.
 | VANTAGE | `vantage_liveness`            | 30m     | Reports an agent that has work waiting and is not working, or has never run                                                                                                                         |
 | VANTAGE | `vantage_backlog`             | 60m     | Reports a stuck queue and anything abandoned after retries                                                                                                                                          |
 | VANTAGE | `vantage_briefing`            | 24h     | One factual daily summary for the founder: books, pipeline, queue, last day's activity — every figure from a record                                                                                 |
+| VANTAGE | `vantage_approval_watch`      | 168h    | Reminds the founder weekly about approvals pending for seven days; links to the approval desk and never resolves them                                                                                 |
 | FOYER   | `foyer_intake`                | 10m     | Classifies unrouted enquiries into a lead or a service ticket                                                                                                                                       |
 | FOYER   | `foyer_stale_intake`          | 60m     | Escalates an enquiry nobody answered after four hours                                                                                                                                               |
 | SIGNAL  | `signal_site_signals`         | 12h     | Reads real recorded page views and says what they mean                                                                                                                                              |

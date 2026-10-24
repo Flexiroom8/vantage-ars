@@ -401,6 +401,16 @@ function busyView(): DutyView {
         createdAt: hoursAgo(2),
       },
     ],
+    staleApprovals: [
+      {
+        id: "ap3",
+        kind: "customer_win",
+        title: "Approve customer win",
+        companyName: "Delta",
+        createdAt: daysAgo(10),
+      },
+    ],
+    staleApprovalCount: 1,
     agents: [{ id: "foyer", callsign: "FOYER", status: "idle", lastHeartbeat: null }],
     siteEvents: [
       { kind: "page_view", path: "/rates", occurredAt: hoursAgo(2) },

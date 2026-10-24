@@ -39,6 +39,8 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     notices: [],
     campaigns: [],
     approvalsPending: [],
+    staleApprovals: [],
+    staleApprovalCount: 0,
     agents: [],
     siteEvents: [],
     chatThreads: [],
@@ -1442,6 +1444,78 @@ describe("briefing duty", () => {
     ]) {
       assert.equal(planDuty("vantage_briefing", view(patch)).length, 1, JSON.stringify(patch));
     }
+  });
+});
+
+describe("approval watch duty", () => {
+  it("reminds the founder about old decisions without resolving them", () => {
+    assert.deepEqual(planDuty("vantage_approval_watch", view()), []);
+    assert.deepEqual(
+      planDuty(
+        "vantage_approval_watch",
+        view({
+          staleApprovals: [
+            {
+              id: "ap-new",
+              kind: "cost",
+              title: "Recent decision",
+              companyName: null,
+              createdAt: hoursAgo(1),
+            },
+          ],
+          staleApprovalCount: 1,
+        }),
+      ),
+      [],
+    );
+    const staleApprovals = [
+      {
+        id: "ap1",
+        kind: "customer_win",
+        title: "Approve the customer win",
+        companyName: "Acme",
+        createdAt: daysAgo(10),
+      },
+      {
+        id: "ap2",
+        kind: "cost",
+        title: "Approve a cost",
+        companyName: null,
+        createdAt: daysAgo(8),
+      },
+    ];
+    const [work] = planDuty(
+      "vantage_approval_watch",
+      view({ staleApprovals, staleApprovalCount: 2 }),
+    );
+
+    assert.equal(work?.agentId, "vantage");
+    assert.equal(work?.kind, "report_stale_approvals");
+    assert.equal(work?.dedupeKey, `stale-approvals:${NOW.slice(0, 10)}`);
+    assert.match(work?.reason ?? "", /oldest has waited 10 days/);
+    assert.match(work?.reason ?? "", /No approval is resolved automatically/);
+    assert.equal(work?.payload?.total, 2);
+    assert.deepEqual(
+      (work?.payload?.approvals as { id: string }[]).map((approval) => approval.id),
+      ["ap1", "ap2"],
+    );
+  });
+
+  it("bounds approval reminder detail while keeping the full pending count", () => {
+    const staleApprovals = Array.from({ length: 12 }, (_, index) => ({
+      id: `ap${index}`,
+      kind: "cost",
+      title: `Approval ${index}`,
+      companyName: null,
+      createdAt: daysAgo(8 + index),
+    }));
+    const [work] = planDuty(
+      "vantage_approval_watch",
+      view({ staleApprovals, staleApprovalCount: 12 }),
+    );
+
+    assert.equal(work?.payload?.total, 12);
+    assert.equal((work?.payload?.approvals as unknown[]).length, 10);
   });
 });
 

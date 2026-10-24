@@ -34,6 +34,8 @@ function view(overrides: Partial<DutyView> = {}): DutyView {
     notices: [],
     campaigns: [],
     approvalsPending: [],
+    staleApprovals: [],
+    staleApprovalCount: 0,
     agents: [],
     siteEvents: [],
     chatThreads: [],

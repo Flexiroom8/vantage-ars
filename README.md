@@ -35,7 +35,8 @@ quotes, the service desk drafts acknowledgements, technical writes procedures,
 finance chases overdue invoices, bills the subscriptions that are due and duns
 the ones that are not, admin checks the filing and reviews the recurring-revenue
 book, the orchestrator briefs you once a day from the books, and compliance halts
-the office if the audit chain ever fails to verify.
+the office if the audit chain ever fails to verify. It also reminds the founder
+weekly when an approval has waited a week; it never approves one on a timer.
 
 None of them email a customer, spend money, win or lose a customer, or publish
 anything. Those are founder approvals, with the constitutional trace attached —

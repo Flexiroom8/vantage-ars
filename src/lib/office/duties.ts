@@ -13,6 +13,7 @@
 import { PUBLISHED_RATES } from "./catalogue";
 import { planForRate } from "./plans";
 import { chooseQuote, quoteScopeLines, type QuoteChoice } from "./quote-playbook";
+import { APPROVAL_REMINDER_AGE_DAYS, approvalAgeDays, isApprovalStale } from "./approvals";
 
 const HOUR = 60;
 const DAY = 24 * HOUR;
@@ -192,6 +193,14 @@ export type DelegationView = {
   requireAcceptedQuote: boolean;
 };
 
+export type ApprovalView = {
+  id: string;
+  kind: string;
+  title: string;
+  companyName: string | null;
+  createdAt: string;
+};
+
 export type DutyView = {
   now: string;
   halted: boolean;
@@ -204,13 +213,10 @@ export type DutyView = {
   documents: DocumentView[];
   notices: NoticeView[];
   campaigns: CampaignView[];
-  approvalsPending: {
-    id: string;
-    kind: string;
-    title: string;
-    companyName: string | null;
-    createdAt: string;
-  }[];
+  approvalsPending: ApprovalView[];
+  /** Pending founder decisions beyond the reminder threshold, queried separately from the recent list. */
+  staleApprovals: ApprovalView[];
+  staleApprovalCount: number;
   agents: AgentView[];
   siteEvents: SiteEventView[];
   chatThreads: ChatThreadView[];
@@ -242,6 +248,7 @@ export type DutyId =
   | "vantage_liveness"
   | "vantage_backlog"
   | "vantage_briefing"
+  | "vantage_approval_watch"
   | "foyer_intake"
   | "foyer_stale_intake"
   | "signal_site_signals"
@@ -280,6 +287,7 @@ export const DUTY_CADENCE_MINUTES: Record<DutyId, number> = {
   vantage_liveness: 30,
   vantage_backlog: 60,
   vantage_briefing: 1440,
+  vantage_approval_watch: 10080,
   foyer_intake: 10,
   foyer_stale_intake: 60,
   signal_site_signals: 720,
@@ -319,6 +327,7 @@ export const DUTY_OWNER: Record<DutyId, string> = {
   vantage_liveness: "vantage",
   vantage_backlog: "vantage",
   vantage_briefing: "vantage",
+  vantage_approval_watch: "vantage",
   foyer_intake: "foyer",
   foyer_stale_intake: "foyer",
   signal_site_signals: "signal",
@@ -358,6 +367,7 @@ export const DUTY_TITLES: Record<DutyId, string> = {
   vantage_liveness: "Check the floor is alive",
   vantage_backlog: "Report a blocked backlog",
   vantage_briefing: "Brief the founder daily",
+  vantage_approval_watch: "Remind the founder about waiting approvals",
   foyer_intake: "Intake and classify new enquiries",
   foyer_stale_intake: "Chase enquiries nobody picked up",
   signal_site_signals: "Read real site signals",
@@ -578,6 +588,8 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
       return planBacklog(view);
     case "vantage_briefing":
       return planBriefing(view);
+    case "vantage_approval_watch":
+      return planApprovalWatch(view);
     case "foyer_intake":
       return planFoyerIntake(view);
     case "foyer_stale_intake":
@@ -647,6 +659,39 @@ export function planDuty(duty: DutyId, view: DutyView): PlannedWork[] {
     default:
       return [];
   }
+}
+
+function planApprovalWatch(view: DutyView): PlannedWork[] {
+  const staleApprovals = view.staleApprovals.filter((approval) =>
+    isApprovalStale(approval.createdAt, APPROVAL_REMINDER_AGE_DAYS, Date.parse(view.now)),
+  );
+  if (staleApprovals.length === 0) return [];
+
+  const approvals = staleApprovals.slice(0, 10).map((approval) => ({
+    id: approval.id,
+    kind: approval.kind,
+    title: approval.title,
+    companyName: approval.companyName,
+    ageDays: approvalAgeDays(approval.createdAt, Date.parse(view.now)),
+  }));
+  const oldestDays = Math.max(...approvals.map((approval) => approval.ageDays));
+  const summary = approvals
+    .map(
+      (approval) =>
+        `${approval.id} · ${approval.kind} · ${approval.title}${approval.companyName ? ` · ${approval.companyName}` : ""} · waiting ${approval.ageDays} days`,
+    )
+    .join("\n");
+
+  return [
+    {
+      agentId: "vantage",
+      kind: "report_stale_approvals",
+      reason: `${view.staleApprovalCount} founder approval(s) have been pending for at least ${APPROVAL_REMINDER_AGE_DAYS} days. The oldest has waited ${oldestDays} days. No approval is resolved automatically.\n${summary}`,
+      priority: 8,
+      payload: { approvals, total: view.staleApprovalCount },
+      dedupeKey: `stale-approvals:${new Date(view.now).toISOString().slice(0, 10)}`,
+    },
+  ];
 }
 
 /**
