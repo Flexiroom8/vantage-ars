@@ -18,7 +18,7 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 
 | Area                | Routes                                                                                                                                                                                                                                                                                 |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
+| Public site         | `/`, `/services`, `/services/voip`, `/services/networking`, `/services/it-infrastructure`, `/services/managed-support`, `/services/cloud-email`, `/services/security`, `/services/backup-recovery`, `/find`, `/assess`, `/guides`, `/rates`, `/work`, `/support`, `/status`, `/terms`, `/privacy` |
 | Customer quote link | `/q/<token>`: view, download PDF, accept or decline                                                                                                                                                                                                                                    |
 | Founder office      | `/office`: command, autonomy, approvals, sales, ledger, customer book, site signals, chat, audit, metrics and more                                                                                                                                                                     |
 | Founder governance  | `/office/delegations` (standing delegation), `/office/governance` (rulings, section 71 gates, signed receipts), `/office/revenue` (subscriptions, billing, customer mail), `/office/customers` (the customer book)                                                                     |
@@ -107,6 +107,12 @@ pages — without exposing a public index.
 — and recommends a published service, the guides that explain it and a short
 checklist before an enquiry. It recommends; it does not quote or promise an
 outcome.
+
+**`/assess`** is a browser-only IT readiness self-assessment across seven
+operational practices. It separates unknowns from answers a visitor can assess,
+and links improvement areas to existing service lines. It is not a technical
+audit, security test or compliance certification; answers are not submitted or
+saved.
 
 Marketing at **`/office/marketing`** also shows the last thirty days of real
 site signals: page views by day, top pages, referral sources, countries and the

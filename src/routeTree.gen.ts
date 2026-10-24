@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AssessRouteImport } from './routes/assess'
 import { Route as FindRouteImport } from './routes/find'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as GuidesRouteImport } from './routes/guides'
@@ -55,6 +56,11 @@ import { Route as ApiCronFloorRouteImport } from './routes/api/cron/floor'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssessRoute = AssessRouteImport.update({
+  id: '/assess',
+  path: '/assess',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FindRoute = FindRouteImport.update({
@@ -265,6 +271,7 @@ const ApiCronFloorRoute = ApiCronFloorRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assess': typeof AssessRoute
   '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
@@ -309,6 +316,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assess': typeof AssessRoute
   '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
@@ -352,6 +360,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assess': typeof AssessRoute
   '/find': typeof FindRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guides': typeof GuidesRouteWithChildren
@@ -398,6 +407,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/assess'
     | '/find'
     | '/forgot-password'
     | '/guides'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/assess'
     | '/find'
     | '/forgot-password'
     | '/guides'
@@ -484,6 +495,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/assess'
     | '/find'
     | '/forgot-password'
     | '/guides'
@@ -529,6 +541,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssessRoute: typeof AssessRoute
   FindRoute: typeof FindRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GuidesRoute: typeof GuidesRouteWithChildren
@@ -558,6 +571,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assess': {
+      id: '/assess'
+      path: '/assess'
+      fullPath: '/assess'
+      preLoaderRoute: typeof AssessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/find': {
@@ -922,6 +942,7 @@ const ServicesRouteWithChildren = ServicesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssessRoute: AssessRoute,
   FindRoute: FindRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GuidesRoute: GuidesRouteWithChildren,

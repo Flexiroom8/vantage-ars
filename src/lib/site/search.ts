@@ -51,6 +51,15 @@ const PAGES: SearchItem[] = [
     keywords: ["finder", "which service", "starting point", "help me choose"],
   },
   {
+    id: "page-assess",
+    title: "IT readiness self-assessment",
+    description:
+      "Review seven practical IT operations questions. Identify practices to verify and relevant services; answers stay in your browser.",
+    href: "/assess",
+    kind: "page",
+    keywords: ["assessment", "readiness", "IT review", "business continuity", "risk"],
+  },
+  {
     id: "page-rates",
     title: "Published rates",
     description:

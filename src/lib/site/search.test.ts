@@ -62,6 +62,13 @@ describe("public site search", () => {
     );
   });
 
+  it("finds the IT readiness assessment", () => {
+    assert.equal(
+      searchSite("IT readiness").some((item) => item.href === "/assess"),
+      true,
+    );
+  });
+
   it("finds an answer and a fixed page", () => {
     assert.equal(searchSite("vat").length > 0, true);
     assert.equal(

@@ -9,6 +9,7 @@ export const TRACKED_PATHS = [
   "/",
   "/services",
   "/find",
+  "/assess",
   "/rates",
   "/work",
   "/model",

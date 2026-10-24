@@ -370,6 +370,12 @@ function HomePage() {
           >
             Find your starting point
           </Link>
+          <Link
+            to="/assess"
+            className="cta-ghost inline-flex h-10 items-center rounded-md px-4 text-sm font-medium"
+          >
+            Assess IT readiness
+          </Link>
         </div>
       </section>
 

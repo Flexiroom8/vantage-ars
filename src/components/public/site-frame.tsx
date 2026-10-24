@@ -233,6 +233,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             <Link to="/find" className="text-muted transition-colors hover:text-fg">
               Find a service
             </Link>
+            <Link to="/assess" className="text-muted transition-colors hover:text-fg">
+              IT readiness assessment
+            </Link>
             <Link to="/work" className="text-muted transition-colors hover:text-fg">
               Work
             </Link>
