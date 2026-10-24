@@ -11,11 +11,16 @@ import { PUBLISHED_RATES } from "@/lib/office/catalogue";
 
 const nav = [
   { to: "/services", hash: undefined, label: "Services" },
-  { to: "/work", hash: undefined, label: "Work" },
-  { to: "/guides", hash: undefined, label: "Guides" },
+  { to: "/find", hash: undefined, label: "Find help" },
   { to: "/automation", hash: undefined, label: "AI automation" },
   { to: "/rates", hash: undefined, label: "Rates" },
   { to: "/support", hash: undefined, label: "Service desk" },
+] as const;
+
+const moreNav = [
+  { to: "/work", label: "Recent work" },
+  { to: "/guides", label: "Guides" },
+  { to: "/model", label: "How the office works" },
 ] as const;
 
 const trustPills = [
@@ -110,23 +115,46 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
-          <nav aria-label="Main navigation" className="hidden items-center gap-5 lg:flex xl:gap-7">
+          <nav aria-label="Main navigation" className="hidden items-center gap-3 lg:flex xl:gap-5">
             {nav.map((item) => (
               <Link
                 key={item.label}
                 to={item.to}
-                hash={item.hash}
+                hash={"hash" in item ? item.hash : undefined}
                 aria-current={
                   pathname === item.to || pathname.startsWith(`${item.to}/`) ? "page" : undefined
                 }
-                className="nav-link rounded-sm py-2 text-sm font-medium"
+                className="nav-link rounded-sm py-2 text-[13px] font-medium"
               >
                 {item.label}
               </Link>
             ))}
+            <details className="site-more-menu relative">
+              <summary className="nav-link flex cursor-pointer list-none items-center gap-1 rounded-sm py-2 text-[13px] font-medium">
+                More{" "}
+                <span aria-hidden="true" className="text-[10px]">
+                  ⌄
+                </span>
+              </summary>
+              <div className="site-more-popover absolute right-0 z-40 mt-3 w-56 rounded-lg border p-2 shadow-[var(--shadow-panel)]">
+                {moreNav.map((item) => (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={(event) => {
+                      const parent = event.currentTarget.closest("details");
+                      parent?.removeAttribute("open");
+                    }}
+                    className="site-more-link block rounded-md px-3 py-2.5 text-sm"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </details>
             <button
               type="button"
-              className="nav-link text-sm font-medium"
+              className="nav-link text-[13px] font-medium"
               onClick={() => window.dispatchEvent(new Event("vantage-open-chat"))}
             >
               Chat
@@ -162,11 +190,11 @@ export function PublicFrame({ children }: { children: ReactNode }) {
                 hidden={!menuOpen}
                 className="glass absolute right-0 z-40 mt-2 w-56 rounded-xl p-2 text-fg shadow-[var(--shadow-panel)]"
               >
-                {nav.map((item) => (
+                {[...nav, ...moreNav].map((item) => (
                   <Link
                     key={item.label}
                     to={item.to}
-                    hash={item.hash}
+                    hash={"hash" in item ? item.hash : undefined}
                     onClick={() => setMenuOpen(false)}
                     aria-current={
                       pathname === item.to || pathname.startsWith(`${item.to}/`)

@@ -41,6 +41,37 @@ const DEPARTMENTS = SERVICE_LINES.flatMap((line, index) => {
   return page ? [{ line, page, Icon: LINE_ICONS[index] ?? VoipIcon }] : [];
 });
 
+const QUICK_PATHS = [
+  {
+    number: "01",
+    title: "Calls & phones",
+    detail: "VoIP, call quality or a handset that has gone quiet.",
+    slug: "voip",
+    Icon: VoipIcon,
+  },
+  {
+    number: "02",
+    title: "Wi-Fi & network",
+    detail: "Slow connections, dropouts or a network that needs setting up.",
+    slug: "networking",
+    Icon: NetworkIcon,
+  },
+  {
+    number: "03",
+    title: "Computers & systems",
+    detail: "Infrastructure, security, backups or business IT support.",
+    slug: "it-infrastructure",
+    Icon: InfraIcon,
+  },
+  {
+    number: "04",
+    title: "Repetitive admin",
+    detail: "Find a sensible, human-controlled place for AI automation.",
+    slug: "ai-automation",
+    Icon: SignalBars,
+  },
+] as const;
+
 const STEPS = [
   {
     n: "01",
@@ -117,12 +148,12 @@ function HomePage() {
           <div className="relative">
             <p className="home-hero-kicker font-mono text-xs tracking-[0.22em] uppercase">
               <span className="home-kicker-mark" aria-hidden="true" />
-              Practical IT. No mystery.
+              Support for the tech your business runs on
             </p>
 
             <h1 className="home-hero-title mt-5 max-w-3xl text-5xl leading-[0.98] tracking-[-0.05em] sm:text-7xl">
-              Clear scope.
-              <span className="home-title-highlight">Written quote.</span>
+              Your tech's got a problem.
+              <span className="home-title-highlight">Start here.</span>
             </h1>
 
             <p className="home-hero-copy mt-6 max-w-xl text-lg leading-relaxed">
@@ -136,7 +167,7 @@ function HomePage() {
                 hash="enquiry"
                 className="home-primary-cta cta inline-flex h-12 items-center rounded-md px-5 text-sm font-semibold"
               >
-                Get a written quote <span aria-hidden="true">↗</span>
+                Tell us what's up <span aria-hidden="true">↗</span>
               </Link>
 
               <Link
@@ -179,6 +210,34 @@ function HomePage() {
           <span>Remote worldwide</span>
           <span>Written scope first</span>
           <span>No work starts until you accept</span>
+        </div>
+      </section>
+
+      <section className="home-need-finder" aria-labelledby="need-heading">
+        <div className="home-section-heading">
+          <div>
+            <p className="home-section-kicker">A good place to start</p>
+            <h2 id="need-heading">What needs a hand?</h2>
+          </div>
+          <Link to="/find" className="home-finder-link">
+            Not sure? Try the 3-question finder <span aria-hidden="true">↗</span>
+          </Link>
+        </div>
+
+        <div className="home-quick-paths">
+          {QUICK_PATHS.map(({ number, title, detail, slug, Icon }) => (
+            <Link key={slug} to="/services/$slug" params={{ slug }} className="home-quick-path">
+              <span className="home-quick-path-top">
+                <span className="home-quick-number">{number}</span>
+                <Icon className="home-quick-icon" aria-hidden="true" />
+              </span>
+              <span className="home-quick-title">{title}</span>
+              <span className="home-quick-detail">{detail}</span>
+              <span className="home-quick-arrow" aria-hidden="true">
+                ↗
+              </span>
+            </Link>
+          ))}
         </div>
       </section>
 
