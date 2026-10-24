@@ -261,48 +261,58 @@ export const PUBLISHED_RATES: PublishedRate[] = [
   },
 ];
 
+function publishedPrice(rateId: string): string {
+  const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+  if (!rate) throw new Error(`Service line references missing published rate: ${rateId}`);
+  return rate.price;
+}
+
+function priceFromRate(rateId: string): string {
+  return `From ${publishedPrice(rateId).replace(/^From\s+/, "").replace(/ remote$/, "")}`;
+}
+
 export const SERVICE_LINES = [
   {
     number: "01",
     title: "VoIP & telecoms",
     summary: "Dropped calls, one-way audio, and phone systems that will not register.",
-    price: "From R690 / hour",
+    price: priceFromRate("voip-diagnosis"),
   },
   {
     number: "02",
     title: "Networking",
     summary: "Wi-Fi, switches, and the connection between your people and the systems they use.",
-    price: "From R690 / hour",
+    price: publishedPrice("network-setup"),
   },
   {
     number: "03",
     title: "IT infrastructure",
     summary: "Servers and the rest of the setup your business depends on.",
-    price: "From R690 / hour",
+    price: priceFromRate("infra-assessment"),
   },
   {
     number: "04",
     title: "Managed services",
     summary: "Monthly plans and written reports, produced and billed without you chasing anyone.",
-    price: "From R690 / month",
+    price: publishedPrice("managed-support"),
   },
   {
     number: "05",
     title: "Cloud & email",
     summary: "Microsoft 365, Google Workspace, mail flow and the identity that guards them.",
-    price: "From R690 / hour",
+    price: priceFromRate("cloud-admin"),
   },
   {
     number: "06",
     title: "Security & continuity",
     summary: "A written baseline, a realistic recovery path, and the gaps named before they bite.",
-    price: "From R1,725",
+    price: priceFromRate("security-baseline"),
   },
   {
     number: "07",
     title: "Backup & recovery",
     summary: "What is backed up, what has never been tested, and what is still missing.",
-    price: "From R1,380",
+    price: priceFromRate("backup-review"),
   },
   {
     number: "08",

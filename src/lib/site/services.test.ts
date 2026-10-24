@@ -15,6 +15,27 @@ describe("published service catalogue", () => {
     }
   });
 
+  it("keeps customer-facing service prices tied to their published rate lines", () => {
+    const prices = [
+      ["VoIP & telecoms", "voip-diagnosis", "From R690 / hour"],
+      ["Networking", "network-setup", "R1,380–R3,450"],
+      ["IT infrastructure", "infra-assessment", "From R690 / hour"],
+      ["Managed services", "managed-support", "R2,750 / month"],
+      ["Cloud & email", "cloud-admin", "From R690 / hour"],
+      ["Security & continuity", "security-baseline", "From R1,725"],
+      ["Backup & recovery", "backup-review", "From R1,380"],
+    ] as const;
+
+    for (const [title, rateId, displayPrice] of prices) {
+      const line = SERVICE_LINES.find((item) => item.title === title);
+      const rate = PUBLISHED_RATES.find((item) => item.id === rateId);
+      assert.ok(line, `missing service line: ${title}`);
+      assert.ok(rate, `missing published rate: ${rateId}`);
+      assert.equal(line.price, displayPrice, title);
+      assert.ok(line.price.includes(rate.price.replace(/ remote$/, "")), title);
+    }
+  });
+
   it("publishes scoped AI automation engagements with real price references", () => {
     const page = servicePage("ai-automation");
 
