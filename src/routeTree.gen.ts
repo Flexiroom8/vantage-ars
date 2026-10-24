@@ -50,6 +50,8 @@ import { Route as OfficeTechnicalRouteImport } from './routes/office/technical'
 import { Route as QTokenRouteImport } from './routes/q.$token'
 import { Route as ServicesIndexRouteImport } from './routes/services.index'
 import { Route as ServicesSlugRouteImport } from './routes/services.$slug'
+import { Route as ToolsEmailAuthRouteImport } from './routes/tools.email-auth'
+import { Route as ToolsNetworkPathRouteImport } from './routes/tools.network-path'
 import { Route as ApiAiStatusRouteImport } from './routes/api/ai/status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiCronFloorRouteImport } from './routes/api/cron/floor'
@@ -259,6 +261,16 @@ const ServicesSlugRoute = ServicesSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => ServicesRoute,
 } as any)
+const ToolsEmailAuthRoute = ToolsEmailAuthRouteImport.update({
+  id: '/tools/email-auth',
+  path: '/tools/email-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsNetworkPathRoute = ToolsNetworkPathRouteImport.update({
+  id: '/tools/network-path',
+  path: '/tools/network-path',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAiStatusRoute = ApiAiStatusRouteImport.update({
   id: '/api/ai/status',
   path: '/api/ai/status',
@@ -315,6 +327,8 @@ export interface FileRoutesByFullPath {
   '/office/technical': typeof OfficeTechnicalRoute
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
+  '/tools/email-auth': typeof ToolsEmailAuthRoute
+  '/tools/network-path': typeof ToolsNetworkPathRoute
   '/office/': typeof OfficeIndexRoute
   '/services/': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
@@ -359,6 +373,8 @@ export interface FileRoutesByTo {
   '/office/technical': typeof OfficeTechnicalRoute
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
+  '/tools/email-auth': typeof ToolsEmailAuthRoute
+  '/tools/network-path': typeof ToolsNetworkPathRoute
   '/office': typeof OfficeIndexRoute
   '/services': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
@@ -406,6 +422,8 @@ export interface FileRoutesById {
   '/office/technical': typeof OfficeTechnicalRoute
   '/q/$token': typeof QTokenRoute
   '/services/$slug': typeof ServicesSlugRoute
+  '/tools/email-auth': typeof ToolsEmailAuthRoute
+  '/tools/network-path': typeof ToolsNetworkPathRoute
   '/office/': typeof OfficeIndexRoute
   '/services/': typeof ServicesIndexRoute
   '/api/ai/status': typeof ApiAiStatusRoute
@@ -454,6 +472,8 @@ export interface FileRouteTypes {
     | '/office/technical'
     | '/q/$token'
     | '/services/$slug'
+    | '/tools/email-auth'
+    | '/tools/network-path'
     | '/office/'
     | '/services/'
     | '/api/ai/status'
@@ -498,6 +518,8 @@ export interface FileRouteTypes {
     | '/office/technical'
     | '/q/$token'
     | '/services/$slug'
+    | '/tools/email-auth'
+    | '/tools/network-path'
     | '/office'
     | '/services'
     | '/api/ai/status'
@@ -544,6 +566,8 @@ export interface FileRouteTypes {
     | '/office/technical'
     | '/q/$token'
     | '/services/$slug'
+    | '/tools/email-auth'
+    | '/tools/network-path'
     | '/office/'
     | '/services/'
     | '/api/ai/status'
@@ -572,6 +596,8 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiSiteSignalRoute: typeof ApiSiteSignalRoute
   QTokenRoute: typeof QTokenRoute
+  ToolsEmailAuthRoute: typeof ToolsEmailAuthRoute
+  ToolsNetworkPathRoute: typeof ToolsNetworkPathRoute
   ApiAiStatusRoute: typeof ApiAiStatusRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiCronFloorRoute: typeof ApiCronFloorRoute
@@ -866,6 +892,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesSlugRouteImport
       parentRoute: typeof ServicesRoute
     }
+    '/tools/email-auth': {
+      id: '/tools/email-auth'
+      path: '/tools/email-auth'
+      fullPath: '/tools/email-auth'
+      preLoaderRoute: typeof ToolsEmailAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools/network-path': {
+      id: '/tools/network-path'
+      path: '/tools/network-path'
+      fullPath: '/tools/network-path'
+      preLoaderRoute: typeof ToolsNetworkPathRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ai/status': {
       id: '/api/ai/status'
       path: '/api/ai/status'
@@ -981,6 +1021,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiSiteSignalRoute: ApiSiteSignalRoute,
   QTokenRoute: QTokenRoute,
+  ToolsEmailAuthRoute: ToolsEmailAuthRoute,
+  ToolsNetworkPathRoute: ToolsNetworkPathRoute,
   ApiAiStatusRoute: ApiAiStatusRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiCronFloorRoute: ApiCronFloorRoute,

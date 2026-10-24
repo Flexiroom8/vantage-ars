@@ -7,6 +7,7 @@ import { AGENT_BY_ID } from "./agents";
 import { proposeActions } from "./ai.server";
 import { listChats, founderReply, postChat, readChat } from "./chat.server";
 import { processWebsiteEnquiry } from "./intake";
+import { formatServiceIntake, type ServiceIntake } from "./service-intake";
 import {
   founderChatNotice,
   founderEnquiryNotice,
@@ -230,14 +231,16 @@ function serviceMatter(value: unknown): (typeof SERVICE_MATTERS)[number] | undef
 
 export const submitPublicEnquiry = createServerFn({ method: "POST" })
   .validator(
-    (input: {
-      name: string;
-      email: string;
-      message: string;
-      website?: string;
-      desk?: boolean;
-      matter?: string;
-    }) => input,
+    (
+      input: {
+        name: string;
+        email: string;
+        message: string;
+        website?: string;
+        desk?: boolean;
+        matter?: string;
+      } & ServiceIntake,
+    ) => input,
   )
   .handler(async ({ data }) => {
     if (str(data.website, 200).trim()) return { ok: true as const };
@@ -246,6 +249,8 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
     const message = str(data.message, 6000).trim();
     const matter = serviceMatter(data.matter);
     const desk = data.desk === true || matter !== undefined;
+    const serviceIntake = desk ? { ok: true as const, summary: "" } : formatServiceIntake(data);
+    if (!serviceIntake.ok) return { ok: false as const, error: serviceIntake.error };
     if (name.length < 2 || name.length > 160) {
       return { ok: false as const, error: "Enter the name we should use." };
     }
@@ -269,6 +274,7 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
       };
     }
     const subject = message.replace(/\s+/g, " ").slice(0, 90);
+    const serviceDetails = serviceIntake.summary;
     const source = desk
       ? "Source: vantage-ars.co.za customer service desk. No automated reply sent."
       : "Source: vantage-ars.co.za enquiry form. No automated reply sent.";
@@ -276,7 +282,7 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
       channel: "web",
       companyName: name,
       subject,
-      summary: `Email: ${email}\n${source}${matter ? `\nMatter: ${matter}` : ""}\n\n${message}`,
+      summary: `Email: ${email}\n${source}${matter ? `\nMatter: ${matter}` : ""}${serviceDetails ? `\n${serviceDetails}` : ""}\n\n${message}`,
       intent: desk ? "support" : "enquiry",
     });
     const snapshot = await readSnapshot();
@@ -295,7 +301,7 @@ export const submitPublicEnquiry = createServerFn({ method: "POST" })
           email,
           subject,
           desk,
-          excerpt: message,
+          excerpt: serviceDetails ? `${serviceDetails}\n\n${message}` : message,
         }),
       );
     } catch {

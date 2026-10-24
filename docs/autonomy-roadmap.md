@@ -7,16 +7,16 @@ wording — each claim names the check that proved it.
 
 ## Verified running today
 
-| System | Evidence | Result |
-| ------ | -------- | ------ |
-| Autonomy engine (nine agents, durable queue, founder gates, delegation, hash-chained audit) | `npm test` + `npm run verify:office` | 231/231 checks passed, no mocks, no sample data |
-| Neon database | connectivity check against the pooled host | PostgreSQL 18.6 answered; `scripts/migrate.mjs` reports up to date — 16 migrations applied |
-| Production site | `GET https://www.vantage-ars.co.za/` and `/api/health` | both 200; health reports `state: operational`, records and decision-record integrity ok |
-| Cron endpoint guard | `GET /api/cron/floor` without a bearer token | 401 Unauthorized — the endpoint only acts with `CRON_SECRET` |
-| Self-nudge | `src/routes/api/health.ts`, `src/routes/api/site-signal.ts` | both call `nudgeScheduler`, so any health probe or real page view starts a catch-up tick when the last one is stale |
-| GitHub Actions heartbeat | `.github/workflows/office-scheduler.yml` | every 10 minutes, `CRON_SECRET` as a repository secret, loud errors on 401/404/500 |
-| Docker + systemd paths | `docker-compose.yml` (scheduler sidecar), `deploy/systemd/` (service + 10-minute timer) | committed; no external monitor needed on those targets |
-| Cloudflare Worker (D1 + Workers AI + durable workflows, crons every 15 min) | `workers/vantage-ars/wrangler.toml` | config is real and account-bound; deploys via `deploy-vantage-ars.yml` |
+| System                                                                                      | Evidence                                                                                | Result                                                                                                              |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Autonomy engine (nine agents, durable queue, founder gates, delegation, hash-chained audit) | `npm test` + `npm run verify:office`                                                    | 231/231 checks passed, no mocks, no sample data                                                                     |
+| Neon database                                                                               | connectivity check against the pooled host                                              | PostgreSQL 18.6 answered; `scripts/migrate.mjs` reports up to date — 16 migrations applied                          |
+| Production site                                                                             | `GET https://www.vantage-ars.co.za/` and `/api/health`                                  | both 200; health reports `state: operational`, records and decision-record integrity ok                             |
+| Cron endpoint guard                                                                         | `GET /api/cron/floor` without a bearer token                                            | 401 Unauthorized — the endpoint only acts with `CRON_SECRET`                                                        |
+| Self-nudge                                                                                  | `src/routes/api/health.ts`, `src/routes/api/site-signal.ts`                             | both call `nudgeScheduler`, so any health probe or real page view starts a catch-up tick when the last one is stale |
+| GitHub Actions heartbeat                                                                    | `.github/workflows/office-scheduler.yml`                                                | every 10 minutes, `CRON_SECRET` as a repository secret, loud errors on 401/404/500                                  |
+| Docker + systemd paths                                                                      | `docker-compose.yml` (scheduler sidecar), `deploy/systemd/` (service + 10-minute timer) | committed; no external monitor needed on those targets                                                              |
+| Cloudflare Worker (D1 + Workers AI + durable workflows, crons every 15 min)                 | `workers/vantage-ars/wrangler.toml`                                                     | config is real and account-bound; deploys via `deploy-vantage-ars.yml`                                              |
 
 ## The increments, in order
 
@@ -59,7 +59,7 @@ while Vercel serves the domain — see the comment in `wrangler.toml`).
 
 ### 4. Reaching customers (optional, already built)
 
-- Mail: `GMAIL_SMTP_USER` + `GMAIL_SMTP_APP_PASSWORD` (Gmail app password).
+- Mail: verified implicit-TLS SMTP settings (`SMTP_*`). Legacy Gmail app-password settings remain a fallback.
   Without them every notice is still recorded in the office and read there.
 - Founder notices on a second channel: `FOUNDER_WEBHOOK_URL` (Slack/Discord).
 - Bank details on quotes/invoices: the five `PAYMENT_*` values, all or none.

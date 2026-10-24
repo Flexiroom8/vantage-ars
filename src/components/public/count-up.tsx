@@ -22,20 +22,21 @@ export function CountUp({
   className?: string;
 }) {
   const { ref, inView } = useInView<HTMLSpanElement>();
-  const [shown, setShown] = useState(0);
+  const [shown, setShown] = useState(value);
   const started = useRef(false);
 
   useEffect(() => {
     if (!inView || started.current) return;
     started.current = true;
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
-      const frame = requestAnimationFrame(() => setShown(value));
-      return () => cancelAnimationFrame(frame);
-    }
-    const start = performance.now();
     let raf = 0;
+    if (reduced) {
+      raf = requestAnimationFrame(() => setShown(value));
+      return () => cancelAnimationFrame(raf);
+    }
+    let start: number | null = null;
     const tick = (now: number) => {
+      start ??= now;
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
       setShown(value * eased);

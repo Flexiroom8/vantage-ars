@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { PUBLIC_EMAIL } from "@/lib/office/company";
 import { pageHead, businessJsonLd } from "@/lib/site/seo";
 import { PublicFrame } from "@/components/public/site-frame";
-import { COMPANY } from "@/lib/office/company";
 
 export const Route = createFileRoute("/privacy")({
   head: () => {
@@ -39,7 +39,7 @@ const POINTS = [
   },
   {
     title: "Your rights",
-    body: `Access, correction or deletion: email ${COMPANY.email}. South African POPIA rights apply alongside any other applicable rights.`,
+    body: `Access, correction or deletion: email ${PUBLIC_EMAIL}. South African POPIA rights apply alongside any other applicable rights.`,
   },
 ];
 

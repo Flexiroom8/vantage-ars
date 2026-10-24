@@ -60,6 +60,23 @@ const PAGES: SearchItem[] = [
     keywords: ["assessment", "readiness", "IT review", "business continuity", "risk"],
   },
   {
+    id: "page-email-auth-check",
+    title: "Email authentication DNS check",
+    description: "Check public SPF, DKIM and DMARC DNS records for a domain.",
+    href: "/tools/email-auth",
+    kind: "page",
+    keywords: ["SPF", "DKIM", "DMARC", "email deliverability", "DNS diagnostic"],
+  },
+  {
+    id: "page-network-path-check",
+    title: "Browser network-path check",
+    description:
+      "Gather browser WebRTC ICE candidates through a public STUN server. Does not test SIP ALG or call quality.",
+    href: "/tools/network-path",
+    kind: "page",
+    keywords: ["NAT", "STUN", "WebRTC", "SIP ALG", "VoIP network diagnostic"],
+  },
+  {
     id: "page-automation",
     title: "AI automation opportunity assessment",
     description:

@@ -7,12 +7,12 @@ deploy target, and the one decision that stays yours.
 
 ## The four switches
 
-| # | Switch            | Where                                  | Effect                                                                                              |
-| - | ----------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| 1 | `AUTONOMY=on`     | `.env` / host environment              | Arms the scheduled floor run. Anything else and `/api/cron/floor` returns 404; only the button works. |
-| 2 | `CRON_SECRET`     | `.env` (or host env) **and** GitHub Actions repository secret | The bearer token the tick must present. 16+ random characters.               |
-| 3 | Founder account   | `/office` → "First-time founder setup" | Opens the office. Needs `FOUNDER_SETUP_TOKEN` set once, removed after.                              |
-| 4 | Standing delegation | `/office/delegations`                | The only switch that is in the app, not in git: it lets agents act at the gates without asking each time. |
+| #   | Switch              | Where                                                         | Effect                                                                                                    |
+| --- | ------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1   | `AUTONOMY=on`       | `.env` / host environment                                     | Arms the scheduled floor run. Anything else and `/api/cron/floor` returns 404; only the button works.     |
+| 2   | `CRON_SECRET`       | `.env` (or host env) **and** GitHub Actions repository secret | The bearer token the tick must present. 16+ random characters.                                            |
+| 3   | Founder account     | `/office` → "First-time founder setup"                        | Opens the office. Needs `FOUNDER_SETUP_TOKEN` set once, removed after.                                    |
+| 4   | Standing delegation | `/office/delegations`                                         | The only switch that is in the app, not in git: it lets agents act at the gates without asking each time. |
 
 Generate both secrets in one line:
 
@@ -103,30 +103,33 @@ block, it cannot widen an agent's role, permit an unpublished price or a
 promise to a customer, and it does not survive a halt. Every action taken under
 one is written into the audit chain against the delegation that allowed it.
 
-Mail, if you want the office to reach customers: `GMAIL_SMTP_USER` and
-`GMAIL_SMTP_APP_PASSWORD` (Gmail → Security → 2-Step Verification → App
-passwords). Without them nothing is emailed; every notice is still recorded in
-the office and read there. Add `FOUNDER_WEBHOOK_URL` (Slack or Discord webhook)
-for founder notices on a second channel.
+Mail, if you want the office to reach customers: configure `SMTP_HOST`,
+`SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASSWORD` and a provider-verified
+`SMTP_FROM`. Publish the provider's SPF and DKIM DNS records first. A legacy
+Gmail fallback remains available with `GMAIL_SMTP_USER` and
+`GMAIL_SMTP_APP_PASSWORD`, but it sends from the Gmail account. Without mail
+settings nothing is emailed; every notice is still recorded in the office.
+Add `FOUNDER_WEBHOOK_URL` (Slack or Discord webhook) for founder notices on a
+second channel.
 
 ## Verify
 
-| Check         | Command / URL                                                              | Expected                                        |
-| ------------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
-| Local proof   | `npm run verify:office`                                                     | 231 checks pass, no mocks                        |
-| Health        | `GET /api/health`                                                           | 200, `"scheduler": { "overdue": false }`         |
-| Public status | `/status`                                                                   | five lines, founder control intact               |
-| Office        | `/office`                                                                   | duties with next-due times, live queue           |
-| Tick          | GitHub → Actions → office-scheduler, or `docker compose logs -f scheduler` | a tick every ~10 minutes, HTTP 200               |
+| Check         | Command / URL                                                              | Expected                                 |
+| ------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| Local proof   | `npm run verify:office`                                                    | 231 checks pass, no mocks                |
+| Health        | `GET /api/health`                                                          | 200, `"scheduler": { "overdue": false }` |
+| Public status | `/status`                                                                  | five lines, founder control intact       |
+| Office        | `/office`                                                                  | duties with next-due times, live queue   |
+| Tick          | GitHub → Actions → office-scheduler, or `docker compose logs -f scheduler` | a tick every ~10 minutes, HTTP 200       |
 
 ## Troubleshooting
 
-| Symptom                                        | Cause                                          | Fix                                                                                |
-| ---------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Actions run fails with 401                     | Repo secret does not match host `CRON_SECRET`  | Update one of them                                                                   |
-| 404 with "Autonomy is not on." in the body     | `AUTONOMY` is not `on` in production           | Set it and redeploy                                                                  |
-| 404 on the endpoint, body not about autonomy   | Deployment stale                               | Redeploy main                                                                        |
-| 500                                            | Circuit breaker engaged after repeated failures| Inspect `/office`, fix the cause, redrive from there (redrive is a founder action)   |
-| Ticks sparse on GitHub                         | Best-effort cron on quiet repositories         | Rely on the self-nudge, the Docker sidecar, the systemd timer, or an uptime monitor on `/api/health` |
-| Nothing ever reaches a customer                | No delegation, or none allowing mail           | Save a delegation at `/office/delegations` that allows mail                          |
-| Founder signed out after every restart         | `BETTER_AUTH_SECRET` unset in production       | Set it — every cold start otherwise mints a new secret and signs you out             |
+| Symptom                                      | Cause                                           | Fix                                                                                                  |
+| -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Actions run fails with 401                   | Repo secret does not match host `CRON_SECRET`   | Update one of them                                                                                   |
+| 404 with "Autonomy is not on." in the body   | `AUTONOMY` is not `on` in production            | Set it and redeploy                                                                                  |
+| 404 on the endpoint, body not about autonomy | Deployment stale                                | Redeploy main                                                                                        |
+| 500                                          | Circuit breaker engaged after repeated failures | Inspect `/office`, fix the cause, redrive from there (redrive is a founder action)                   |
+| Ticks sparse on GitHub                       | Best-effort cron on quiet repositories          | Rely on the self-nudge, the Docker sidecar, the systemd timer, or an uptime monitor on `/api/health` |
+| Nothing ever reaches a customer              | No delegation, or none allowing mail            | Save a delegation at `/office/delegations` that allows mail                                          |
+| Founder signed out after every restart       | `BETTER_AUTH_SECRET` unset in production        | Set it — every cold start otherwise mints a new secret and signs you out                             |

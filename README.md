@@ -156,24 +156,27 @@ no sample data. If autonomy breaks, this fails.
 
 Everything is in [`.env.example`](.env.example). The ones that matter:
 
-| Variable                                                        | Purpose                                                                              |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `DATABASE_URL`                                                  | Postgres (Neon). Migrations run during `npm run build`. Unset means embedded PGLite. |
-| `PGLITE_DATA_DIR`                                               | With PGLite, keep data here. Unset means in-memory, lost on restart.                 |
-| `BETTER_AUTH_URL`                                               | The public URL.                                                                      |
-| `BETTER_AUTH_SECRET`                                            | A long random secret (`openssl rand -base64 32`). Required in production.            |
-| `FOUNDER_SETUP_TOKEN`                                           | One-time code for creating the founder account. Remove it afterwards.                |
-| `FOUNDER_EMAIL`                                                 | The only account allowed into the office.                                            |
-| `AUTONOMY`                                                      | `on` lets the office act unattended. Anything else and only the button works.        |
-| `CRON_SECRET`                                                   | Bearer token the scheduler must present. 16+ characters.                             |
-| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`                    | Founder notices.                                                                     |
-| `FOUNDER_WEBHOOK_URL`                                           | Optional HTTPS webhook for the same founder notices (Slack, Discord or generic).     |
-| `PAYMENT_*`                                                     | Bank details on the site and quotes.                                                 |
-| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY` | AI staff reasoning. Every autonomous duty works without it.                          |
+| Variable                                                            | Purpose                                                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                                                      | Postgres (Neon). Migrations run during `npm run build`. Unset means embedded PGLite. |
+| `PGLITE_DATA_DIR`                                                   | With PGLite, keep data here. Unset means in-memory, lost on restart.                 |
+| `BETTER_AUTH_URL`                                                   | The public URL.                                                                      |
+| `BETTER_AUTH_SECRET`                                                | A long random secret (`openssl rand -base64 32`). Required in production.            |
+| `FOUNDER_SETUP_TOKEN`                                               | One-time code for creating the founder account. Remove it afterwards.                |
+| `FOUNDER_EMAIL`                                                     | The only account allowed into the office.                                            |
+| `AUTONOMY`                                                          | `on` lets the office act unattended. Anything else and only the button works.        |
+| `CRON_SECRET`                                                       | Bearer token the scheduler must present. 16+ characters.                             |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional outbound mail over implicit TLS (port 465); use a provider-verified sender. |
+| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`                        | Legacy Gmail fallback; messages use the Gmail account as sender.                     |
+| `FOUNDER_WEBHOOK_URL`                                               | Optional HTTPS webhook for the same founder notices (Slack, Discord or generic).     |
+| `PAYMENT_*`                                                         | Bank details on the site and quotes.                                                 |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` / `XAI_API_KEY`     | AI staff reasoning. Every autonomous duty works without it.                          |
 
 Nothing new is needed for the delegation or the productised services. A
-delegation is set inside the office, and customer email uses the same
-`GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD` as founder notices.
+delegation is set inside the office. Generic SMTP supports a verified
+`hello@vantage-ars.co.za` sender; the legacy Gmail fallback continues to send
+from the configured Gmail account. Set up the provider mailbox and publish its
+SPF/DKIM records before switching the sender.
 
 ## Founder setup (once)
 

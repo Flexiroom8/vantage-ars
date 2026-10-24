@@ -18,45 +18,46 @@ Vercel → your project → **Settings → Environment Variables**. Add each one
 
 ### Required — the app will not boot without these
 
-| Variable | Value |
-| --- | --- |
-| `DATABASE_URL` | Your Neon connection string. Keep `?sslmode=require`. |
+| Variable             | Value                                                 |
+| -------------------- | ----------------------------------------------------- |
+| `DATABASE_URL`       | Your Neon connection string. Keep `?sslmode=require`. |
 | `BETTER_AUTH_SECRET` | `openssl rand -base64 32` — run it, paste the output. |
-| `BETTER_AUTH_URL` | `https://www.vantage-ars.co.za` |
-| `CRON_SECRET` | `openssl rand -hex 32` — a second, different secret. |
+| `BETTER_AUTH_URL`    | `https://www.vantage-ars.co.za`                       |
+| `CRON_SECRET`        | `openssl rand -hex 32` — a second, different secret.  |
 
 ### Required for the office to run by itself
 
-| Variable | Value |
-| --- | --- |
-| `AUTONOMY` | `on` |
+| Variable   | Value |
+| ---------- | ----- |
+| `AUTONOMY` | `on`  |
 
 Without `AUTONOMY=on` nothing is scheduled: the office only acts when you press
 **Run the floor**. With it on, the scheduler acts every ten minutes.
 
 ### Required to reach the office at all
 
-| Variable | Value |
-| --- | --- |
+| Variable        | Value                                                         |
+| --------------- | ------------------------------------------------------------- |
 | `FOUNDER_EMAIL` | Your email. This is the only account that can open `/office`. |
 
 Sign-up is closed to everyone else, permanently, in code — not by configuration.
 
 ### Recommended
 
-| Variable | Why |
-| --- | --- |
-| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` | Outbound mail. Founder notices and, under a delegation, customer quotes, diagnostic checklists, invoices, receipts and service reports. Without these the office still works; notices are recorded in the office and read there. `/api/health` will tell you mail is down. |
-| `PAYMENT_BANK_NAME`, `PAYMENT_ACCOUNT_NUMBER`, `PAYMENT_BRANCH_CODE`, `PAYMENT_BENEFICIARY`, `PAYMENT_SWIFT` | Bank details on quotes and invoices. All five or none — an incomplete set is treated as "not configured" rather than shown half-filled. |
-| `DATABASE_POOL_MAX` | Defaults to 4. Only raise it if Neon says you have connections to spare. |
+| Variable                                                                                                     | Why                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SMTP_HOST`, `SMTP_PORT=465`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`                                      | Optional outbound mail over implicit TLS. Use a verified sender and publish the provider's SPF/DKIM DNS records first. Partial settings fail closed. |
+| `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD`                                                                 | Legacy Gmail fallback when generic SMTP is unset; messages are sent from that Gmail account.                                                         |
+| `PAYMENT_BANK_NAME`, `PAYMENT_ACCOUNT_NUMBER`, `PAYMENT_BRANCH_CODE`, `PAYMENT_BENEFICIARY`, `PAYMENT_SWIFT` | Bank details on quotes and invoices. All five or none — an incomplete set is treated as "not configured" rather than shown half-filled.              |
+| `DATABASE_POOL_MAX`                                                                                          | Defaults to 4. Only raise it if Neon says you have connections to spare.                                                                             |
 
 ### Optional — only for the manual "brief an agent" panel
 
-| Variable | Why |
-| --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI. See `docs/cloudflare-workers-ai.md`. |
-| `XAI_API_KEY` | Or xAI instead. |
-| `GROK_OAUTH` | Set to `off` unless you want Google/X sign-in buttons. |
+| Variable                                        | Why                                                    |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI. See `docs/cloudflare-workers-ai.md`.       |
+| `XAI_API_KEY`                                   | Or xAI instead.                                        |
+| `GROK_OAUTH`                                    | Set to `off` unless you want Google/X sign-in buttons. |
 
 **The autonomous duties do not need any of these.** They decide from office
 records, not from a language model, which is exactly why they keep working when
@@ -64,8 +65,8 @@ the model provider is down.
 
 ### One-time, then remove
 
-| Variable | Why |
-| --- | --- |
+| Variable              | Why                                                                |
+| --------------------- | ------------------------------------------------------------------ |
 | `FOUNDER_SETUP_TOKEN` | `openssl rand -hex 16`. Needed only to create the founder account. |
 
 1. Deploy with it set.
@@ -96,12 +97,12 @@ Set it from `/office/delegations`, which is founder-only like the rest of the
 office. Nothing is delegated until you save a policy, and the four presets are
 starting points that only fill the form:
 
-| Preset | What it permits |
-| --- | --- |
-| Observe only | Nothing. Every action still stops at the founder gate. |
-| Deliver and tell the customer | The office may fulfil a productised service and email the customer the report. No selling, no money. |
-| Bill and collect | The office may invoice a customer whose work was accepted, email the invoice, and match an exact payment to it. |
-| Managed revenue | Everything above, plus selling the published managed plans to a real enquiry, starting a subscription, and ending one. |
+| Preset                        | What it permits                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Observe only                  | Nothing. Every action still stops at the founder gate.                                                                 |
+| Deliver and tell the customer | The office may fulfil a productised service and email the customer the report. No selling, no money.                   |
+| Bill and collect              | The office may invoice a customer whose work was accepted, email the invoice, and match an exact payment to it.        |
+| Managed revenue               | Everything above, plus selling the published managed plans to a real enquiry, starting a subscription, and ending one. |
 
 The caps are yours to set: the most any single action may be worth (R5,000.00
 by default), how many actions a day (20 by default) and how many a month (200
@@ -117,13 +118,13 @@ queued work that survives it, and no auto-approval waiting to fire.
 The delegation and the recurring-revenue book live in five tables, created by
 `migrations/0011_delegation.sql`:
 
-| Table | What it holds |
-| --- | --- |
-| `delegations` | The standing authority: the action kinds it covers, the published rate lines it may charge, the per-action cap, and the daily and monthly caps. One row. |
-| `delegation_usage` | One row per delegated action, so the caps are counted from records rather than from memory. |
-| `subscriptions` | A customer on a recurring plan: the plan, the price, the cycle, and the next billing instant. |
-| `billing_cycles` | One row per billing period of a subscription. The unique index on `(subscription_id, period_start)` is what stops a period being invoiced twice. |
-| `customer_notices` | Every email the office sent a customer, in full, with whether it was delivered. |
+| Table              | What it holds                                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `delegations`      | The standing authority: the action kinds it covers, the published rate lines it may charge, the per-action cap, and the daily and monthly caps. One row. |
+| `delegation_usage` | One row per delegated action, so the caps are counted from records rather than from memory.                                                              |
+| `subscriptions`    | A customer on a recurring plan: the plan, the price, the cycle, and the next billing instant.                                                            |
+| `billing_cycles`   | One row per billing period of a subscription. The unique index on `(subscription_id, period_start)` is what stops a period being invoiced twice.         |
+| `customer_notices` | Every email the office sent a customer, in full, with whether it was delivered.                                                                          |
 
 `npm run build` applies the pending migrations, so a deploy picks them up. The
 build runs `vite build && npm run db:migrate`, and the migrator applies each
@@ -210,7 +211,7 @@ watches the office and keeps its ten-minute cadence honest on free hosting tiers
 
 ## 9. Backups
 
-`/office` → **Governance** → **Audit** → *Download verified backup*. Take one
+`/office` → **Governance** → **Audit** → _Download verified backup_. Take one
 after the first real deal and then whenever you want a checkpoint.
 
 The export includes live customer quote links, so restoring it does not break an

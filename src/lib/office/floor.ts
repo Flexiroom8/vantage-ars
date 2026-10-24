@@ -1,3 +1,5 @@
+import { rateAmountLabel } from "./catalogue";
+
 export type FloorTask =
   | { kind: "organic_campaign" }
   | {
@@ -30,8 +32,8 @@ export function followUpLetter(companyName: string): string {
     `Hello ${name},`,
     "Vantage-ARS has your enquiry.",
     "This email is not a quote and it does not confirm scope or a start date.",
-    "Published labour, only if a later written quote uses it: remote R690 per hour, on-site R805 per hour.",
-    "A quote is sent only after it is approved. Managed support is not offered.",
+    `Published labour, only if a later written quote uses it: remote ${rateAmountLabel("remote-support")} per hour, on-site ${rateAmountLabel("onsite-support")} per hour.`,
+    `A quote is sent only after it is approved. The managed support plan is offered at ${rateAmountLabel("managed-support")} per month, remote only, with no uptime promise.`,
   ].join("\n");
 }
 

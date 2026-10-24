@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { submitPublicEnquiry } from "@/lib/office/api";
 import { FormConfirmation } from "@/components/public/form-confirmation";
@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SERVICE_PAGES } from "@/lib/site/services";
+import { DIAGNOSTIC_DRAFT_KEY } from "@/lib/site/email-auth-check";
+import { NETWORK_DIAGNOSTIC_DRAFT_KEY } from "@/lib/site/network-path-check";
 
 export type EnquiryFormProps = {
   /** When true, the enquiry is marked as a desk ticket (support page). */
@@ -66,7 +69,36 @@ export function EnquiryForm({
     message: "",
     website: "",
     matter: initialMatter,
+    serviceLine: "",
+    pbxModel: "",
+    sipProvider: "",
+    routerModel: "",
+    startedAt: "",
   });
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      try {
+        const diagnostics = [DIAGNOSTIC_DRAFT_KEY, NETWORK_DIAGNOSTIC_DRAFT_KEY]
+          .map((key) => {
+            const value = window.sessionStorage.getItem(key);
+            if (value) window.sessionStorage.removeItem(key);
+            return value;
+          })
+          .filter((value): value is string => Boolean(value));
+        if (!diagnostics.length) return;
+        setForm((current) => ({
+          ...current,
+          message: `${diagnostics.join("\n\n")}\n\n${current.message}`.slice(0, messageMaxLength),
+        }));
+      } catch {
+        setError(
+          "This browser blocked the saved diagnostic. Return to the checker and copy its result.",
+        );
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messageMaxLength]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -76,7 +108,18 @@ export function EnquiryForm({
 
     try {
       const result = await submitPublicEnquiry({
-        data: { ...form, ...(desk ? { desk: true } : {}) },
+        data: {
+          ...form,
+          ...(desk
+            ? { desk: true }
+            : {
+                serviceLine: form.serviceLine || undefined,
+                pbxModel: form.pbxModel || undefined,
+                sipProvider: form.sipProvider || undefined,
+                routerModel: form.routerModel || undefined,
+                startedAt: form.startedAt || undefined,
+              }),
+        },
       });
 
       if (!result.ok) {
@@ -102,7 +145,7 @@ export function EnquiryForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
+    <form id="enquiry-form" onSubmit={onSubmit} className="glass space-y-4 rounded-2xl p-5">
       <div>
         <Label htmlFor="enquiry-name">Your name</Label>
         <Input
@@ -144,6 +187,72 @@ export function EnquiryForm({
               </option>
             ))}
           </Select>
+        </div>
+      )}
+      {!desk && (
+        <div>
+          <Label htmlFor="enquiry-service-line">Service line</Label>
+          <Select
+            id="enquiry-service-line"
+            className="mt-2"
+            value={form.serviceLine}
+            onChange={(event) => setForm({ ...form, serviceLine: event.target.value })}
+          >
+            <option value="">Not sure yet</option>
+            {SERVICE_PAGES.map((page) => (
+              <option key={page.slug} value={page.slug}>
+                {page.title}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
+      {!desk && form.serviceLine === "voip" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="enquiry-pbx-model">PBX model (if known)</Label>
+            <Input
+              id="enquiry-pbx-model"
+              className="mt-2"
+              maxLength={160}
+              value={form.pbxModel}
+              onChange={(event) => setForm({ ...form, pbxModel: event.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="enquiry-sip-provider">SIP provider (if known)</Label>
+            <Input
+              id="enquiry-sip-provider"
+              className="mt-2"
+              maxLength={160}
+              value={form.sipProvider}
+              onChange={(event) => setForm({ ...form, sipProvider: event.target.value })}
+            />
+          </div>
+        </div>
+      )}
+      {!desk && form.serviceLine === "networking" && (
+        <div>
+          <Label htmlFor="enquiry-router-model">Router model (if known)</Label>
+          <Input
+            id="enquiry-router-model"
+            className="mt-2"
+            maxLength={160}
+            value={form.routerModel}
+            onChange={(event) => setForm({ ...form, routerModel: event.target.value })}
+          />
+        </div>
+      )}
+      {!desk && (
+        <div>
+          <Label htmlFor="enquiry-started-at">When did it start? (if known)</Label>
+          <Input
+            id="enquiry-started-at"
+            className="mt-2"
+            maxLength={160}
+            value={form.startedAt}
+            onChange={(event) => setForm({ ...form, startedAt: event.target.value })}
+          />
         </div>
       )}
       <div>

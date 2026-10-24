@@ -7,17 +7,17 @@ import { postFounderWebhook } from "./webhook";
 
 export async function deliverFounderNotice(notice: FounderNotice): Promise<void> {
   let mailOk = false;
-  let mailDetail = "Gmail SMTP is not connected. No mail was sent.";
+  let mailDetail = "SMTP is not configured. No mail was sent.";
   try {
     const result = await sendFounderMail(notice.subject, notice.body);
     if (result.ok) {
       mailOk = true;
-      mailDetail = "Sent through Gmail SMTP.";
+      mailDetail = "Sent through SMTP.";
     } else if (result.error) {
       mailDetail = result.error;
     }
   } catch {
-    mailDetail = "Gmail SMTP could not be reached. No mail was sent.";
+    mailDetail = "SMTP could not be reached. No mail was sent.";
   }
 
   const webhook = env("FOUNDER_WEBHOOK_URL")

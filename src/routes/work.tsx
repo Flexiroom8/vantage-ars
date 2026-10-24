@@ -9,7 +9,7 @@ export const Route = createFileRoute("/work")({
     const head = pageHead({
       title: "Selected work · Vantage-ARS",
       description:
-        "How Vantage-ARS works: diagnose remotely first, quote in writing, configure and test. Remote worldwide, on-site by arrangement.",
+        "How Vantage-ARS works: diagnose remotely first, quote in writing, configure and test. No anonymised case notes are published until real outcomes can be verified.",
       path: "/work",
     });
 
@@ -74,6 +74,23 @@ function WorkPage() {
             <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
           </div>
         ))}
+      </section>
+
+      <section className="border-t border-border py-16" aria-labelledby="case-notes-heading">
+        <p className="font-mono text-xs tracking-[0.18em] text-accent uppercase">Evidence first</p>
+        <h2
+          id="case-notes-heading"
+          className="mt-3 font-serif text-4xl tracking-[-0.03em] sm:text-5xl"
+        >
+          Verified case notes
+        </h2>
+        <div className="panel mt-6 max-w-3xl rounded-2xl p-6 sm:p-8">
+          <p className="text-sm leading-relaxed text-muted">
+            No anonymised case notes are published yet. We will add them only when the job records
+            support the measured outcome and the customer has authorised publication. We will not
+            present example scenarios as completed work.
+          </p>
+        </div>
       </section>
 
       <section className="border-t border-border py-16">

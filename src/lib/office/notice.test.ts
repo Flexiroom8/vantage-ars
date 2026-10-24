@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { PUBLIC_EMAIL } from "./company.ts";
 import { FOUNDER_EMAIL, founderApprovalNotice, founderEnquiryNotice } from "./notice.ts";
 
 describe("founder email", () => {
@@ -12,6 +13,7 @@ describe("founder email", () => {
       excerpt: "The phone is down.",
     });
     assert.equal(FOUNDER_EMAIL, "juanlouw.greyling@gmail.com");
+    assert.equal(PUBLIC_EMAIL, "hello@vantage-ars.co.za");
     assert.equal(notice.subject.includes("\n"), false);
     assert.equal(notice.body.includes("No email was sent to the customer."), true);
     assert.equal(notice.body.includes("Their email: ada@example.com"), true);

@@ -48,8 +48,9 @@ function TermsPage() {
 
         <div className="panel mt-8 rounded-2xl p-6">
           <p className="text-sm leading-relaxed text-muted">
-            Work starts only from a written quote that names the scope, timing, and total price.
-            This keeps the job clear before any paid work begins.
+            This page is a public price and process summary, not a complete services agreement. Work
+            starts only after a written quote naming its scope, timing and total is accepted. That
+            quote does not turn this summary into a full set of contractual terms.
           </p>
         </div>
 

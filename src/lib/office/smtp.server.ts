@@ -2,57 +2,55 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { connect as connectTls, type TLSSocket } from "node:tls";
 import { FOUNDER_EMAIL } from "./notice";
+import {
+  genericSmtpConfig,
+  gmailSmtpConfig,
+  hasGenericSmtpSettings,
+  type SmtpConfig,
+} from "./smtp-config";
 import { smtpData } from "./smtp-message";
 
-const HOST = "smtp.gmail.com";
-const PORT = 465;
-
-type SmtpConfig = { user: string; password: string };
-
-function cleanPassword(value: string | undefined): string {
-  return (value ?? "").replace(/\s+/g, "");
-}
-
 export function loadSmtpConfig(): SmtpConfig | null {
-  const envUser = process.env.GMAIL_SMTP_USER?.trim() ?? "";
-  const envPass = cleanPassword(process.env.GMAIL_SMTP_APP_PASSWORD);
-  if (envUser.includes("@") && envPass.length >= 8) return { user: envUser, password: envPass };
+  if (hasGenericSmtpSettings(process.env)) return genericSmtpConfig(process.env);
+  const gmail = gmailSmtpConfig(process.env.GMAIL_SMTP_USER, process.env.GMAIL_SMTP_APP_PASSWORD);
+  if (gmail) return gmail;
   try {
     const raw = readFileSync(join(process.cwd(), ".grok", "gmail-smtp.json"), "utf8");
     const parsed = JSON.parse(raw) as { user?: unknown; appPassword?: unknown };
-    const user = typeof parsed.user === "string" ? parsed.user.trim() : "";
-    const password =
-      typeof parsed.appPassword === "string" ? cleanPassword(parsed.appPassword) : "";
-    if (user.includes("@") && password.length >= 8) return { user, password };
+    return gmailSmtpConfig(
+      typeof parsed.user === "string" ? parsed.user : undefined,
+      typeof parsed.appPassword === "string" ? parsed.appPassword : undefined,
+    );
   } catch {
     return null;
   }
-  return null;
 }
 
-/** Where the mail credentials come from. "env" is the safe place; the JSON file is a legacy fallback. */
+/** Where the mail credentials come from. The JSON file is a legacy fallback. */
 export function smtpCredentialSource(): "env" | "file" | "none" {
-  const envUser = process.env.GMAIL_SMTP_USER?.trim() ?? "";
-  const envPass = cleanPassword(process.env.GMAIL_SMTP_APP_PASSWORD);
-  if (envUser.includes("@") && envPass.length >= 8) return "env";
+  if (hasGenericSmtpSettings(process.env)) {
+    return genericSmtpConfig(process.env) ? "env" : "none";
+  }
+  if (gmailSmtpConfig(process.env.GMAIL_SMTP_USER, process.env.GMAIL_SMTP_APP_PASSWORD))
+    return "env";
   return loadSmtpConfig() ? "file" : "none";
 }
 
 export function smtpStatus(): { smtpConnected: boolean; account: string | null } {
   const config = loadSmtpConfig();
-  return { smtpConnected: Boolean(config), account: config?.user ?? null };
+  return { smtpConnected: Boolean(config), account: config?.from ?? null };
 }
 
 function publicError(error: unknown, password: string): string {
-  const raw = error instanceof Error ? error.message : "Gmail SMTP could not be reached.";
+  const raw = error instanceof Error ? error.message : "SMTP could not be reached.";
   const text = raw.replace(password, "").replace(/\s+/g, " ").trim();
   if (/535|534|534-5\.7|535-5\.7|badcredentials|username and password not accepted/i.test(text)) {
-    return "Gmail rejected the app password. The customer was not emailed.";
+    return "SMTP rejected the credentials. The customer was not emailed.";
   }
   if (text.startsWith("4") || text.startsWith("5")) {
-    return "Gmail refused the message. The customer was not emailed.";
+    return "SMTP refused the message. The customer was not emailed.";
   }
-  return (text || "Gmail SMTP could not be reached.").slice(0, 180);
+  return (text || "SMTP could not be reached.").slice(0, 180);
 }
 
 export async function sendFounderMail(
@@ -79,9 +77,8 @@ async function sendMail(
   body: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const config = loadSmtpConfig();
-  if (!config)
-    return { ok: false, error: "Gmail SMTP is not connected. The customer was not emailed." };
-  const payload = smtpData({ from: config.user, to, subject, body });
+  if (!config) return { ok: false, error: "SMTP is not configured. The customer was not emailed." };
+  const payload = smtpData({ from: config.from, to, subject, body });
   try {
     await smtpSend(config, to, payload);
     return { ok: true };
@@ -100,7 +97,11 @@ function smtpSend(config: SmtpConfig, to: string, payload: string): Promise<void
       if (error) reject(error);
       else resolve();
     };
-    const socket: TLSSocket = connectTls({ host: HOST, port: PORT, servername: HOST });
+    const socket: TLSSocket = connectTls({
+      host: config.host,
+      port: config.port,
+      servername: config.host,
+    });
     const queued: string[] = [];
     const waiting: Array<(line: string) => void> = [];
     let buffer = "";
@@ -112,7 +113,7 @@ function smtpSend(config: SmtpConfig, to: string, payload: string): Promise<void
         else waiting.push(resolveLine);
       });
 
-    socket.setTimeout(15000, () => finish(new Error("Gmail SMTP timed out.")));
+    socket.setTimeout(15000, () => finish(new Error("SMTP timed out.")));
     socket.on("error", (error) => finish(error));
     socket.on("data", (chunk) => {
       buffer += chunk.toString("utf8");
@@ -149,7 +150,7 @@ function smtpSend(config: SmtpConfig, to: string, payload: string): Promise<void
         await expect("334");
         write(Buffer.from(config.password).toString("base64"));
         await expect("235");
-        write(`MAIL FROM:<${config.user}>`);
+        write(`MAIL FROM:<${config.from}>`);
         await expect("250");
         write(`RCPT TO:<${to}>`);
         await expect("250");
@@ -160,7 +161,7 @@ function smtpSend(config: SmtpConfig, to: string, payload: string): Promise<void
         write("QUIT");
         finish();
       } catch (error) {
-        finish(error instanceof Error ? error : new Error("Gmail SMTP failed."));
+        finish(error instanceof Error ? error : new Error("SMTP failed."));
       }
     })();
   });

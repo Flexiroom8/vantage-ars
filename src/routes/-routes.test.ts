@@ -28,6 +28,8 @@ const EXPECTED: Record<string, string> = {
   "status.tsx": '"/status"',
   "support.tsx": '"/support"',
   "terms.tsx": '"/terms"',
+  "tools.email-auth.tsx": '"/tools/email-auth"',
+  "tools.network-path.tsx": '"/tools/network-path"',
   "work.tsx": '"/work"',
 };
 
@@ -55,6 +57,24 @@ describe("route files declare their own path", () => {
     const source = readFileSync(join(here, "../components/public/site-frame.tsx"), "utf8");
     assert.ok(source.includes("export function PublicFrame"));
     assert.ok(!source.includes("createFileRoute"));
+  });
+
+  it("does not imply unverified work or active infrastructure automation", () => {
+    const work = readFileSync(join(here, "work.tsx"), "utf8");
+    const model = readFileSync(join(here, "model.tsx"), "utf8");
+    assert.ok(work.includes("No anonymised case notes are published yet."));
+    assert.ok(work.includes("present example scenarios as completed work."));
+    assert.ok(
+      model.includes("Live monitoring and automated fault fixes are not currently offered."),
+    );
+    assert.ok(!model.includes("without a person in the loop"));
+  });
+
+  it("describes the network-path diagnostic without claiming SIP ALG or call-quality testing", () => {
+    const tool = readFileSync(join(here, "tools.network-path.tsx"), "utf8");
+    assert.ok(tool.includes("does not test SIP ALG, call quality, or packet loss."));
+    assert.ok(tool.includes("contacts Google’s STUN service"));
+    assert.ok(tool.includes("does not measure call quality, jitter or packet loss."));
   });
 
   it("ui button exports Button and contains no CSS", () => {
@@ -95,6 +115,7 @@ describe("route files declare their own path", () => {
     const json = JSON.parse(String(businessJsonLd().children));
     assert.equal(json.logo, "https://vantage-ars.co.za/favicon.svg");
     assert.equal(json["@type"], "ProfessionalService");
+    assert.equal(json.email, "hello@vantage-ars.co.za");
   });
 
   it("breadcrumbJsonLd numbers the trail from one and uses absolute URLs", () => {

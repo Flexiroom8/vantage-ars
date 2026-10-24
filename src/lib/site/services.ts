@@ -284,8 +284,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     number: "06",
     title: "Security & continuity",
     metaTitle: "Security baseline & continuity review · Vantage-ARS",
-    description:
-      "A written review of identity, email authentication, administrator access, endpoint protection and backup readiness. Fixed from R1,380, with no penetration testing.",
+    description: `A written review of identity, email authentication, administrator access, endpoint protection and backup readiness. Fixed ${rateAmountLabel("security-baseline")}, with no penetration testing.`,
     lead: "Most small offices do not need a security programme. They need to know which basic controls are missing, which ones are untested, and what to fix first. We review the controls we can see and write down the gaps.",
     symptoms: [
       "MFA is on for some accounts but nobody knows which",

@@ -1,4 +1,4 @@
-Contact: mailto:juanlouw.greyling@gmail.com
+Contact: mailto:hello@vantage-ars.co.za
 Expires: 2027-10-21T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://vantage-ars.co.za/.well-known/security.txt

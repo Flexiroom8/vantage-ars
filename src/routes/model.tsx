@@ -7,7 +7,7 @@ export const Route = createFileRoute("/model")({
     pageHead({
       title: "How the office runs · Vantage-ARS",
       description:
-        "Ten agents run the Vantage-ARS desk. A real enquiry can be quoted, accepted, invoiced and delivered without a person in the loop. Ending a subscription, spending money, and paying the founder still wait.",
+        "How ten software agents handle Vantage-ARS office workflows, and where customer infrastructure work still requires written scope. Live monitoring and automated fault fixes are not currently offered.",
       path: "/model",
     }),
   component: ModelPage,
@@ -37,6 +37,25 @@ const PATH = [
   ["Receipt", "Money is booked when it is confirmed, not when it is claimed."],
 ] as const;
 
+const AUTHORIZED_TIERS = [
+  {
+    title: "Observe · read-only",
+    body: "A possible future tier, not a service currently included or enabled. It would use outbound-only agents or approved vendor APIs to check SIP registration, synthetic calls, DNS and mail records, and read-only Microsoft or Google logs.",
+  },
+  {
+    title: "Diagnose · human reviewed",
+    body: "A possible future tier, not an automated diagnosis currently offered. An agent could match supplied evidence to reviewed runbooks, state its confidence and likely blast radius, and draft an explanation or quote. A person would review it before it reaches you.",
+  },
+  {
+    title: "Approved fixes · tested runbooks",
+    body: "A possible future tier requiring separate written, revocable authorisation for the named systems and actions. A person approves each change; tested code runs a named runbook, snapshots configuration first, checks the result, rolls back on failure, records an audit entry and can be stopped with a kill switch. The model never invents shell commands.",
+  },
+  {
+    title: "Standing auto-fix · narrow whitelist",
+    body: "Not available today. Any later version would require its own explicit written authorisation and could perform only named, reversible actions under daily caps, escalating after one failed attempt. It would first run in shadow mode; a runbook would need dozens of matching proposals with no harmful outcome before any promotion.",
+  },
+] as const;
+
 const ALONE = [
   "Open a sale for someone who wrote in.",
   "Quote a published rate and email that quote.",
@@ -57,19 +76,14 @@ const WAITS = [
 
 const ECOSYSTEM = [
   {
-    title: "The zero-employee operator",
+    title: "Bounded operational loops",
     summary:
-      "A founder-led business can still run like a larger company when the office handles qualification, follow-up, and recordkeeping without adding a traditional headcount.",
+      "An automated workflow can handle routine intake, follow-up and recordkeeping when its data access, limits and escalation path are explicit.",
   },
   {
-    title: "Anthropic-style micro-enterprise",
+    title: "Specialist roles and approvals",
     summary:
-      "A single autonomous machine can own a small operational loop — product requests, margin checks, inventory, and restocking — while a policy layer restricts it from going beyond its business rules.",
-  },
-  {
-    title: "Enterprise-style agent ecosystem",
-    summary:
-      "Salesforce, Databricks, and IBM-style agent stacks all share a pattern: specialist agents take work, hand it forward, and stop when a human approval or policy gate is required.",
+      "Specialist agents can pass work between defined roles and stop at a human approval or policy gate. The pattern is useful only when the controls are testable.",
   },
 ] as const;
 
@@ -139,7 +153,7 @@ function ModelPage() {
           This is the operating pattern that people mean when they talk about an AI-native company:
           specialist agents do the routine work, while the human founder stays in the approval lane.
         </p>
-        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 lg:grid-cols-2">
           {ECOSYSTEM.map((item) => (
             <article key={item.title} className="panel rounded-2xl p-6">
               <h3 className="font-serif text-2xl text-fg">{item.title}</h3>
@@ -147,6 +161,34 @@ function ModelPage() {
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="border-t border-border py-16" aria-labelledby="authorized-heading">
+        <h2 id="authorized-heading" className="font-serif text-4xl tracking-[-0.03em] sm:text-5xl">
+          A path to authorised fault work
+        </h2>
+        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-muted">
+          These are safeguards for a possible future service, not capabilities available today.
+          Every tier would require a separate written authorisation naming its scope; customers
+          could revoke it. Current plans do not include live monitoring or system changes. There is
+          no uptime promise.
+        </p>
+        <ol className="mt-8 grid gap-4 md:grid-cols-2">
+          {AUTHORIZED_TIERS.map((tier, index) => (
+            <li key={tier.title} className="panel rounded-2xl p-6">
+              <p className="font-mono text-xs text-accent">
+                TIER {String(index + 1).padStart(2, "0")}
+              </p>
+              <h3 className="mt-3 font-serif text-2xl">{tier.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{tier.body}</p>
+            </li>
+          ))}
+        </ol>
+        <p className="mt-5 text-sm leading-relaxed text-muted">
+          Any implementation would keep credentials outside the model, using scoped, short-lived
+          tokens from a vault. The honest boundary is: autonomous only inside written authorisation;
+          no uptime promise.
+        </p>
       </section>
 
       <section className="border-t border-border py-16" aria-labelledby="gates-heading">

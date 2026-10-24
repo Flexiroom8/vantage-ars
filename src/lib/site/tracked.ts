@@ -32,6 +32,8 @@ export const TRACKED_PATHS = [
   "/guides/wifi-drops",
   "/guides/change-without-rollback",
   "/guides/prepare-for-remote-support",
+  "/tools/email-auth",
+  "/tools/network-path",
 ] as const;
 
 const TRACKED = new Set<string>(TRACKED_PATHS);

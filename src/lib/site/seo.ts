@@ -1,4 +1,4 @@
-import { COMPANY } from "@/lib/office/company";
+import { COMPANY, PUBLIC_EMAIL } from "@/lib/office/company";
 import { PUBLISHED_RATES, ratePriceValue } from "@/lib/office/catalogue";
 
 export const SITE_URL = `https://${COMPANY.domain}`;
@@ -68,7 +68,7 @@ export function businessJsonLd() {
     "@type": "ProfessionalService",
     name: COMPANY.tradingName,
     url: SITE_URL,
-    email: COMPANY.email,
+    email: PUBLIC_EMAIL,
     logo: `${SITE_URL}/favicon.svg`,
     image: `${SITE_URL}/og.jpg`,
     priceRange: "R690–R3,450",

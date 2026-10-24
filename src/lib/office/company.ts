@@ -16,6 +16,8 @@ export const COMPANY = {
   email: "juanlouw.greyling@gmail.com",
 };
 
+export const PUBLIC_EMAIL = `hello@${COMPANY.domain}`;
+
 export const GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
 
 /** Lower-cased company contact address; the office default login. */

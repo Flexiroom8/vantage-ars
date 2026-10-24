@@ -23,6 +23,8 @@
   <url><loc>https://vantage-ars.co.za/work</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://vantage-ars.co.za/model</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://vantage-ars.co.za/support</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/tools/email-auth</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://vantage-ars.co.za/tools/network-path</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://vantage-ars.co.za/status</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>
   <url><loc>https://vantage-ars.co.za/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://vantage-ars.co.za/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>

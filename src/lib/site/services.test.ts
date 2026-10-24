@@ -6,6 +6,7 @@ import { SERVICE_PAGES, servicePage } from "./services.ts";
 
 describe("published service catalogue", () => {
   it("keeps every service line paired with one public service page", () => {
+    assert.equal(SERVICE_LINES.length, 8);
     assert.equal(SERVICE_LINES.length, SERVICE_PAGES.length);
     for (const line of SERVICE_LINES) {
       assert.ok(
@@ -34,6 +35,11 @@ describe("published service catalogue", () => {
       assert.equal(line.price, displayPrice, title);
       assert.ok(line.price.includes(rate.price.replace(/ remote$/, "")), title);
     }
+
+    const security = servicePage("security");
+    assert.ok(security);
+    assert.ok(security.description.includes("Fixed R1,725"));
+    assert.ok(!security.description.includes("R1,380"));
   });
 
   it("publishes scoped AI automation engagements with real price references", () => {

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { WatchtowerMark } from "@/components/brand/mark";
-import { COMPANY } from "@/lib/office/company";
+import { PUBLIC_EMAIL } from "@/lib/office/company";
 import { formatNowClock } from "@/lib/office/money";
 import { LiveField } from "@/components/public/live-field";
 import { GlobeIcon, NoTiesIcon, QuoteIcon, SignalBars } from "@/components/public/motion-icons";
@@ -24,6 +24,7 @@ const exploreSections = [
     note: "Not sure what the fault is called? Begin with what you notice.",
     links: [
       { to: "/find", label: "Find the right service" },
+      { to: "/assess", label: "Assess IT readiness" },
       { to: "/support", label: "Ask the service desk" },
     ],
   },
@@ -35,6 +36,8 @@ const exploreSections = [
       { to: "/services", label: "Browse service lines" },
       { to: "/rates", label: "See published rates" },
       { to: "/automation", label: "Explore AI automation" },
+      { to: "/tools/email-auth", label: "Check email authentication" },
+      { to: "/tools/network-path", label: "Check a network path" },
     ],
   },
   {
@@ -388,6 +391,12 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             <Link to="/guides" className="text-muted transition-colors hover:text-fg">
               Guides
             </Link>
+            <Link to="/tools/email-auth" className="text-muted transition-colors hover:text-fg">
+              Email authentication check
+            </Link>
+            <Link to="/tools/network-path" className="text-muted transition-colors hover:text-fg">
+              Browser network-path check
+            </Link>
             <Link to="/support" className="text-muted transition-colors hover:text-fg">
               Service desk
             </Link>
@@ -406,9 +415,9 @@ export function PublicFrame({ children }: { children: ReactNode }) {
             <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-subtle">Contact</p>
             <a
               className="mt-2 block transition-colors hover:text-fg"
-              href={`mailto:${COMPANY.email}`}
+              href={`mailto:${PUBLIC_EMAIL}`}
             >
-              {COMPANY.email}
+              {PUBLIC_EMAIL}
             </a>
             <p className="mt-3">South African rand. A written quote before any work.</p>
             <Link

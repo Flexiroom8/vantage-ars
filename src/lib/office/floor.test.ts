@@ -37,6 +37,7 @@ describe("floor plan", () => {
     const letter = followUpLetter("Harbour");
     assert.equal(letter.includes("not a quote"), true);
     assert.equal(letter.includes("R690"), true);
+    assert.match(letter, /managed support plan is offered at R2,750 per month/);
     assert.equal(emailIn("Email: ada@harbour.example\n"), "ada@harbour.example");
     const fix = technicalFix("One-way audio on the handset.");
     assert.equal(fix.includes("SIP ALG"), true);

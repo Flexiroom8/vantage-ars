@@ -54,6 +54,7 @@ describe("website intake", () => {
     assert.equal(draft.includes("INTERNAL DRAFT"), true);
     assert.equal(draft.includes("has not been sent"), true);
     assert.equal(draft.includes(message), false);
+    assert.match(draft, /managed support plan is offered at R2,750 per month/);
     assert.equal(safePartyName(message), "the enquirer");
   });
 

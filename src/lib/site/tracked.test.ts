@@ -13,6 +13,10 @@ describe("tracked public pages", () => {
     assert.equal(isTrackedPage("/status"), true);
   });
 
+  it("tracks the email authentication diagnostic", () => {
+    assert.equal(isTrackedPage("/tools/email-auth"), true);
+  });
+
   it("normalises a query string and a fragment", () => {
     assert.equal(isTrackedPage("/rates?from=home#managed"), true);
     assert.equal(isTrackedPage("/"), true);

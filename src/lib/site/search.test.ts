@@ -76,6 +76,13 @@ describe("public site search", () => {
     );
   });
 
+  it("finds the browser network-path diagnostic", () => {
+    assert.equal(
+      searchSite("STUN NAT").some((item) => item.href === "/tools/network-path"),
+      true,
+    );
+  });
+
   it("finds an answer and a fixed page", () => {
     assert.equal(searchSite("vat").length > 0, true);
     assert.equal(

@@ -1,4 +1,5 @@
 import type { ProposedAction } from "./types";
+import { rateAmountLabel } from "./catalogue";
 
 const LINES: { id: string; title: string; words: string[] }[] = [
   {
@@ -188,8 +189,8 @@ export function acknowledgementDraft(input: {
     `Enquiry from ${input.party} on vantage-ars.co.za, record ${input.inboundId}.`,
     `Catalogue match: ${matched}.`,
     "No scope, date, or price is confirmed.",
-    "Published labour, only inside a later written quote: remote R690 per hour, on-site R805 per hour.",
-    "Managed support is not offered.",
+    `Published labour, only inside a later written quote: remote ${rateAmountLabel("remote-support")} per hour, on-site ${rateAmountLabel("onsite-support")} per hour.`,
+    `The managed support plan is offered at ${rateAmountLabel("managed-support")} per month, remote only, with no uptime promise.`,
   ].join(" ");
 }
 

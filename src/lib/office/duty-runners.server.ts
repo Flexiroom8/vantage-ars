@@ -26,6 +26,7 @@ import { heartbeat } from "./office-view.server";
 import { formatZar } from "./money";
 import { PRICE_GUIDE, rateCardIntegrity } from "./duties";
 import { COMPANY } from "./company";
+import { rateAmountLabel } from "./catalogue";
 import { planById } from "./plans";
 import { cycleWindow, nextCycleStart } from "./subscription";
 import { buildServiceReport, summariseService } from "./fulfilment";
@@ -548,7 +549,7 @@ const writeContentBrief: Runner = async (item, view) => {
     "",
     `Audience: an office or operator who runs real VoIP, networking and IT infrastructure and is tired of vague answers.`,
     `The page must earn its place by answering a question a buyer actually asks. It must not claim 24/7 cover, certifications, response times or a lowest price — ${COMPANY.legalName} cannot evidence those.`,
-    `It must quote only published labour: ${cheapest.price} (${cheapest.title}) and the rest of the rate card. Managed support is not offered and must not be implied.`,
+    `It must quote only published labour: ${cheapest.price} (${cheapest.title}) and the rest of the rate card. The managed support plan is offered at ${rateAmountLabel("managed-support")} per month, remote only; do not imply monitoring or uptime.`,
     "",
     untouched.length
       ? `Pages with no recorded traffic in this window: ${untouched.join(", ")}. Check whether they are unreachable, unlinked, or simply unwanted before writing anything new.`
