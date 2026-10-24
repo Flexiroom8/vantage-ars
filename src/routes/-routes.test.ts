@@ -15,6 +15,7 @@ const EXPECTED: Record<string, string> = {
   "guides.tsx": '"/guides"',
   "guides.$slug.tsx": '"/guides/$slug"',
   "login.tsx": '"/login"',
+  "model.tsx": '"/model"',
   "office.tsx": '"/office"',
   "privacy.tsx": '"/privacy"',
   "q.$token.tsx": '"/q/$token"',

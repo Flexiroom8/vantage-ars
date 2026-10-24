@@ -69,6 +69,15 @@ const PAGES: SearchItem[] = [
     keywords: ["process", "method", "steps"],
   },
   {
+    id: "page-model",
+    title: "How the office runs",
+    description:
+      "Nine agents, the path from enquiry to a confirmed receipt, and the actions that still wait for the founder.",
+    href: "/model",
+    kind: "page",
+    keywords: ["autonomous", "agents", "office", "diagram", "governor"],
+  },
+  {
     id: "page-support",
     title: "Customer service desk",
     description: "Log a fault, ask about work in progress, or record a complaint.",

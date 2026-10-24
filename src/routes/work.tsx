@@ -51,7 +51,10 @@ function WorkPage() {
           Every job follows the same path: understand the fault, fix the price in writing, then do
           the agreed work. Monthly managed plans are offered at a fixed published price, and there
           is still no live monitoring of your estate, no uptime promise and no contractual service
-          level — just defined work with a way to check it.
+          level — just defined work with a way to check it.{" "}
+          <Link to="/model" className="text-accent underline-offset-4 hover:underline">
+            See how the office runs.
+          </Link>
         </p>
       </section>
 

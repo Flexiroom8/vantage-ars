@@ -2,6 +2,12 @@
 
 All notable changes to Vantage-ARS.
 
+## 5.0.2 — 2026-10-24
+
+### Added
+
+**A public diagram of the office.** `/model` names the nine agents, the path from an enquiry to a confirmed receipt, and the actions that still wait. It does not add a product, a price, or a payout.
+
 ## 5.0.1 — 2026-10-24
 
 ### Added

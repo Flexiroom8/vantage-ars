@@ -302,6 +302,12 @@ function HomePage() {
             </li>
           ))}
         </ul>
+        <p className="mt-6 text-sm text-muted">
+          <Link to="/model" className="text-accent underline-offset-4 hover:underline">
+            How the office runs
+          </Link>
+          , including what it does alone and what still waits.
+        </p>
       </section>
 
       <section id="services" className="border-b border-border py-16" aria-label="Departments">
