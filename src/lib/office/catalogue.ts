@@ -268,7 +268,9 @@ function publishedPrice(rateId: string): string {
 }
 
 function priceFromRate(rateId: string): string {
-  return `From ${publishedPrice(rateId).replace(/^From\s+/, "").replace(/ remote$/, "")}`;
+  return `From ${publishedPrice(rateId)
+    .replace(/^From\s+/, "")
+    .replace(/ remote$/, "")}`;
 }
 
 export const SERVICE_LINES = [
