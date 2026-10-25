@@ -29,7 +29,7 @@ export type PlanDefinition = {
   headline: string;
   /** What the customer actually receives. */
   deliverable: string;
-  /** True when the office can produce the deliverable from its own records. */
+  /** True when the full service can be sold, billed, and delivered unattended. */
   automatic: boolean;
   /** Any human labour the plan includes. Null when the plan is entirely office work. */
   humanLabour: string | null;
@@ -55,7 +55,7 @@ const PLAN_LIST: PlanDefinition[] = [
       "Remote support on a monthly plan, with the triage, the reporting and the invoicing handled for you.",
     deliverable:
       "A monthly managed service report, automatic triage of every fault you raise, and a quarterly infrastructure review.",
-    automatic: true,
+    automatic: false,
     humanLabour: "The included remote support hours are performed by a Vantage-ARS engineer.",
     includes: [
       "8 hours of included remote support each month",
@@ -231,6 +231,12 @@ export function planById(id: string): PlanDefinition | undefined {
   return PLANS.find((plan) => plan.id === id);
 }
 
+/** Human work in a plan means the unattended office cannot fulfil its promise. */
+export function isAutonomouslyDeliverable(planId: string): boolean {
+  const plan = planById(planId);
+  return Boolean(plan?.automatic && plan.humanLabour === null);
+}
+
 /** The plan behind a published rate line, if that line is a productised service. */
 export function planForRate(rateId: string): PlanDefinition | undefined {
   return PLANS.find((plan) => plan.rateId === rateId);
@@ -258,6 +264,9 @@ export function planIntegrity(): { ok: boolean; detail: string } {
     if (!rate.offered) {
       broken.push(`${plan.id}: the published rate is not offered`);
       continue;
+    }
+    if (plan.automatic && plan.humanLabour !== null) {
+      broken.push(`${plan.id}: unattended delivery includes human labour`);
     }
     if (ratePriceCents(plan.rateId) !== plan.priceCents) {
       broken.push(`${plan.id}: the published price no longer matches the plan`);

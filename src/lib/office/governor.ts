@@ -1,5 +1,6 @@
 import { AGENT_BY_ID } from "./agents.ts";
 import { priceQuote } from "./quote.ts";
+import { isAutonomouslyDeliverable, planForRate } from "./plans.ts";
 import {
   DELEGATABLE_ACTIONS,
   evaluateDelegation,
@@ -204,6 +205,65 @@ export function authorizeAction(
         reversibility: reversibilityOf(action.kind),
         trace,
         runtimeConstraints: ["monthly_marketing_cap"],
+        delegation: null,
+      };
+    }
+  }
+
+  if (!extras?.founderInitiated) {
+    const rateId = typeof action.payload.rateId === "string" ? action.payload.rateId : "";
+    const planId =
+      action.kind === "issue_quote" && planForRate(rateId)
+        ? rateId
+        : typeof action.payload.planId === "string"
+          ? action.payload.planId
+          : "";
+    const requiresAutonomousDelivery =
+      action.kind === "start_subscription" ||
+      action.kind === "fulfil_service" ||
+      (action.kind === "issue_invoice" && Boolean(action.payload.cycleId));
+    const planIsNotAutonomous =
+      planId.length > 0 &&
+      ((action.kind === "issue_quote" && !isAutonomouslyDeliverable(planId)) ||
+        (action.kind !== "issue_quote" &&
+          requiresAutonomousDelivery &&
+          !isAutonomouslyDeliverable(planId)));
+    if (requiresAutonomousDelivery && (!planId || planIsNotAutonomous)) {
+      push(
+        trace,
+        "ART-13",
+        "autonomous_delivery_capability",
+        false,
+        planId
+          ? `The ${planId} plan includes work the office cannot deliver unattended.`
+          : "No autonomously deliverable plan was identified for this action.",
+      );
+      return {
+        verdict: "deny",
+        reason:
+          "Blocked: this plan requires human delivery and cannot be sold, billed, or fulfilled unattended.",
+        approvalKind: null,
+        reversibility: reversibilityOf(action.kind),
+        trace,
+        runtimeConstraints: ["human_delivery_required"],
+        delegation: null,
+      };
+    }
+    if (action.kind === "issue_quote" && planId && planIsNotAutonomous) {
+      push(
+        trace,
+        "ART-13",
+        "autonomous_delivery_capability",
+        false,
+        `The ${planId} plan includes work the office cannot deliver unattended.`,
+      );
+      return {
+        verdict: "deny",
+        reason: "Blocked: this plan requires human delivery and cannot be quoted unattended.",
+        approvalKind: null,
+        reversibility: reversibilityOf(action.kind),
+        trace,
+        runtimeConstraints: ["human_delivery_required"],
         delegation: null,
       };
     }

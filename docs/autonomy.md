@@ -94,7 +94,7 @@ outside its owner's role.
 | SIGNAL  | `signal_qualify_leads`        | 3h      | Scores every lead on what the buyer actually wrote                                                                                                                                                           |
 | SIGNAL  | `signal_handoff`              | 2h      | Files a founder-gated sales handoff for genuine buying intent                                                                                                                                                |
 | CLOSE   | `close_discovery`             | 4h      | Opens a qualified lead that came in through a real channel, and writes a discovery checklist against a live opportunity                                                                                      |
-| CLOSE   | `close_quote`                 | 60m     | Issues a published-rate quote for a real enquiry when a delegation covers quoting. The line comes from the quote playbook, never from the model.                                                             |
+| CLOSE   | `close_quote`                 | 60m     | Issues a published-rate quote for a real enquiry when a delegation covers quoting. Human-delivered plans are held for the founder; the line comes from the quote playbook, never from the model.              |
 | CLOSE   | `close_quote_followup`        | 12h     | Drafts a follow-up once a real quote has waited two days                                                                                                                                                     |
 | CLOSE   | `close_stale_proposal`        | 24h     | Reports a proposal with no movement for fourteen days                                                                                                                                                        |
 | CLOSE   | `close_win_handoff`           | 60m     | Flags a won deal with delivery open and no invoice                                                                                                                                                           |
@@ -109,8 +109,8 @@ outside its owner's role.
 | LEDGER  | `ledger_chase_invoice`        | 24h     | Drafts a reminder for an invoice unpaid after seven days                                                                                                                                                     |
 | LEDGER  | `ledger_payment_notices`      | 2h      | Matches a payment notice to an invoice to the cent and books the receipt, or puts the notice in front of the founder                                                                                         |
 | LEDGER  | `ledger_payables`             | 24h     | Reports money owed out, for the founder to schedule                                                                                                                                                          |
-| LEDGER  | `ledger_start_subscription`   | 4h      | Starts the subscription a customer bought: a won opportunity with an accepted quote for a recurring plan and no subscription yet                                                                             |
-| LEDGER  | `ledger_subscription_billing` | 60m     | Invoices each subscription whose own billing date has passed, using the period the subscription says                                                                                                         |
+| LEDGER  | `ledger_start_subscription`   | 4h      | Starts an eligible record-based plan the customer bought: a won opportunity with an accepted quote and no subscription yet                                                                                   |
+| LEDGER  | `ledger_subscription_billing` | 60m     | Invoices eligible record-based subscriptions whose own billing date has passed, using the period the subscription says                                                                                      |
 | LEDGER  | `ledger_dunning`              | 4h      | Reminds a customer about an invoice open for seven days or more, and only while a delegation allows it. After nine weeks the office stops emailing about it and the invoice is left to the founder.          |
 | LEDGER  | `ledger_billing`              | 30m     | Invoices accepted work from the quoted figure under billing delegation. Diagnostic quotes wait until their linked delivery ticket is resolved; invoices and receipts are emailed only under mail delegation. |
 | KEEP    | `keep_records`                | 12h     | Reports a won deal with no quote, invoice or receipt filed                                                                                                                                                   |
@@ -221,7 +221,12 @@ default.
 ## Recurring revenue
 
 A recurring plan is a quote, an acceptance and a schedule. The office can run
-the whole loop on its own, once a delegation covers it.
+the whole loop on its own, once a delegation covers it, only when the full plan
+can be delivered from office records without human labour. The managed support
+plan includes eight engineer hours; its quotes, subscription starts, recurring
+invoices and fulfilment are therefore held out of unattended operation. A
+delegation cannot turn staff work the office does not perform into an automated
+deliverable.
 
 1. **Quote.** The price comes from the published rate card and from nothing
    else.
@@ -261,7 +266,7 @@ the whole loop on its own, once a delegation covers it.
 
 Which of those steps need a person:
 
-- **Autonomous once the delegation is in place:** the quote notice, the invoice
+- **Autonomous once the delegation is in place for eligible, record-based plans:** the quote notice, the invoice
   for the period, the deliverable, the customer email, the payment reminder,
   and the matching of an exact payment to an invoice.
 - **Still a person's decision:** anything above the delegation's cap, anything
@@ -273,6 +278,13 @@ Which of those steps need a person:
   delegation the same flow stops at the founder gate at each step — the quote
   is approved by hand, the invoice is raised by hand, the report is produced by
   hand, and the email is drafted rather than sent.
+
+  The managed support plan is a separate case: its published scope includes
+  engineer labour. It is not autonomously quoted, started, billed, or marked
+  fulfilled, even when a delegation names the rate. A founder can still sell and
+  manage that plan through the human workflow. Any already-invoiced cycle that
+  lacks a report or customer notice is surfaced in the recurring-revenue review
+  for founder attention rather than silently dropped from fulfilment.
 
 ## What stops it
 

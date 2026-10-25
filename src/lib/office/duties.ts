@@ -11,7 +11,7 @@
  * say so honestly rather than manufacture activity to look busy.
  */
 import { PUBLISHED_RATES } from "./catalogue";
-import { planForRate } from "./plans";
+import { isAutonomouslyDeliverable, planForRate } from "./plans";
 import { chooseQuote, quoteScopeLines, type QuoteChoice } from "./quote-playbook";
 import { APPROVAL_REMINDER_AGE_DAYS, approvalAgeDays, isApprovalStale } from "./approvals";
 import { diagnosticChecklistForQuote } from "./diagnostics";
@@ -450,6 +450,7 @@ function autoQuoteFor(view: DutyView, opp: DutyView["opportunities"][number]): Q
   if (!choice) return null;
   const policy = view.delegation;
   if (!policy) return null;
+  if (!isAutonomouslyDeliverable(choice.rateId)) return null;
   if (!policy.allowedRateIds.includes(choice.rateId)) return null;
   if (choice.amountCents > policy.maxAmountCents) return null;
   return choice;
@@ -1498,6 +1499,7 @@ function planScopeAudit(view: DutyView): PlannedWork[] {
 function planSubscriptionBilling(view: DutyView): PlannedWork[] {
   return view.subscriptions
     .filter((sub) => sub.status === "active")
+    .filter((sub) => isAutonomouslyDeliverable(sub.planId))
     .filter((sub) => Date.parse(sub.nextBillingAt) <= Date.parse(view.now))
     .map((sub) => ({
       agentId: "ledger",
@@ -1526,6 +1528,7 @@ function planSubscriptionBilling(view: DutyView): PlannedWork[] {
 function planServiceFulfilment(view: DutyView): PlannedWork[] {
   return view.billingCycles
     .filter((cycle) => cycle.status === "invoiced" || cycle.status === "paid")
+    .filter((cycle) => isAutonomouslyDeliverable(cycle.planId))
     .filter((cycle) => !cycle.reportDocumentId)
     .map((cycle) => ({
       agentId: "desk",
@@ -1560,6 +1563,7 @@ function planServiceNotice(view: DutyView): PlannedWork[] {
   const nowMs = Date.now();
   return view.billingCycles
     .filter((cycle) => cycle.status === "fulfilled" || cycle.status === "paid")
+    .filter((cycle) => isAutonomouslyDeliverable(cycle.planId))
     .filter((cycle) => !cycle.notifiedAt && Boolean(cycle.reportDocumentId))
     .filter(
       (cycle) =>
@@ -1817,7 +1821,7 @@ function planStartSubscription(view: DutyView): PlannedWork[] {
     if (subscribed.has(opp.companyName.trim().toLowerCase())) continue;
     const quote = accepted.find((item) => item.relatedId === opp.id);
     const plan = quote?.rateId ? planForRate(quote.rateId) : undefined;
-    if (!plan || plan.cycle === "once") continue;
+    if (!plan || plan.cycle === "once" || !isAutonomouslyDeliverable(plan.id)) continue;
     work.push({
       agentId: "ledger",
       kind: "start_subscription_cycle",
@@ -1847,24 +1851,50 @@ function planStartSubscription(view: DutyView): PlannedWork[] {
  * match the plans the office is selling.
  */
 function planSubscriptionReview(view: DutyView): PlannedWork[] {
-  if (!view.subscriptions.length) return [];
+  if (!view.subscriptions.length && !view.billingCycles.length) return [];
   const stale = view.subscriptions.filter(
     (sub) =>
       sub.status === "active" &&
       Date.parse(sub.nextBillingAt) < Date.parse(view.now) - 7 * DAY * 60_000,
   );
+  const heldCycles = view.billingCycles
+    .filter((cycle) => !isAutonomouslyDeliverable(cycle.planId))
+    .filter(
+      (cycle) =>
+        ((cycle.status === "invoiced" || cycle.status === "paid") && !cycle.reportDocumentId) ||
+        ((cycle.status === "fulfilled" || cycle.status === "paid") &&
+          Boolean(cycle.reportDocumentId) &&
+          !cycle.notifiedAt),
+    )
+    .map((cycle) => ({
+      id: cycle.id,
+      companyName: cycle.companyName,
+      planId: cycle.planId,
+      status: cycle.status,
+    }));
   const review = planRateCardIntegrity();
-  if (!stale.length && review.ok) return [];
+  if (!stale.length && !heldCycles.length && review.ok) return [];
+  const reasons = [];
+  if (stale.length) {
+    reasons.push(
+      `${stale.length} subscription(s) are past their billing date and were not billed.`,
+    );
+  }
+  if (heldCycles.length) {
+    reasons.push(
+      `${heldCycles.length} invoiced cycle(s) for human-delivered plans need founder attention before fulfilment or notice.`,
+    );
+  }
+  if (!review.ok) reasons.push(review.detail);
   return [
     {
       agentId: "keep",
       kind: "review_subscription_health",
-      reason: stale.length
-        ? `${stale.length} subscription(s) are past their billing date and were not billed.`
-        : review.detail,
+      reason: reasons.join(" "),
       priority: 34,
       payload: {
         stale: stale.map((sub) => ({ id: sub.id, companyName: sub.companyName })),
+        heldCycles,
         rateCardOk: review.ok,
         rateCardDetail: review.detail,
       },

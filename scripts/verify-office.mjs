@@ -898,7 +898,7 @@ async function main() {
   };
 
   const customer = "Harbour Point Dental";
-  const plan = planById("managed-support");
+  const plan = planById("health-watch");
   const planPrice = plan?.priceCents ?? 0;
   const settledInvoice = (
     await sql`select id, amount_cents from ledger_entries where kind = 'invoice' and status = 'paid' limit 1`
@@ -945,8 +945,8 @@ async function main() {
       amountCents: 0,
       companyName: customer,
       payload: {
-        planId: "managed-support",
-        rateId: "managed-support",
+        planId: "health-watch",
+        rateId: "health-watch",
         cycle: "monthly",
         priceCents: planPrice,
         periodStart: at(),
@@ -1010,7 +1010,7 @@ async function main() {
   );
   check(
     "the policy may charge only the published rate lines",
-    policy?.allowedRateIds.includes("managed-support") &&
+    policy?.allowedRateIds.includes("health-watch") &&
       policy.allowedRateIds.every((id) => delegatableRateIds().includes(id)),
     JSON.stringify(policy?.allowedRateIds),
   );
@@ -1075,13 +1075,13 @@ async function main() {
     "close",
     {
       kind: "issue_quote",
-      title: `Quote · ${customer} · managed support`,
-      rationale: "The published managed support plan, priced from the rate card.",
+      title: `Quote · ${customer} · health and spend watch`,
+      rationale: "The published health and spend watch plan, priced from the rate card.",
       confidence: 0.95,
       amountCents: planPrice,
       companyName: customer,
       relatedId: managedOpp?.id,
-      payload: { rateId: "managed-support", location: "remote", quantity: 1 },
+      payload: { rateId: "health-watch", location: "remote", quantity: 1 },
     },
     { source: "scheduler", autonomous: true },
   );
@@ -1095,7 +1095,7 @@ async function main() {
   )[0];
   check(
     "the quote carries the published plan and price",
-    quoteRow?.rate_id === "managed-support" &&
+    quoteRow?.rate_id === "health-watch" &&
       String(quoteRow?.summary).includes(formatZar(planPrice)),
     String(quoteRow?.summary),
   );
@@ -1133,8 +1133,8 @@ async function main() {
       amountCents: planPrice,
       companyName: customer,
       payload: {
-        planId: "managed-support",
-        rateId: "managed-support",
+        planId: "health-watch",
+        rateId: "health-watch",
         cycle: "monthly",
         priceCents: planPrice,
         periodStart: at(),
@@ -1339,7 +1339,7 @@ async function main() {
   // The founder's own path still works, so the rest of the run can prove what
   // the office does with a subscription once it has one.
   if (!officeStarted.length) {
-    const byHand = await startSubscriptionForOpportunity(managedOpp.id, "managed-support");
+    const byHand = await startSubscriptionForOpportunity(managedOpp.id, "health-watch");
     check("the founder can start the subscription by hand", byHand.ok, JSON.stringify(byHand));
   }
   const subscription =
@@ -1351,7 +1351,7 @@ async function main() {
   );
   check(
     "the subscription carries the published plan, price and cycle",
-    subscription?.planId === "managed-support" &&
+    subscription?.planId === "health-watch" &&
       subscription.priceCents === planPrice &&
       subscription.cycle === "monthly",
     JSON.stringify(subscription),
@@ -1387,7 +1387,7 @@ async function main() {
   check("the next period is on the billing ledger", Boolean(cycle), JSON.stringify(cycles));
   check(
     "the period is billed at the published price",
-    cycle?.amountCents === planPrice && cycle.planId === "managed-support",
+    cycle?.amountCents === planPrice && cycle.planId === "health-watch",
     JSON.stringify(cycle),
   );
   const receivableAfter = Number(
@@ -1697,9 +1697,7 @@ async function main() {
   );
   check(
     "the plan mix names the plan and its price",
-    revenue.planMix.some(
-      (row) => row.planId === "managed-support" && row.monthlyCents === planPrice,
-    ),
+    revenue.planMix.some((row) => row.planId === "health-watch" && row.monthlyCents === planPrice),
     JSON.stringify(revenue.planMix),
   );
   const subscriptionBook = await listSubscriptions();
@@ -1720,7 +1718,7 @@ async function main() {
     account?.status === "client" &&
       account.activeSubscriptions === 1 &&
       account.monthlyRecurringCents === planPrice &&
-      account.planIds.includes("managed-support"),
+      account.planIds.includes("health-watch"),
     JSON.stringify(account),
   );
   check(

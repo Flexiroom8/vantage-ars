@@ -12,7 +12,7 @@ Author: Juan-louw Greyling <juanlouw.greyling@gmail.com>
 - Postgres: Neon (or any Postgres) when `DATABASE_URL` is set, otherwise embedded PGLite
 - Better Auth (founder email and password), pdf-lib for quotes, Gmail SMTP for notices
 - Ten AI staff, each with a fixed role, working a durable queue on their own cadence
-- Nine productised services at published prices, and a standing founder delegation (ART-13) that lets the office deliver and bill them unattended
+- Nine productised services at published prices; eight can be sold and delivered unattended under a standing founder delegation (ART-13), while the engineer-delivered support plan remains human-gated
 
 ## What is in it
 
@@ -90,6 +90,11 @@ The customer book at **`/office/customers`** assembles every company the office
 has actually touched — enquiry, lead, opportunity, invoice, receipt and
 subscription — into one account with its status, open balance and monthly value.
 It exports the book as CSV. It does not invent a customer from a page view.
+
+Autonomous quoting, subscription start, recurring billing and fulfilment are
+limited to plans the office can deliver from its own records without human
+labour. The managed support plan includes engineer hours, so it is not sold or
+billed unattended even if a delegation includes its rate.
 
 Support time is logged at **`/office/service`** against the account, with the
 minutes, a note and the work date. A service report uses that recorded time when

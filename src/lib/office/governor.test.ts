@@ -42,6 +42,40 @@ function action(partial: Partial<ProposedAction> & Pick<ProposedAction, "kind">)
 }
 
 describe("authorizeAction", () => {
+  it("blocks delegated autonomous starts for plans that require human labour", () => {
+    const result = authorizeAction(
+      action({
+        kind: "start_subscription",
+        amountCents: 0,
+        payload: { planId: "managed-support" },
+      }),
+      "ledger",
+      company,
+      { acceptedQuote: true, opportunityWon: true, realEnquiry: true },
+    );
+    assert.equal(result.verdict, "deny");
+    assert.match(result.reason, /requires human delivery/);
+    assert.ok(
+      result.trace.some((item) => item.check === "autonomous_delivery_capability" && !item.passed),
+    );
+  });
+
+  it("blocks unattended quotes for human-delivered product plans", () => {
+    const result = authorizeAction(
+      action({
+        kind: "issue_quote",
+        amountCents: 275000,
+        companyName: "Acme",
+        payload: { rateId: "managed-support", quantity: 1, location: "remote" },
+      }),
+      "close",
+      company,
+      { realEnquiry: true, acceptedQuote: false },
+    );
+    assert.equal(result.verdict, "deny");
+    assert.match(result.reason, /cannot be quoted unattended/);
+  });
+
   it("denies unknown identities", () => {
     const result = authorizeAction(action({ kind: "notify_operator" }), "ghost", company);
     assert.equal(result.verdict, "deny");

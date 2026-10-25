@@ -686,7 +686,7 @@ describe("sales duties", () => {
 });
 
 describe("autonomous quote-to-cash", () => {
-  it("quotes a real enquiry from the published card under delegation", () => {
+  it("does not auto-quote plans that include human work", () => {
     const opportunity = {
       id: "op1",
       companyName: "Acme",
@@ -709,10 +709,7 @@ describe("autonomous quote-to-cash", () => {
       "close_quote",
       view({ opportunities: [opportunity], inbound: [inbound], delegation: delegation() }),
     );
-    assert.equal(work.length, 1);
-    assert.equal(work[0].kind, "issue_quote");
-    assert.equal(work[0].payload?.rateId, "managed-support");
-    assert.ok(Number(work[0].payload?.amountCents) > 0);
+    assert.deepEqual(work, []);
 
     assert.deepEqual(
       planDuty("close_quote", view({ opportunities: [opportunity], inbound: [inbound] })),
@@ -724,6 +721,89 @@ describe("autonomous quote-to-cash", () => {
       [],
       "quoting a customer who did not contact the office must do nothing",
     );
+  });
+
+  it("auto-quotes an unattended plan after a real enquiry under delegation", () => {
+    const opportunity = {
+      id: "op1",
+      companyName: "Acme",
+      stage: "discovery",
+      valueCents: 0,
+      summary: "Monthly health and spend watch",
+      updatedAt: hoursAgo(2),
+    };
+    const inbound = {
+      id: "in1",
+      channel: "web",
+      companyName: "Acme",
+      subject: "Health watch",
+      summary: "Email: ops@acme.example We need a monthly health and spend watch.",
+      intent: "enquiry",
+      status: "received",
+      createdAt: hoursAgo(2),
+    };
+    const work = planDuty(
+      "close_quote",
+      view({
+        opportunities: [opportunity],
+        inbound: [inbound],
+        delegation: delegation({ allowedRateIds: ["health-watch"] }),
+      }),
+    );
+    assert.equal(work.length, 1);
+    assert.equal(work[0].kind, "issue_quote");
+    assert.equal(work[0].payload?.rateId, "health-watch");
+    assert.ok(Number(work[0].payload?.amountCents) > 0);
+  });
+
+  it("escalates existing human-delivered cycles that still need fulfilment", () => {
+    const work = planDuty(
+      "keep_subscription_review",
+      view({
+        subscriptions: [
+          {
+            id: "sub1",
+            companyName: "Acme",
+            planId: "managed-support",
+            rateId: "managed-support",
+            cycle: "monthly",
+            priceCents: 50000,
+            status: "active",
+            startedAt: hoursAgo(30 * 24),
+            nextBillingAt: new Date(Date.parse(NOW) + 30 * 86_400_000).toISOString(),
+            contactEmail: "ops@acme.example",
+          },
+        ],
+        billingCycles: [
+          {
+            id: "cycle1",
+            subscriptionId: "sub1",
+            companyName: "Acme",
+            planId: "managed-support",
+            amountCents: 50000,
+            status: "invoiced",
+            periodStart: hoursAgo(24),
+            periodEnd: NOW,
+            invoiceId: "invoice1",
+            documentId: null,
+            reportDocumentId: null,
+            notifiedAt: null,
+          },
+        ],
+      }),
+    );
+
+    assert.equal(work.length, 1);
+    assert.equal(work[0].kind, "review_subscription_health");
+    assert.match(work[0].reason, /founder attention/i);
+    assert.deepEqual(work[0].payload?.heldCycles, [
+      {
+        id: "cycle1",
+        companyName: "Acme",
+        planId: "managed-support",
+        status: "invoiced",
+      },
+    ]);
   });
 
   it("opens a qualified lead only when the customer really contacted the office", () => {

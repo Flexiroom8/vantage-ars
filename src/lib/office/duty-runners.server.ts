@@ -1248,7 +1248,7 @@ const billSubscriptionCycle: Runner = async (item) => {
       amountCents: priceCents,
       companyName,
       relatedId: cycleId,
-      payload: { cycleId, subscriptionId, rateId, vatTreatment: "none" },
+      payload: { cycleId, subscriptionId, planId, rateId, vatTreatment: "none" },
     },
     { source: "scheduler", workItem: item.id, autonomous: true },
   );
@@ -1840,6 +1840,7 @@ const reviewSubscriptionHealth: Runner = async (item) => {
       amountCents: 0,
       payload: {
         stale: Array.isArray(item.payload.stale) ? item.payload.stale : [],
+        heldCycles: Array.isArray(item.payload.heldCycles) ? item.payload.heldCycles : [],
         rateCardOk: item.payload.rateCardOk === true,
         rateCardDetail: str(item.payload.rateCardDetail),
       },

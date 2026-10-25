@@ -7,6 +7,7 @@ import {
   planForRate,
   planIntegrity,
   recurringPlans,
+  isAutonomouslyDeliverable,
   type PlanCycle,
   type PlanDefinition,
 } from "./plans.ts";
@@ -130,6 +131,25 @@ describe("plan integrity", () => {
       planIntegrity().detail.includes(`${recurringPlans().length} of them recurring`),
       true,
     );
+  });
+});
+
+describe("autonomous plan eligibility", () => {
+  it("excludes plans whose stated scope includes human labour", () => {
+    assert.equal(
+      plan("managed-support").humanLabour,
+      "The included remote support hours are performed by a Vantage-ARS engineer.",
+    );
+    assert.equal(isAutonomouslyDeliverable("managed-support"), false);
+  });
+
+  it("keeps record-based plans eligible for unattended delivery", () => {
+    assert.equal(plan("health-watch").humanLabour, null);
+    assert.equal(isAutonomouslyDeliverable("health-watch"), true);
+  });
+
+  it("fails closed for unknown plans", () => {
+    assert.equal(isAutonomouslyDeliverable("unknown-plan"), false);
   });
 });
 
