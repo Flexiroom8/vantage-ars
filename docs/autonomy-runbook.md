@@ -112,6 +112,10 @@ settings nothing is emailed; every notice is still recorded in the office.
 Add `FOUNDER_WEBHOOK_URL` (Slack or Discord webhook) for founder notices on a
 second channel.
 
+Online card checkout is not implemented and remains disabled regardless of
+PayFast credentials. See [gateway readiness and blockers](payments-gateway-readiness.md)
+before configuring or enabling any online payment provider.
+
 ## Verify
 
 | Check         | Command / URL                                                              | Expected                                 |

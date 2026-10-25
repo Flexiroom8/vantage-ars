@@ -1,3 +1,5 @@
+import { payfastReadiness } from "./office/payfast-readiness.ts";
+
 /**
  * Environment helpers (renamed from `env.server.ts` so the TanStack auth API
  * route can reach the auth server without tripping the client-bundle import
@@ -38,6 +40,7 @@ const ADVISED_ENV = [
 export function validateEnv(): { missing: string[]; advised: string[] } {
   const missing = CRITICAL_ENV.filter((key) => !env(key));
   const advised = ADVISED_ENV.filter((key) => !env(key));
+  const payfast = payfastReadiness(process.env);
   if (missing.length > 0) {
     console.error(
       `[vantage-ars] Missing critical environment variables: ${missing.join(
@@ -50,6 +53,14 @@ export function validateEnv(): { missing: string[]; advised: string[] } {
       `[vantage-ars] Advisable environment variables not set: ${advised.join(
         ", ",
       )}. Some office features will be degraded.`,
+    );
+  }
+  if (payfast.requested) {
+    const problems = [...payfast.missing, ...payfast.invalid];
+    console.warn(
+      problems.length > 0
+        ? `[vantage-ars] PayFast checkout was requested but is not configured (${problems.join(", ")}). Checkout remains disabled.`
+        : "[vantage-ars] PayFast checkout was requested, but no payment adapter is implemented. Checkout remains disabled.",
     );
   }
   return { missing, advised };
