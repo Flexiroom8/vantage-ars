@@ -23,7 +23,7 @@ function MarketingPage() {
       <PageHeader
         kicker="Marketing · SIGNAL"
         title="Demand ends at the handoff."
-        description="Campaigns and qualification run autonomously at R0. Paid spend and every sales handoff wait on you."
+        description="Owned-channel work runs at R0. Paid campaign proposals are hard-capped at R300 per Johannesburg month and require your approval; no advertising account is connected. Sales handoffs remain governed."
       />
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
         <DispatchPanel

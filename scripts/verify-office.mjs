@@ -2024,6 +2024,131 @@ async function main() {
   );
   check("the chain still verifies after self-recovery", verdict5.ok, verdict5.detail);
 
+  const withinMarketingCap = await applyProposedAction(
+    "signal",
+    {
+      kind: "activate_campaign",
+      title: "Verification paid campaign at monthly cap",
+      rationale: "Verification-only check of the paid media ceiling.",
+      confidence: 0.95,
+      amountCents: 30000,
+      payload: { channel: "paid_search" },
+    },
+    { source: "verification" },
+  );
+  check(
+    "paid campaign at the monthly cap still waits for founder approval",
+    withinMarketingCap.status === "escalated",
+    `${withinMarketingCap.status} ${withinMarketingCap.error ?? ""}`,
+  );
+
+  const minimalMarketingSpend = await applyProposedAction(
+    "signal",
+    {
+      kind: "activate_campaign",
+      title: "Verification minimal paid campaign",
+      rationale: "Verification-only check that approved campaign spend is recorded.",
+      confidence: 0.95,
+      amountCents: 1,
+      payload: { channel: "paid_search" },
+    },
+    { source: "verification" },
+  );
+  check(
+    "a minimal paid campaign also waits for founder approval",
+    minimalMarketingSpend.status === "escalated",
+    `${minimalMarketingSpend.status} ${minimalMarketingSpend.error ?? ""}`,
+  );
+  const minimalApproval = minimalMarketingSpend.approvalId;
+  const minimalApproved = minimalApproval
+    ? await resolveApproval({
+        approvalId: minimalApproval,
+        decision: "approved",
+        note: "Verification-only minimal campaign expense.",
+      })
+    : { ok: false, error: "No campaign approval was filed." };
+  check(
+    "founder approval records the minimal paid campaign spend",
+    minimalApproved.ok,
+    minimalApproved.error ?? "",
+  );
+
+  const staleMarketingApproval = withinMarketingCap.approvalId
+    ? await resolveApproval({
+        approvalId: withinMarketingCap.approvalId,
+        decision: "approved",
+        note: "Verification-only stale campaign approval.",
+      })
+    : { ok: false, error: "No campaign approval was filed." };
+  check(
+    "approval rechecks the R300 ceiling after another campaign spends",
+    !staleMarketingApproval.ok &&
+      /R300 monthly paid-campaign cap/.test(staleMarketingApproval.error ?? ""),
+    staleMarketingApproval.error ?? "Unexpected approval result",
+  );
+  const staleCampaignApproval =
+    await sql`select status from approvals where id = ${withinMarketingCap.approvalId}`;
+  check(
+    "over-budget approval stays pending and unexecuted",
+    staleCampaignApproval[0]?.status === "pending",
+    JSON.stringify(staleCampaignApproval),
+  );
+
+  const overMarketingCap = await applyProposedAction(
+    "signal",
+    {
+      kind: "activate_campaign",
+      title: "Verification paid campaign over monthly cap",
+      rationale: "Verification-only check of the paid media ceiling.",
+      confidence: 0.95,
+      amountCents: 30001,
+      payload: { channel: "paid_search" },
+    },
+    { source: "verification" },
+  );
+  check(
+    "paid campaign activation over R300 is blocked by the real transaction path",
+    overMarketingCap.status === "blocked",
+    `${overMarketingCap.status} ${overMarketingCap.error ?? ""}`,
+  );
+  const overMarketingCapReason = await decisionReason(overMarketingCap.decisionId);
+  check(
+    "paid campaign refusal names the monthly ceiling",
+    /R300 monthly cap/.test(overMarketingCapReason),
+    overMarketingCapReason,
+  );
+  const uncreatedCampaign =
+    await sql`select id from campaigns where name = 'Verification paid campaign over monthly cap'`;
+  const unrecordedExpense =
+    await sql`select id from ledger_entries where memo = 'Verification-only check of the paid media ceiling.'`;
+  check(
+    "blocked paid campaign creates no campaign or spend record",
+    uncreatedCampaign.length === 0 && unrecordedExpense.length === 0,
+    JSON.stringify({ uncreatedCampaign, unrecordedExpense }),
+  );
+  const finalChain = await sql`
+    select id, previous_hash, record_hash, created_at from (
+      select id, previous_hash, record_hash, created_at from audit_events
+      union all
+      select id, previous_hash, record_hash, created_at from decisions
+    ) c order by created_at asc
+  `;
+  const finalHead = await sql`select last_audit_hash from company_state`;
+  const finalVerdict = verifyChainLinks(
+    finalChain.map((row) => ({
+      id: String(row.id),
+      previousHash: String(row.previous_hash),
+      recordHash: String(row.record_hash),
+      createdAt: new Date(row.created_at).toISOString(),
+    })),
+    String(finalHead[0].last_audit_hash),
+  );
+  check(
+    "the audit chain verifies after the marketing cap checks",
+    finalVerdict.ok,
+    finalVerdict.detail,
+  );
+
   // ── Result ─────────────────────────────────────────────────────────────────
   const passed = checks.length - failures;
   process.stdout.write(`\n${passed}/${checks.length} checks passed.\n`);

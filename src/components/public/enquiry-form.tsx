@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SERVICE_PAGES } from "@/lib/site/services";
 import { DIAGNOSTIC_DRAFT_KEY } from "@/lib/site/email-auth-check";
 import { NETWORK_DIAGNOSTIC_DRAFT_KEY } from "@/lib/site/network-path-check";
+import { ENQUIRY_DRAFT_KEY } from "@/lib/site/enquiry-draft";
 
 export type EnquiryFormProps = {
   /** When true, the enquiry is marked as a desk ticket (support page). */
@@ -79,21 +80,21 @@ export function EnquiryForm({
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       try {
-        const diagnostics = [DIAGNOSTIC_DRAFT_KEY, NETWORK_DIAGNOSTIC_DRAFT_KEY]
+        const savedDrafts = [ENQUIRY_DRAFT_KEY, DIAGNOSTIC_DRAFT_KEY, NETWORK_DIAGNOSTIC_DRAFT_KEY]
           .map((key) => {
             const value = window.sessionStorage.getItem(key);
             if (value) window.sessionStorage.removeItem(key);
             return value;
           })
           .filter((value): value is string => Boolean(value));
-        if (!diagnostics.length) return;
+        if (!savedDrafts.length) return;
         setForm((current) => ({
           ...current,
-          message: `${diagnostics.join("\n\n")}\n\n${current.message}`.slice(0, messageMaxLength),
+          message: `${savedDrafts.join("\n\n")}\n\n${current.message}`.slice(0, messageMaxLength),
         }));
       } catch {
         setError(
-          "This browser blocked the saved diagnostic. Return to the checker and copy its result.",
+          "This browser blocked the prepared enquiry content. Return to the previous page and copy its result.",
         );
       }
     });

@@ -7,9 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   ASSESSMENT_QUESTIONS,
   assessReadiness,
+  createReadinessEnquiryDraft,
   type AssessmentAnswers,
   type AssessmentAnswer,
 } from "@/lib/site/assessment";
+import { stageEnquiryDraft } from "@/lib/site/enquiry-draft";
+import { rateAmountLabel } from "@/lib/office/catalogue";
 import { servicePage } from "@/lib/site/services";
 import { breadcrumbJsonLd, businessJsonLd, pageHead } from "@/lib/site/seo";
 import { cn } from "@/lib/utils";
@@ -49,9 +52,23 @@ function AssessmentPage() {
   const answered = ASSESSMENT_QUESTIONS.filter(
     (question) => answers[question.id] !== undefined,
   ).length;
+  const [enquiryError, setEnquiryError] = useState("");
+
+  function requestPaidAssessment() {
+    if (!result) return;
+    const draft = createReadinessEnquiryDraft(result, rateAmountLabel("assessment"));
+    if (!stageEnquiryDraft(draft)) {
+      setEnquiryError(
+        "The result could not be prepared. Copy the summary before leaving this page.",
+      );
+      return;
+    }
+    window.location.assign("/#enquiry");
+  }
 
   function reset() {
     setAnswers({});
+    setEnquiryError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -168,6 +185,23 @@ function AssessmentPage() {
                   revisit them as systems change.
                 </p>
               )}
+              <div className="mt-5 border-t border-border pt-4">
+                <h3 className="font-serif text-xl">Want a technical review?</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Request a paid initial remote assessment for up to 60 minutes at{" "}
+                  {rateAmountLabel("assessment")}. We will confirm scope and VAT treatment in
+                  writing before any work starts. Your answers remain in this browser unless you
+                  choose to attach the summary to your enquiry.
+                </p>
+                <Button type="button" className="mt-4 w-full" onClick={requestPaidAssessment}>
+                  Prepare a written-quote request
+                </Button>
+                {enquiryError ? (
+                  <p role="alert" className="mt-2 text-xs text-danger">
+                    {enquiryError}
+                  </p>
+                ) : null}
+              </div>
               <Button type="button" variant="secondary" className="mt-5 w-full" onClick={reset}>
                 Start again
               </Button>

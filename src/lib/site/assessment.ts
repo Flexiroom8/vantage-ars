@@ -85,6 +85,28 @@ export type AssessmentResult = {
   priorities: AssessmentFinding[];
 };
 
+export function createReadinessEnquiryDraft(
+  result: AssessmentResult,
+  assessmentPrice: string,
+): string {
+  return [
+    "IT READINESS SELF-ASSESSMENT · CUSTOMER-SHARED SUMMARY",
+    result.score === null
+      ? `${result.label}; ${result.unverified} practice(s) could not be verified.`
+      : `${result.label}; ${result.score}% across ${result.reviewed} assessed practices; ${result.unverified} unverified.`,
+    "",
+    "Areas to discuss:",
+    ...(result.priorities.length
+      ? result.priorities.map(
+          (finding) => `- ${finding.topic} (${finding.status}): ${finding.nextStep}`,
+        )
+      : ["- No improvement area was identified by this self-assessment."]),
+    "",
+    "This is a browser-generated self-assessment, not a technical audit or verified risk rating.",
+    `I would like to discuss the paid initial remote assessment (up to 60 minutes, ${assessmentPrice}). Please send a written scope/quote; do not begin work.`,
+  ].join("\n");
+}
+
 const SCORE: Record<AssessmentAnswer, number> = {
   unknown: 0,
   no: 0,

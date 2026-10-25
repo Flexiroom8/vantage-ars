@@ -38,7 +38,7 @@ into a fresh `.env`, enforces `AUTONOMY=on`, and prints the remaining steps.
 - SEAL verifies the whole audit chain twice a day and halts the office if it
   fails to verify.
 - CI (`.github/workflows/ci.yml`) runs typecheck, lint, tests and
-  `npm run verify:office` (231 checks, no mocks, no sample data) on every push
+  `npm run verify:office` (243 checks, no mocks, no sample data) on every push
   to `main` and every pull request.
 
 ## Target A — Vercel + Neon (recommended)
@@ -116,7 +116,7 @@ second channel.
 
 | Check         | Command / URL                                                              | Expected                                 |
 | ------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
-| Local proof   | `npm run verify:office`                                                    | 231 checks pass, no mocks                |
+| Local proof   | `npm run verify:office`                                                    | 243 checks pass, no mocks                |
 | Health        | `GET /api/health`                                                          | 200, `"scheduler": { "overdue": false }` |
 | Public status | `/status`                                                                  | five lines, founder control intact       |
 | Office        | `/office`                                                                  | duties with next-due times, live queue   |

@@ -10,6 +10,7 @@ import {
   createAutomationBrief,
   type AutomationAnswers,
 } from "@/lib/site/automation-assessment";
+import { stageEnquiryDraft } from "@/lib/site/enquiry-draft";
 import { servicePage } from "@/lib/site/services";
 import { breadcrumbJsonLd, businessJsonLd, pageHead } from "@/lib/site/seo";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,22 @@ function AutomationPage() {
   const service = result ? servicePage(result.serviceSlug) : undefined;
   const brief = result ? createAutomationBrief(answers, result) : null;
   const [briefStatus, setBriefStatus] = useState<string | null>(null);
+
+  function prepareEnquiry() {
+    if (!brief) return;
+    const request = [
+      brief,
+      "",
+      "Please review this workflow with me and send a written scope and quote. No system access or work is authorized by this enquiry.",
+    ].join("\n");
+    if (!stageEnquiryDraft(request)) {
+      setBriefStatus(
+        "The brief could not be prepared. Copy or download it before leaving this page.",
+      );
+      return;
+    }
+    window.location.assign("/#enquiry");
+  }
 
   function reset() {
     setAnswers({});
@@ -206,13 +223,9 @@ function AutomationPage() {
                     {briefStatus}
                   </p>
                 ) : null}
-                <Link
-                  to="/"
-                  hash="enquiry"
-                  className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline"
-                >
-                  Request a quote with this brief
-                </Link>
+                <Button type="button" className="mt-3" onClick={prepareEnquiry}>
+                  Prepare a written-quote request with this brief
+                </Button>
               </div>
               <p className="mt-4 border-t border-border pt-4 text-xs leading-relaxed text-subtle">
                 This result is a planning aid, not a recommendation to deploy an agent or allow

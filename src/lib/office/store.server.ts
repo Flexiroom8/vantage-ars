@@ -3,7 +3,7 @@ import { getSql, type Sql } from "../db";
 import { AGENT_DEFS, AGENT_BY_ID } from "./agents";
 import { CONSTITUTION } from "./constitution";
 import { COMPANY, GENESIS_HASH } from "./company";
-import { authorizeAction } from "./governor";
+import { authorizeAction, PAID_CAMPAIGN_MONTHLY_CAP_CENTS } from "./governor";
 import { chainHash, sha256Hex, stableStringify } from "./hash";
 import { assessRisk, type RiskAssessment, type RiskTier, type RiskTierName } from "./risk";
 import {
@@ -141,6 +141,36 @@ const CHAIN_LOCK = "vantage-ars:audit-chain";
 async function withChain<T>(body: (tx: Sql) => Promise<T>): Promise<T> {
   const sql = await getSql();
   return sql.advisory(CHAIN_LOCK, body);
+}
+
+async function paidCampaignSpendThisMonth(sql: Sql): Promise<number> {
+  const rows = await sql<{ spend_cents: number }>`
+    select
+      coalesce((
+        select sum(le.amount_cents)
+        from ledger_entries le
+        join campaigns c on c.id = le.related_id
+        where le.kind = 'expense'
+          and le.created_at >= (
+            date_trunc('month', now() at time zone 'Africa/Johannesburg')
+            at time zone 'Africa/Johannesburg'
+          )
+      ), 0)
+      + coalesce((
+        select sum(c.spend_cents)
+        from campaigns c
+        where c.spend_cents > 0
+          and c.created_at >= (
+            date_trunc('month', now() at time zone 'Africa/Johannesburg')
+            at time zone 'Africa/Johannesburg'
+          )
+          and not exists (
+            select 1 from ledger_entries le
+            where le.kind = 'expense' and le.related_id = c.id
+          )
+      ), 0) as spend_cents
+  `;
+  return Number(rows[0]?.spend_cents ?? 0);
 }
 
 async function readAuditHead(sql: Sql): Promise<string> {
@@ -1202,6 +1232,13 @@ async function executeAuthorized(
     case "draft_campaign":
     case "activate_campaign": {
       const budget = amount;
+      const campaignId = action.relatedId ?? randomUUID();
+      if (action.relatedId) {
+        const campaign = await sql<{ id: string }>`
+          select id from campaigns where id = ${action.relatedId} limit 1
+        `;
+        if (!campaign.length) throw new Error("The campaign to update is no longer on file.");
+      }
       const books = await loadCompanyTx(sql);
       const canPay =
         action.kind === "activate_campaign" && budget > 0 && books.treasuryCents >= budget;
@@ -1228,11 +1265,10 @@ async function executeAuthorized(
           where id = ${action.relatedId}
         `;
       } else {
-        const id = randomUUID();
         await sql`
           insert into campaigns (id, name, channel, status, budget_cents, spend_cents, summary)
           values (
-            ${id}, ${action.title}, ${String(action.payload.channel ?? "owned")},
+            ${campaignId}, ${action.title}, ${String(action.payload.channel ?? "owned")},
             ${status}, ${budget}, ${spend}, ${action.rationale}
           )
         `;
@@ -1244,7 +1280,7 @@ async function executeAuthorized(
           insert into ledger_entries (id, kind, counterparty, amount_cents, vat_cents, status, memo, related_id)
           values (
             ${entryId}, 'expense', ${String(action.payload.vendor ?? "Media")}, ${budget}, ${vat},
-            'paid', ${action.rationale}, ${action.relatedId ?? null}
+            'paid', ${action.rationale}, ${campaignId}
           )
         `;
         await sql`
@@ -2423,6 +2459,10 @@ export async function applyProposedAction(
             ? await hasAcceptedQuote(tx, companyName)
             : false,
         realEnquiry: companyName ? await hasRealEnquiry(tx, companyName) : false,
+        campaignSpendThisMonthCents:
+          action.kind === "activate_campaign" && action.amountCents > 0
+            ? await paidCampaignSpendThisMonth(tx)
+            : 0,
         founderInitiated: !autonomous,
         delegation,
         delegationUsage: usage
@@ -2761,6 +2801,18 @@ export async function resolveApproval(input: {
         "founder",
       );
       return { ok: true };
+    }
+
+    if (action.kind === "activate_campaign" && action.amountCents > 0) {
+      const spent = await paidCampaignSpendThisMonth(tx);
+      const requested = Math.max(0, Math.round(action.amountCents));
+      if (spent + requested > PAID_CAMPAIGN_MONTHLY_CAP_CENTS) {
+        return {
+          ok: false,
+          error:
+            "This approval would exceed the R300 monthly paid-campaign cap. No spend was made.",
+        };
+      }
     }
 
     const claimed = await tx<{ id: string }>`

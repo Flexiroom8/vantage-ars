@@ -31,6 +31,7 @@ const SALES_KINDS = new Set<ActionKind>([
   "propose_close_lost",
 ]);
 const COST_KINDS = new Set<ActionKind>(["record_expense", "activate_campaign"]);
+export const PAID_CAMPAIGN_MONTHLY_CAP_CENTS = 30_000;
 
 /**
  * Action kinds that exist only because a founder delegated them.
@@ -126,6 +127,8 @@ export type GovernorExtras = {
   acceptedQuote?: boolean;
   /** Whether the customer actually contacted the office. */
   realEnquiry?: boolean;
+  /** Paid campaign spend already recorded in the current Johannesburg month. */
+  campaignSpendThisMonthCents?: number;
   /**
    * True when a person asked for this action. The founder present at the
    * keyboard is the authority, so the delegation-only action kinds are
@@ -179,6 +182,32 @@ export function authorizeAction(
   const blob = textBlob(action);
   const confidence = clamp(action.confidence, 0, 1);
   const amount = Math.max(0, Math.round(action.amountCents || 0));
+
+  if (action.kind === "activate_campaign" && amount > 0) {
+    const spent = Math.max(0, Math.round(extras?.campaignSpendThisMonthCents ?? 0));
+    const withinCap = spent + amount <= PAID_CAMPAIGN_MONTHLY_CAP_CENTS;
+    push(
+      trace,
+      "ART-2",
+      "monthly_marketing_cap",
+      withinCap,
+      withinCap
+        ? `Requested ${amount} cents with ${spent} cents already spent; monthly cap is ${PAID_CAMPAIGN_MONTHLY_CAP_CENTS} cents.`
+        : `Requested spend would exceed the R300 monthly paid-campaign cap (${spent} already spent).`,
+      PAID_CAMPAIGN_MONTHLY_CAP_CENTS - spent - amount,
+    );
+    if (!withinCap) {
+      return {
+        verdict: "deny",
+        reason: "Blocked: paid campaign spend exceeds the R300 monthly cap.",
+        approvalKind: null,
+        reversibility: reversibilityOf(action.kind),
+        trace,
+        runtimeConstraints: ["monthly_marketing_cap"],
+        delegation: null,
+      };
+    }
+  }
 
   if (!agent.allowedActions.includes(action.kind)) {
     push(

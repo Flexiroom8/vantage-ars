@@ -9,7 +9,7 @@ wording — each claim names the check that proved it.
 
 | System                                                                                      | Evidence                                                                                | Result                                                                                                              |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Autonomy engine (nine agents, durable queue, founder gates, delegation, hash-chained audit) | `npm test` + `npm run verify:office`                                                    | 231/231 checks passed, no mocks, no sample data                                                                     |
+| Autonomy engine (nine agents, durable queue, founder gates, delegation, hash-chained audit) | `npm test` + `npm run verify:office`                                                    | 243/243 checks passed, no mocks, no sample data                                                                     |
 | Neon database                                                                               | connectivity check against the pooled host                                              | PostgreSQL 18.6 answered; `scripts/migrate.mjs` reports up to date — 16 migrations applied                          |
 | Production site                                                                             | `GET https://www.vantage-ars.co.za/` and `/api/health`                                  | both 200; health reports `state: operational`, records and decision-record integrity ok                             |
 | Cron endpoint guard                                                                         | `GET /api/cron/floor` without a bearer token                                            | 401 Unauthorized — the endpoint only acts with `CRON_SECRET`                                                        |
@@ -78,6 +78,6 @@ while Vercel serves the domain — see the comment in `wrangler.toml`).
 
 The code is not the bottleneck. Every autonomous behaviour the roadmap needs —
 queue, cadences, gates, delegation, audit, self-halt, self-recovery, catch-up
-ticks — is implemented and proven by 231 checks. What stands between here and
+ticks — is implemented and proven by 243 checks. What stands between here and
 an unattended office is four configuration switches and one valid Cloudflare
 token.

@@ -5,6 +5,7 @@ import { servicePage } from "./services.ts";
 import {
   ASSESSMENT_QUESTIONS,
   assessReadiness,
+  createReadinessEnquiryDraft,
   type AssessmentAnswers,
   type AssessmentAnswer,
 } from "./assessment.ts";
@@ -81,5 +82,20 @@ describe("public IT readiness assessment", () => {
     assert.equal(result.score, 100);
     assert.equal(result.label, "Practices established");
     assert.equal(result.priorities.length, 0);
+  });
+
+  it("creates an explicit opt-in quote draft without overstating the self-assessment", () => {
+    const answers = Object.fromEntries(
+      ASSESSMENT_QUESTIONS.map((question) => [question.id, "no" satisfies AssessmentAnswer]),
+    ) as AssessmentAnswers;
+    const result = assessReadiness(answers);
+    assert.ok(result);
+
+    const draft = createReadinessEnquiryDraft(result, "R690");
+    assert.match(draft, /CUSTOMER-SHARED SUMMARY/);
+    assert.match(draft, /R690/);
+    assert.match(draft, /written scope\/quote/);
+    assert.match(draft, /not a technical audit or verified risk rating/);
+    assert.ok(draft.length <= 2_800);
   });
 });

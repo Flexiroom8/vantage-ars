@@ -228,11 +228,42 @@ describe("authorizeAction", () => {
 
   it("escalates paid campaigns", () => {
     const result = authorizeAction(
-      action({ kind: "activate_campaign", amountCents: 50000, title: "Paid search" }),
+      action({ kind: "activate_campaign", amountCents: 30000, title: "Paid search" }),
       "signal",
       company,
     );
     assert.equal(result.verdict, "review");
     assert.equal(result.approvalKind, "cost");
+  });
+
+  it("holds paid campaign spend to the R300 monthly cap", () => {
+    const withinCap = authorizeAction(
+      action({ kind: "activate_campaign", amountCents: 18000, title: "Paid search" }),
+      "signal",
+      company,
+      { campaignSpendThisMonthCents: 12000 },
+    );
+    assert.equal(withinCap.verdict, "review");
+    assert.equal(withinCap.approvalKind, "cost");
+    assert.ok(
+      withinCap.trace.some((item) => item.check === "monthly_marketing_cap" && item.passed),
+    );
+
+    const overCap = authorizeAction(
+      action({ kind: "activate_campaign", amountCents: 18001, title: "Paid search" }),
+      "signal",
+      company,
+      { campaignSpendThisMonthCents: 12000 },
+    );
+    assert.equal(overCap.verdict, "deny");
+    assert.match(overCap.reason, /R300 monthly cap/);
+    assert.ok(overCap.trace.some((item) => item.check === "monthly_marketing_cap" && !item.passed));
+
+    const singleActionOverCap = authorizeAction(
+      action({ kind: "activate_campaign", amountCents: 30001, title: "Paid search" }),
+      "signal",
+      company,
+    );
+    assert.equal(singleActionOverCap.verdict, "deny");
   });
 });

@@ -89,7 +89,7 @@ outside its owner's role.
 | FOYER   | `foyer_stale_intake`          | 60m     | Escalates an enquiry nobody answered after four hours                                                                                                                                                        |
 | SIGNAL  | `signal_site_signals`         | 12h     | Reads real recorded page views and says what they mean                                                                                                                                                       |
 | SIGNAL  | `signal_content_brief`        | 24h     | Briefs the next owned-site piece, or names pages with no traffic                                                                                                                                             |
-| SIGNAL  | `signal_draft_campaign`       | 168h    | Drafts one owned-channel campaign per week for nurtured leads not yet in sales. Activation is a founder approval.                                                                                            |
+| SIGNAL  | `signal_draft_campaign`       | 168h    | Drafts one owned-channel campaign per week for nurtured leads not yet in sales. Activation is a founder approval; paid campaigns are hard-capped at R300 per Johannesburg calendar month.                    |
 | SIGNAL  | `signal_prospect`             | 24h     | Flags repeat visits to buying pages as a `Prospect ·` lead. No contact is invented.                                                                                                                          |
 | SIGNAL  | `signal_qualify_leads`        | 3h      | Scores every lead on what the buyer actually wrote                                                                                                                                                           |
 | SIGNAL  | `signal_handoff`              | 2h      | Files a founder-gated sales handoff for genuine buying intent                                                                                                                                                |
@@ -365,5 +365,5 @@ npm run verify:office
 
 This boots the real application modules against a real embedded Postgres, files
 the records the public site would really file, runs the real scheduler, and
-asserts on what the real agents actually did — 231 checks, no mocks, no
+asserts on what the real agents actually did — 243 checks, no mocks, no
 fixtures.

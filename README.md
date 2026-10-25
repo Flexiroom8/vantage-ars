@@ -113,14 +113,17 @@ outcome.
 operational practices. It separates unknowns from answers a visitor can assess,
 and links improvement areas to existing service lines. It is not a technical
 audit, security test or compliance certification; answers are not submitted or
-saved.
+saved unless the visitor explicitly attaches a short summary to a quote request.
+That request offers the published initial remote assessment (up to 60 minutes);
+scope and VAT treatment are confirmed in writing before any work starts.
 
 **`/automation`** is a browser-only workflow planning checklist. It considers
 repeat frequency, process clarity, information quality, known exceptions,
 impact of errors and human approval controls, then distinguishes a bounded
 pilot candidate from workflows that need controls first. The result is
 deterministic, not AI-generated advice. Visitors can copy or download a local
-pilot brief; assessment answers are not submitted or saved.
+pilot brief, or explicitly attach it to a written-scope quote request; it is not
+sent unless the visitor submits the enquiry.
 
 **`/services/ai-automation`** describes five human-led engagements: workflow
 readiness review, agent blueprint, supervised workflow pilot, read-only
@@ -133,7 +136,10 @@ not included by default.
 Marketing at **`/office/marketing`** also shows the last thirty days of real
 site signals: page views by day, top pages, referral sources, countries and the
 latest events. The record holds no IP address, no cookie and no inferred
-identity, and the panel reports only what was recorded.
+identity; anonymous site signals are not a cold-contact list. Paid campaign
+proposals are capped at R300 per Johannesburg calendar month, still require
+founder approval, and cannot launch ads until an advertising account is
+connected.
 
 ## Run locally
 
@@ -149,7 +155,7 @@ npm run verify:office     # boots a real office and proves it runs autonomously
 
 `npm run verify:office` is the one that matters. It starts a real embedded
 Postgres, files the records the public site would really file, runs the real
-scheduler, and asserts on what the real agents did — 231 checks, no mocks and
+scheduler, and asserts on what the real agents did — 243 checks, no mocks and
 no sample data. If autonomy breaks, this fails.
 
 ## Environment
