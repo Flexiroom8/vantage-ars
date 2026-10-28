@@ -107,5 +107,10 @@ retry/idempotency gaps are documented in
 [`reliability-retry-idempotency.md`](./reliability-retry-idempotency.md).
 FIN-01's source-level financial invariant fixes and limitations are documented
 in [`financial-invariants.md`](./financial-invariants.md); production ledger
-reconciliation remains outstanding. The remaining backlog item is OBS-01
-(workflow correlation and actionable errors).
+reconciliation remains outstanding. OPS-01 is implemented in the founder
+command centre: it surfaces business/technical KPIs, the pending approval
+queue, recent failed runs, and dead-letter work. AI-01 is implemented as a
+credential-free test suite in `src/lib/office/ai-evaluation.test.ts`, covering
+representative proposals, prompt injection, action normalization, and role
+boundaries; the normal `npm test` command discovers it. The remaining backlog
+item is OBS-01 (workflow correlation and actionable errors).

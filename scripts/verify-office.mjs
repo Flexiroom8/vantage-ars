@@ -421,9 +421,11 @@ async function main() {
   );
   check("the invoice did not touch treasury", Number(afterInvoice[0].treasury_cents) === 0);
 
-  const issuedInvoice = (await sql`
+  const issuedInvoice = (
+    await sql`
     select id, amount_cents from ledger_entries where kind = 'invoice' limit 1
-  `)[0];
+  `
+  )[0];
   const partialReceipt = await applyProposedAction(
     "ledger",
     {
@@ -440,14 +442,16 @@ async function main() {
   );
   check(
     "a partial receipt cannot mark the invoice paid",
-    partialReceipt.status === "blocked" &&
-      partialReceipt.error?.includes("full invoice amount"),
+    partialReceipt.status === "blocked" && partialReceipt.error?.includes("full invoice amount"),
     JSON.stringify(partialReceipt),
   );
   let invoiceState = await sql`
     select status from ledger_entries where id = ${issuedInvoice.id}
   `;
-  check("a refused partial receipt leaves the invoice issued", invoiceState[0]?.status === "issued");
+  check(
+    "a refused partial receipt leaves the invoice issued",
+    invoiceState[0]?.status === "issued",
+  );
 
   await sql`update company_state set receivable_cents = ${Number(issuedInvoice.amount_cents) - 1}`;
   const underfundedReceipt = await applyProposedAction(
@@ -481,9 +485,7 @@ async function main() {
   );
   await sql`update company_state set receivable_cents = ${Number(issuedInvoice.amount_cents)}`;
 
-  await recordInvoiceReceipt(
-    issuedInvoice.id,
-  );
+  await recordInvoiceReceipt(issuedInvoice.id);
   const afterReceipt = await sql`select treasury_cents, receivable_cents from company_state`;
   check(
     "the receipt moved money into treasury",
